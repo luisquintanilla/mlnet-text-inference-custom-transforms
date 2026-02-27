@@ -1,6 +1,6 @@
 using System.Numerics.Tensors;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Applies pooling and normalization to ONNX model outputs to produce final embeddings.

@@ -2,7 +2,7 @@ using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.OnnxRuntime;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET ITransformer that runs ONNX inference on tokenized text inputs.

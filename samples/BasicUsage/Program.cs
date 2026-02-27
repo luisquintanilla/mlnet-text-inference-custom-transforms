@@ -1,7 +1,7 @@
-﻿using System.Numerics.Tensors;
+using System.Numerics.Tensors;
 using Microsoft.Extensions.AI;
 using Microsoft.ML;
-using MLNet.Embeddings.Onnx;
+using MLNet.TextInference.Onnx;
 
 var modelPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models", "model.onnx");
 var vocabPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models", "vocab.txt");

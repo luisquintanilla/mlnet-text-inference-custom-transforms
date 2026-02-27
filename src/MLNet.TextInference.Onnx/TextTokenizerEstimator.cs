@@ -3,7 +3,7 @@ using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Tokenizers;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Configuration for the text tokenizer transform.

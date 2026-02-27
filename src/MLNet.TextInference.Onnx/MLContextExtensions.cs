@@ -1,7 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.ML;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Extension methods for MLContext to provide a convenient API for ONNX text embeddings.

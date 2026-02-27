@@ -1,4 +1,4 @@
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Configuration for the ONNX text embedding transform.

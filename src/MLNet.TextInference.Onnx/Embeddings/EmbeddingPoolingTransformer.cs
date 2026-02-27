@@ -2,7 +2,7 @@ using System.Numerics.Tensors;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET ITransformer that pools raw model output into fixed-length embeddings.

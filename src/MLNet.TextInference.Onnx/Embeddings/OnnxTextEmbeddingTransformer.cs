@@ -1,7 +1,7 @@
 using Microsoft.ML;
 using Microsoft.ML.Data;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET ITransformer that generates text embeddings using a local ONNX model.

@@ -2,7 +2,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Configuration for the provider-agnostic embedding generator transform.
