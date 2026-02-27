@@ -12,6 +12,8 @@
     <Project Path="samples/Classification/ZeroShotDeBERTa/ZeroShotDeBERTa.csproj" />
     <Project Path="samples/TextGenerationMeai/TextGenerationMeai.csproj" />
     <Project Path="samples/TextGenerationLocal/TextGenerationLocal.csproj" />
+    <Project Path="samples/Reranking/MsMarcoMiniLM/MsMarcoMiniLM.csproj" />
+    <Project Path="samples/Reranking/BgeReranker/BgeReranker.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj" />

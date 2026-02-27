@@ -35,6 +35,13 @@ public class TextTokenizerOptions
     /// <summary>Name of the input text column. Default: "Text".</summary>
     public string InputColumnName { get; set; } = "Text";
 
+    /// <summary>
+    /// Optional second text input column for text-pair models (cross-encoders, QA).
+    /// When set, tokens from InputColumnName get token_type_ids=0 and tokens from
+    /// SecondInputColumnName get token_type_ids=1, separated by [SEP].
+    /// </summary>
+    public string? SecondInputColumnName { get; set; }
+
     /// <summary>Name of the output token IDs column. Default: "TokenIds".</summary>
     public string TokenIdsColumnName { get; set; } = "TokenIds";
 
@@ -93,6 +100,14 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
         if (col == null)
             throw new ArgumentException(
                 $"Input schema does not contain column '{_options.InputColumnName}'.");
+
+        if (_options.SecondInputColumnName != null)
+        {
+            var col2 = input.Schema.GetColumnOrNull(_options.SecondInputColumnName);
+            if (col2 == null)
+                throw new ArgumentException(
+                    $"Input schema does not contain column '{_options.SecondInputColumnName}'.");
+        }
 
         var tokenizer = _options.Tokenizer ?? LoadTokenizer(_options.TokenizerPath!);
         return new TextTokenizerTransformer(_mlContext, _options, tokenizer);
