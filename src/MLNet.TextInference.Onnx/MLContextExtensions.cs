@@ -60,6 +60,25 @@ public static class MLContextExtensions
         return new EmbeddingPoolingEstimator(catalog.GetMLContext(), options);
     }
 
+    /// <summary>
+    /// Creates a softmax classification post-processing transform.
+    /// </summary>
+    public static SoftmaxClassificationEstimator SoftmaxClassify(
+        this TransformsCatalog catalog, SoftmaxClassificationOptions options)
+    {
+        return new SoftmaxClassificationEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>
+    /// Creates a full text classification pipeline using a local ONNX model.
+    /// Encapsulates tokenization, ONNX inference, and softmax classification.
+    /// </summary>
+    public static OnnxTextClassificationEstimator OnnxTextClassification(
+        this TransformsCatalog catalog, OnnxTextClassificationOptions options)
+    {
+        return new OnnxTextClassificationEstimator(catalog.GetMLContext(), options);
+    }
+
     // Gets the real MLContext from TransformsCatalog via reflection so that
     // context-level settings (e.g. GpuDeviceId) are preserved.
     private static MLContext GetMLContext(this TransformsCatalog catalog)

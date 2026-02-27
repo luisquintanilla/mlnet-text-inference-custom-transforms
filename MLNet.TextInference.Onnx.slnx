@@ -7,6 +7,9 @@
     <Project Path="samples/ComposablePoolingComparison/ComposablePoolingComparison.csproj" />
     <Project Path="samples/IntermediateInspection/IntermediateInspection.csproj" />
     <Project Path="samples/MeaiProviderAgnostic/MeaiProviderAgnostic.csproj" />
+    <Project Path="samples/Classification/SentimentDistilBERT/SentimentDistilBERT.csproj" />
+    <Project Path="samples/Classification/EmotionRoBERTa/EmotionRoBERTa.csproj" />
+    <Project Path="samples/Classification/ZeroShotDeBERTa/ZeroShotDeBERTa.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj" />
