@@ -79,6 +79,17 @@ public static class MLContextExtensions
         return new OnnxTextClassificationEstimator(catalog.GetMLContext(), options);
     }
 
+    /// <summary>
+    /// Creates a provider-agnostic text generation transform that wraps any IChatClient.
+    /// </summary>
+    public static ChatClientEstimator TextGeneration(
+        this TransformsCatalog catalog,
+        IChatClient chatClient,
+        TextGenerationOptions? options = null)
+    {
+        return new ChatClientEstimator(catalog.GetMLContext(), chatClient, options);
+    }
+
     // Gets the real MLContext from TransformsCatalog via reflection so that
     // context-level settings (e.g. GpuDeviceId) are preserved.
     private static MLContext GetMLContext(this TransformsCatalog catalog)
