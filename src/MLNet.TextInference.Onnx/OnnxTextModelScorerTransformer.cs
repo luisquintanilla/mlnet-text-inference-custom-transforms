@@ -119,7 +119,7 @@ public sealed class OnnxTextModelScorerTransformer : ITransformer, IDisposable
 
             var batchOutputs = new float[batchSize][];
 
-            if (_metadata.HasPooledOutput)
+            if (_metadata.OutputRank == 2)
             {
                 for (int b = 0; b < batchSize; b++)
                     batchOutputs[b] = outputSpan.Slice(b * _metadata.HiddenDim, _metadata.HiddenDim).ToArray();
@@ -140,17 +140,129 @@ public sealed class OnnxTextModelScorerTransformer : ITransformer, IDisposable
         }
     }
 
+    /// <summary>
+    /// Runs a single ONNX inference batch returning all configured outputs.
+    /// Returns [numOutputs][batchSize][outputDim].
+    /// </summary>
+    internal float[][][] RunOnnxBatchMulti(
+        long[][] tokenIds, long[][] attentionMasks, long[][]? tokenTypeIds,
+        int startIdx, int batchSize, int seqLen)
+    {
+        var idsArray = new long[batchSize * seqLen];
+        var maskArray = new long[batchSize * seqLen];
+        var typeIdsArray = _metadata.TokenTypeIdsName != null ? new long[batchSize * seqLen] : null;
+
+        for (int b = 0; b < batchSize; b++)
+        {
+            Array.Copy(tokenIds[startIdx + b], 0, idsArray, b * seqLen, seqLen);
+            Array.Copy(attentionMasks[startIdx + b], 0, maskArray, b * seqLen, seqLen);
+            if (typeIdsArray != null && tokenTypeIds != null)
+                Array.Copy(tokenTypeIds[startIdx + b], 0, typeIdsArray, b * seqLen, seqLen);
+        }
+
+        var inputs = new Dictionary<string, OrtValue>
+        {
+            [_metadata.InputIdsName] = OrtValue.CreateTensorValueFromMemory(idsArray, [batchSize, seqLen]),
+            [_metadata.AttentionMaskName] = OrtValue.CreateTensorValueFromMemory(maskArray, [batchSize, seqLen])
+        };
+
+        if (_metadata.TokenTypeIdsName != null && typeIdsArray != null)
+            inputs[_metadata.TokenTypeIdsName] = OrtValue.CreateTensorValueFromMemory(typeIdsArray, [batchSize, seqLen]);
+
+        var outputNames = new List<string> { _metadata.OutputTensorName };
+        if (_metadata.AdditionalOutputNames != null)
+            outputNames.AddRange(_metadata.AdditionalOutputNames);
+
+        try
+        {
+            using var results = _session.Run(new RunOptions(), inputs, outputNames);
+
+            int numOutputs = outputNames.Count;
+            var allOutputs = new float[numOutputs][][];
+
+            for (int outIdx = 0; outIdx < numOutputs; outIdx++)
+            {
+                var output = results[outIdx];
+                var outputSpan = output.GetTensorDataAsSpan<float>();
+                int perRowSize = outputSpan.Length / batchSize;
+
+                var batchOutputs = new float[batchSize][];
+                for (int b = 0; b < batchSize; b++)
+                    batchOutputs[b] = outputSpan.Slice(b * perRowSize, perRowSize).ToArray();
+
+                allOutputs[outIdx] = batchOutputs;
+            }
+
+            return allOutputs;
+        }
+        finally
+        {
+            foreach (var ortValue in inputs.Values)
+                ortValue.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Runs ONNX inference in batches, returning all configured outputs.
+    /// Returns [numOutputs][totalRows][outputDim].
+    /// </summary>
+    internal float[][][] ScoreMulti(long[][] tokenIds, long[][] attentionMasks, long[][]? tokenTypeIds)
+    {
+        int totalRows = tokenIds.Length;
+        int batchSize = _options.BatchSize;
+        int seqLen = _options.MaxTokenLength;
+        int numOutputs = 1 + (_metadata.AdditionalOutputNames?.Length ?? 0);
+
+        var allOutputs = new List<float[]>[numOutputs];
+        for (int o = 0; o < numOutputs; o++)
+            allOutputs[o] = new List<float[]>(totalRows);
+
+        for (int start = 0; start < totalRows; start += batchSize)
+        {
+            int count = Math.Min(batchSize, totalRows - start);
+            var batchOutputs = RunOnnxBatchMulti(
+                tokenIds, attentionMasks, tokenTypeIds,
+                start, count, seqLen);
+
+            for (int o = 0; o < numOutputs; o++)
+                allOutputs[o].AddRange(batchOutputs[o]);
+        }
+
+        var result = new float[numOutputs][][];
+        for (int o = 0; o < numOutputs; o++)
+            result[o] = [.. allOutputs[o]];
+
+        return result;
+    }
+
+    /// <summary>
+    /// Runs multi-output ONNX inference on a pre-tokenized batch.
+    /// </summary>
+    internal float[][][] ScoreMulti(TokenizedBatch batch)
+    {
+        return ScoreMulti(batch.TokenIds, batch.AttentionMasks, batch.TokenTypeIds);
+    }
+
     public DataViewSchema GetOutputSchema(DataViewSchema inputSchema)
     {
         var builder = new DataViewSchema.Builder();
         builder.AddColumns(inputSchema);
 
-        int outputSize = _metadata.HasPooledOutput
+        int outputSize = _metadata.OutputRank == 2
             ? _metadata.HiddenDim
             : _options.MaxTokenLength * _metadata.HiddenDim;
 
         builder.AddColumn(_options.OutputColumnName,
             new VectorDataViewType(NumberDataViewType.Single, outputSize));
+
+        if (_options.AdditionalOutputColumnNames != null && _metadata.AdditionalOutputDims != null)
+        {
+            for (int i = 0; i < _options.AdditionalOutputColumnNames.Length; i++)
+            {
+                builder.AddColumn(_options.AdditionalOutputColumnNames[i],
+                    new VectorDataViewType(NumberDataViewType.Single, _metadata.AdditionalOutputDims[i]));
+            }
+        }
 
         return builder.ToSchema();
     }
@@ -185,12 +297,21 @@ internal sealed class ScorerDataView : IDataView
         var builder = new DataViewSchema.Builder();
         builder.AddColumns(input.Schema);
 
-        int outputSize = scorer.HasPooledOutput
+        int outputSize = scorer.Metadata.OutputRank == 2
             ? scorer.HiddenDim
             : scorer.Options.MaxTokenLength * scorer.HiddenDim;
 
         builder.AddColumn(scorer.Options.OutputColumnName,
             new VectorDataViewType(NumberDataViewType.Single, outputSize));
+
+        if (scorer.Options.AdditionalOutputColumnNames != null && scorer.Metadata.AdditionalOutputDims != null)
+        {
+            for (int i = 0; i < scorer.Options.AdditionalOutputColumnNames.Length; i++)
+            {
+                builder.AddColumn(scorer.Options.AdditionalOutputColumnNames[i],
+                    new VectorDataViewType(NumberDataViewType.Single, scorer.Metadata.AdditionalOutputDims[i]));
+            }
+        }
 
         Schema = builder.ToSchema();
     }
@@ -241,6 +362,7 @@ internal sealed class ScorerCursor : DataViewRowCursor
 
     // Lookahead batch state
     private float[][]? _batchResults;
+    private float[][][]? _batchAdditionalResults;
     private int _batchIndex = -1;
     private int _batchCount = 0;
     private long _position = -1;
@@ -334,13 +456,32 @@ internal sealed class ScorerCursor : DataViewRowCursor
         if (tokenIdsBatch.Count == 0)
             return false;
 
-        _batchResults = _scorer.RunOnnxBatch(
-            tokenIdsBatch.ToArray(),
-            attMaskBatch.ToArray(),
-            typeIdsBatch.Count > 0 ? typeIdsBatch.ToArray() : null,
-            startIdx: 0,
-            batchSize: tokenIdsBatch.Count,
-            seqLen: seqLen);
+        if (_scorer.Options.AdditionalOutputTensorNames != null)
+        {
+            var multiResults = _scorer.RunOnnxBatchMulti(
+                tokenIdsBatch.ToArray(),
+                attMaskBatch.ToArray(),
+                typeIdsBatch.Count > 0 ? typeIdsBatch.ToArray() : null,
+                startIdx: 0,
+                batchSize: tokenIdsBatch.Count,
+                seqLen: seqLen);
+
+            _batchResults = multiResults[0];
+            _batchAdditionalResults = new float[multiResults.Length - 1][][];
+            for (int i = 1; i < multiResults.Length; i++)
+                _batchAdditionalResults[i - 1] = multiResults[i];
+        }
+        else
+        {
+            _batchResults = _scorer.RunOnnxBatch(
+                tokenIdsBatch.ToArray(),
+                attMaskBatch.ToArray(),
+                typeIdsBatch.Count > 0 ? typeIdsBatch.ToArray() : null,
+                startIdx: 0,
+                batchSize: tokenIdsBatch.Count,
+                seqLen: seqLen);
+            _batchAdditionalResults = null;
+        }
 
         _batchIndex = 0;
         _batchCount = tokenIdsBatch.Count;
@@ -405,6 +546,23 @@ internal sealed class ScorerCursor : DataViewRowCursor
                 value = editor.Commit();
             };
             return (ValueGetter<TValue>)(object)getter;
+        }
+
+        // For additional output columns
+        if (_scorer.Options.AdditionalOutputColumnNames != null)
+        {
+            int additionalIdx = Array.IndexOf(_scorer.Options.AdditionalOutputColumnNames, column.Name);
+            if (additionalIdx >= 0)
+            {
+                ValueGetter<VBuffer<float>> getter = (ref VBuffer<float> value) =>
+                {
+                    var data = _batchAdditionalResults![additionalIdx][_batchIndex];
+                    var editor = VBufferEditor.Create(ref value, data.Length);
+                    data.AsSpan().CopyTo(editor.Values);
+                    value = editor.Commit();
+                };
+                return (ValueGetter<TValue>)(object)getter;
+            }
         }
 
         // For passthrough columns, return cached upstream values

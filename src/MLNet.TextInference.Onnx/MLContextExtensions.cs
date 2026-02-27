@@ -129,6 +129,24 @@ public static class MLContextExtensions
         return new OnnxNerEstimator(catalog.GetMLContext(), options);
     }
 
+    /// <summary>
+    /// Creates a QA span extraction transform that finds answer spans from start/end logits.
+    /// </summary>
+    public static QaSpanExtractionEstimator QaExtract(
+        this TransformsCatalog catalog, QaSpanExtractionOptions options)
+    {
+        return new QaSpanExtractionEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>
+    /// Creates an end-to-end ONNX extractive QA transform (text-pair tokenizer → multi-output scorer → QA extractor).
+    /// </summary>
+    public static OnnxQaEstimator OnnxQa(
+        this TransformsCatalog catalog, OnnxQaOptions options)
+    {
+        return new OnnxQaEstimator(catalog.GetMLContext(), options);
+    }
+
     // Gets the real MLContext from TransformsCatalog via reflection so that
     // context-level settings (e.g. GpuDeviceId) are preserved.
     private static MLContext GetMLContext(this TransformsCatalog catalog)
