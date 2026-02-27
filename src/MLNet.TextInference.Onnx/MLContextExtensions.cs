@@ -90,6 +90,27 @@ public static class MLContextExtensions
         return new ChatClientEstimator(catalog.GetMLContext(), chatClient, options);
     }
 
+    /// <summary>
+    /// Creates a sigmoid scorer transform for converting raw logits to probabilities.
+    /// </summary>
+    public static SigmoidScorerEstimator SigmoidScore(
+        this TransformsCatalog catalog,
+        SigmoidScorerOptions options)
+    {
+        return new SigmoidScorerEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>
+    /// Creates a cross-encoder reranker transform using a local ONNX model.
+    /// Encapsulates text-pair tokenization → ONNX inference → sigmoid scoring.
+    /// </summary>
+    public static OnnxRerankerEstimator OnnxRerank(
+        this TransformsCatalog catalog,
+        OnnxRerankerOptions options)
+    {
+        return new OnnxRerankerEstimator(catalog.GetMLContext(), options);
+    }
+
     // Gets the real MLContext from TransformsCatalog via reflection so that
     // context-level settings (e.g. GpuDeviceId) are preserved.
     private static MLContext GetMLContext(this TransformsCatalog catalog)

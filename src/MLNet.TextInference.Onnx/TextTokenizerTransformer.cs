@@ -96,6 +96,54 @@ public sealed class TextTokenizerTransformer : ITransformer
         return new TokenizedBatch(allTokenIds, allAttentionMasks, allTokenTypeIds, seqLen);
     }
 
+    /// <summary>
+    /// Direct face: tokenize text pairs for cross-encoder models.
+    /// Produces [CLS] A [SEP] B [SEP] with proper token_type_ids.
+    /// </summary>
+    internal TokenizedBatch Tokenize(IReadOnlyList<string> textsA, IReadOnlyList<string> textsB)
+    {
+        if (textsA.Count != textsB.Count)
+            throw new ArgumentException("textsA and textsB must have the same length.");
+
+        int seqLen = _options.MaxTokenLength;
+        var allTokenIds = new long[textsA.Count][];
+        var allAttentionMasks = new long[textsA.Count][];
+        var allTokenTypeIds = new long[textsA.Count][];
+
+        for (int i = 0; i < textsA.Count; i++)
+        {
+            var tokenIds = new long[seqLen];
+            var attentionMask = new long[seqLen];
+            var tokenTypeIds = new long[seqLen];
+
+            // EncodeToIds returns [CLS, ...A..., SEP] and [CLS, ...B..., SEP]
+            var tokensA = _tokenizer.EncodeToIds(textsA[i], seqLen, out _, out _);
+            var tokensB = _tokenizer.EncodeToIds(textsB[i], seqLen, out _, out _);
+
+            // Combine: [CLS, ...A..., SEP, ...B (skip CLS)..., SEP]
+            var combined = new List<int>(tokensA);
+            combined.AddRange(tokensB.Skip(1)); // skip B's CLS
+
+            if (combined.Count > seqLen)
+                combined.RemoveRange(seqLen, combined.Count - seqLen);
+
+            // token_type_ids: 0 for A segment (up to and including first SEP), 1 for B segment
+            int firstSepIdx = tokensA.Count - 1;
+            for (int s = 0; s < combined.Count && s < seqLen; s++)
+            {
+                tokenIds[s] = combined[s];
+                attentionMask[s] = 1;
+                tokenTypeIds[s] = s <= firstSepIdx ? 0 : 1;
+            }
+
+            allTokenIds[i] = tokenIds;
+            allAttentionMasks[i] = attentionMask;
+            allTokenTypeIds[i] = tokenTypeIds;
+        }
+
+        return new TokenizedBatch(allTokenIds, allAttentionMasks, allTokenTypeIds, seqLen);
+    }
+
     public DataViewSchema GetOutputSchema(DataViewSchema inputSchema)
     {
         var builder = new DataViewSchema.Builder();
@@ -161,11 +209,17 @@ internal sealed class TokenizerDataView : IDataView
             .Where(c => _input.Schema.GetColumnOrNull(c.Name) != null)
             .Select(c => _input.Schema[c.Name]);
 
-        // Always need the text column for tokenization
+        // Always need the text column(s) for tokenization
         var textCol = _input.Schema[_options.InputColumnName];
-        var allUpstream = upstreamColumns.Append(textCol).Distinct();
+        var allUpstream = upstreamColumns.Append(textCol);
 
-        var inputCursor = _input.GetRowCursor(allUpstream, rand);
+        if (_options.SecondInputColumnName != null)
+        {
+            var textCol2 = _input.Schema[_options.SecondInputColumnName];
+            allUpstream = allUpstream.Append(textCol2);
+        }
+
+        var inputCursor = _input.GetRowCursor(allUpstream.Distinct(), rand);
         return new TokenizerCursor(this, inputCursor, _tokenizer, _options);
     }
 
@@ -223,11 +277,43 @@ internal sealed class TokenizerCursor : DataViewRowCursor
         _currentAttentionMask = new long[seqLen];
         _currentTokenTypeIds = _options.OutputTokenTypeIds ? new long[seqLen] : null;
 
-        var tokens = _tokenizer.EncodeToIds(text, seqLen, out _, out _);
-        for (int s = 0; s < tokens.Count && s < seqLen; s++)
+        if (_options.SecondInputColumnName != null)
         {
-            _currentTokenIds[s] = tokens[s];
-            _currentAttentionMask[s] = 1;
+            // Text-pair tokenization: [CLS] A [SEP] B [SEP]
+            var textCol2 = _inputCursor.Schema[_options.SecondInputColumnName];
+            var getter2 = _inputCursor.GetGetter<ReadOnlyMemory<char>>(textCol2);
+            ReadOnlyMemory<char> textValue2 = default;
+            getter2(ref textValue2);
+            string text2 = textValue2.ToString();
+
+            var tokensA = _tokenizer.EncodeToIds(text, seqLen, out _, out _);
+            var tokensB = _tokenizer.EncodeToIds(text2, seqLen, out _, out _);
+
+            // Combine: [CLS, ...A..., SEP, ...B (skip CLS)..., SEP]
+            var combined = new List<int>(tokensA);
+            combined.AddRange(tokensB.Skip(1));
+
+            if (combined.Count > seqLen)
+                combined.RemoveRange(seqLen, combined.Count - seqLen);
+
+            _currentTokenTypeIds ??= new long[seqLen];
+            int firstSepIdx = tokensA.Count - 1;
+            for (int s = 0; s < combined.Count && s < seqLen; s++)
+            {
+                _currentTokenIds[s] = combined[s];
+                _currentAttentionMask[s] = 1;
+                _currentTokenTypeIds[s] = s <= firstSepIdx ? 0 : 1;
+            }
+        }
+        else
+        {
+            // Single-text tokenization (existing path)
+            var tokens = _tokenizer.EncodeToIds(text, seqLen, out _, out _);
+            for (int s = 0; s < tokens.Count && s < seqLen; s++)
+            {
+                _currentTokenIds[s] = tokens[s];
+                _currentAttentionMask[s] = 1;
+            }
         }
 
         return true;
