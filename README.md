@@ -283,6 +283,7 @@ When `FallbackToCpu = true`, if CUDA initialization fails the estimator silently
 
 For detailed documentation on the design, architecture, and implementation:
 
+- **[Architecture Decision Record](docs/architecture-decision-record.md)** — Why this repo exists and the platform architecture
 - **[Design Decisions](docs/design-decisions.md)** — Why every choice was made
 - **[Architecture](docs/architecture.md)** — Component walkthrough and pipeline stages
 - **[Tensor Deep Dive](docs/tensor-deep-dive.md)** — System.Numerics.Tensors for AI workloads
