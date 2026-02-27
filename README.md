@@ -5,15 +5,17 @@
 A **multi-task text inference platform** for ML.NET that runs local HuggingFace ONNX encoder models. Provides a shared foundation of tokenization + ONNX scoring, with task-specific post-processing transforms for embeddings, classification, NER, reranking, question answering, and more.
 
 ```
-                    TextTokenizerTransformer
-                            │
-                            ▼
-                 OnnxTextModelScorerTransformer       (task-agnostic)
-                            │
-            ┌───────────────┼────────────────┐
-            │               │                │
-     EmbeddingPooling  SoftmaxClassify  (more tasks)
-     Transformer       Transformer      coming soon
+                      TextTokenizerTransformer
+                               │
+                               ▼
+                    OnnxTextModelScorerTransformer          (task-agnostic)
+                               │
+        ┌──────────┬───────────┼───────────┬──────────┐
+        │          │           │           │          │
+  EmbeddingPool SoftmaxClass SigmoidScor NerDecoding QaSpanExtract
+  Transformer   Transformer  Transformer Transformer Transformer
+
+  ChatClientTransformer (text generation — provider-agnostic, separate pipeline)
 ```
 
 ## Task Status
@@ -21,11 +23,12 @@ A **multi-task text inference platform** for ML.NET that runs local HuggingFace 
 | Task | Status | Post-processor | Facade |
 |------|--------|---------------|--------|
 | Embeddings | ✅ Implemented | `EmbeddingPoolingTransformer` | `OnnxTextEmbeddingEstimator` |
-| Classification | 🔲 Planned | `SoftmaxClassificationTransformer` | `OnnxTextClassificationEstimator` |
-| Reranking | 🔲 Planned | `SigmoidScorerTransformer` | `OnnxRerankerEstimator` |
-| NER | 🔲 Planned | `NerDecodingTransformer` | `OnnxNerEstimator` |
-| QA | 🔲 Planned | `QaSpanExtractionTransformer` | `OnnxQaEstimator` |
-| Text Generation | 🔲 Planned | `ChatClientTransformer` | N/A |
+| Classification | ✅ Implemented | `SoftmaxClassificationTransformer` | `OnnxTextClassificationEstimator` |
+| Reranking | ✅ Implemented | `SigmoidScorerTransformer` | `OnnxRerankerEstimator` |
+| NER | ✅ Implemented | `NerDecodingTransformer` | `OnnxNerEstimator` |
+| QA | ✅ Implemented | `QaSpanExtractionTransformer` | `OnnxQaEstimator` |
+| Text Generation | ✅ Implemented | `ChatClientTransformer` | N/A (provider-agnostic) |
+| Text Generation (local) | ✅ Implemented | `OnnxTextGenerationTransformer` | `OnnxTextGenerationEstimator` |
 
 ## Why This Exists
 
@@ -38,8 +41,11 @@ This project implements custom transforms using direct `IEstimator<T>` / `ITrans
 ## Features
 
 - **Composable modular pipeline** — task-agnostic transforms (`TokenizeText → ScoreOnnxTextModel`) plus task-specific post-processing that can be inspected, swapped, and reused
-- **Convenience facades** — `OnnxTextEmbeddingEstimator` wraps all transforms for embeddings in a single call; more task facades planned
-- **Provider-agnostic MEAI integration** — `EmbeddingGeneratorEstimator` wraps any `IEmbeddingGenerator<string, Embedding<float>>` as an ML.NET transform
+- **Convenience facades** — `OnnxTextEmbeddingEstimator`, `OnnxTextClassificationEstimator`, `OnnxRerankerEstimator`, `OnnxNerEstimator`, `OnnxQaEstimator` each wrap all transforms for their task in a single call
+- **Provider-agnostic MEAI integration** — `EmbeddingGeneratorEstimator` wraps any `IEmbeddingGenerator<string, Embedding<float>>` as an ML.NET transform; `ChatClientEstimator` wraps any `IChatClient` for text generation
+- **Text-pair tokenization** — cross-encoder reranking uses `[CLS] A [SEP] B [SEP]` with token type IDs for query-document pairs
+- **Token offset tracking** — NER tokenization preserves character offsets via `EncodeToTokens()` for mapping entities back to source text
+- **Multi-output ONNX scoring** — QA models produce separate start/end logit tensors via `AdditionalOutputTensorNames`
 - **Smart tokenizer resolution** — point to a directory; auto-detects from `tokenizer_config.json` or known vocab files (BPE, SentencePiece, WordPiece)
 - **ONNX auto-discovery** — automatically detects input/output tensor names, shapes, and dimensions from model metadata
 - **Self-contained save/load** — serializes to a portable `.mlnet` zip file containing the ONNX model, tokenizer, and config
@@ -49,7 +55,7 @@ This project implements custom transforms using direct `IEstimator<T>` / `ITrans
 
 ## Quick Start (Embeddings)
 
-> **Note:** Embeddings are the first implemented task. More tasks (classification, NER, reranking, QA) are coming soon — each will follow the same pattern of shared tokenization + scoring with a task-specific post-processing transform.
+> **Note:** Embeddings are the simplest task. See sections below for classification, reranking, NER, QA, and text generation quick starts, or browse the [samples/](samples/) directory.
 
 ### 1. Get the model files
 
@@ -166,41 +172,100 @@ The shared foundation supports any encoder transformer ONNX model. Compatible mo
 | [all-MiniLM-L12-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2) | 384 | ~120 MB | — | |
 | [all-mpnet-base-v2](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) | 768 | ~420 MB | — | |
 
+### Compatible Classification Models
+
+Any encoder model fine-tuned for sequence classification (outputs logits over label classes):
+- **Sentiment**: DistilBERT-SST2, BERT-SST2
+- **Emotion**: RoBERTa-emotion, GoEmotions
+- **NLI/Zero-shot**: DeBERTa-v3-NLI, BART-large-MNLI
+
+### Compatible Reranking Models
+
+Cross-encoder models that take text pairs and output a relevance score:
+- **MS MARCO**: cross-encoder/ms-marco-MiniLM-L-6-v2
+- **BGE**: BAAI/bge-reranker-base, bge-reranker-v2-m3
+
+### Compatible NER Models
+
+Token classification models with BIO tagging:
+- **BERT-NER**: dslim/bert-base-NER
+- **Multilingual**: Davlan/xlm-roberta-base-ner-hrl
+
+### Compatible QA Models
+
+Extractive QA models outputting start/end logits:
+- **RoBERTa**: deepset/roberta-base-squad2
+- **MiniLM**: deepset/minilm-uncased-squad2
+
 Models with `sentence_embedding` output (pre-pooled) are auto-detected and pooling is skipped.
 
 ## Project Structure
 
 ```
 mlnet-text-inference-custom-transforms/
-├── src/MLNet.TextInference.Onnx/
-│   ├── TextTokenizerEstimator.cs         — Transform 1: tokenization (BPE/WordPiece/SentencePiece)
-│   ├── OnnxTextModelScorerEstimator.cs   — Transform 2: ONNX inference with lookahead batching
-│   ├── Embeddings/
-│   │   ├── EmbeddingPoolingEstimator.cs  — Transform 3: pooling + L2 normalization
-│   │   ├── OnnxTextEmbeddingEstimator.cs — Convenience facade (chains all three)
-│   │   ├── EmbeddingGeneratorEstimator.cs— Provider-agnostic MEAI wrapper
-│   │   ├── OnnxEmbeddingGenerator.cs     — MEAI IEmbeddingGenerator for ONNX models
-│   │   ├── EmbeddingPooling.cs           — SIMD-accelerated pooling via TensorPrimitives
-│   │   ├── ModelPackager.cs              — Save/load to self-contained zip
-│   │   └── PoolingStrategy.cs            — Mean / CLS / Max pooling enum
-│   └── MLContextExtensions.cs            — Extension methods for fluent API
+├── src/
+│   ├── MLNet.TextInference.Onnx/
+│   │   ├── TextTokenizerEstimator.cs         — Transform 1: tokenization (BPE/WordPiece/SentencePiece)
+│   │   ├── OnnxTextModelScorerEstimator.cs   — Transform 2: ONNX inference with lookahead batching
+│   │   ├── ChatClientEstimator.cs            — Provider-agnostic text generation (IChatClient)
+│   │   ├── MLContextExtensions.cs            — Extension methods for fluent API
+│   │   ├── Embeddings/
+│   │   │   ├── EmbeddingPoolingEstimator.cs  — Pooling + L2 normalization
+│   │   │   ├── OnnxTextEmbeddingEstimator.cs — Convenience facade
+│   │   │   ├── EmbeddingGeneratorEstimator.cs— MEAI IEmbeddingGenerator wrapper
+│   │   │   └── ...                           — OnnxEmbeddingGenerator, ModelPackager, PoolingStrategy
+│   │   ├── Classification/
+│   │   │   ├── SoftmaxClassificationEstimator.cs — Softmax post-processing
+│   │   │   ├── OnnxTextClassificationEstimator.cs— Full pipeline facade
+│   │   │   └── ...                              — Options, Transformer, ClassificationResult
+│   │   ├── Reranking/
+│   │   │   ├── SigmoidScorerEstimator.cs     — Sigmoid scoring transform
+│   │   │   ├── OnnxRerankerEstimator.cs      — Cross-encoder facade
+│   │   │   └── ...                           — Options, Transformer
+│   │   ├── NER/
+│   │   │   ├── NerDecodingEstimator.cs       — BIO tag decoding to entity spans
+│   │   │   ├── OnnxNerEstimator.cs           — End-to-end NER facade
+│   │   │   └── ...                           — Options, Transformer, NerEntity
+│   │   └── QA/
+│   │       ├── QaSpanExtractionEstimator.cs  — Span extraction from start/end logits
+│   │       ├── OnnxQaEstimator.cs            — End-to-end QA facade
+│   │       └── ...                           — Options, Transformer, QaResult
+│   └── MLNet.TextGeneration.OnnxGenAI/
+│       ├── OnnxTextGenerationEstimator.cs    — ORT GenAI local text generation
+│       ├── MLContextExtensions.cs            — OnnxTextGeneration() extension method
+│       └── ...                               — Options, Transformer
 ├── samples/
-│   ├── BasicUsage/                       — all-MiniLM-L6-v2: all API surfaces
-│   ├── BgeSmallEmbedding/                — BGE-small: query prefix pattern
-│   ├── E5SmallEmbedding/                 — E5-small: query/passage prefixes
-│   ├── GteSmallEmbedding/                — GTE-small: semantic search (no prefix)
-│   ├── ComposablePoolingComparison/      — 3 pooling strategies, shared inference
-│   ├── IntermediateInspection/           — Inspect tokens, masks, raw output
-│   └── MeaiProviderAgnostic/             — Provider-agnostic MEAI transform
-├── docs/                                 — Detailed documentation
-│   ├── architecture-decision-record.md   — ADR for multi-task platform decisions
-│   ├── architecture.md                   — Component walkthrough + pipeline stages
-│   ├── design-decisions.md               — Why every choice was made
-│   ├── extending.md                      — How to modify, extend, and add new tasks
-│   ├── tensor-deep-dive.md               — System.Numerics.Tensors for AI workloads
-│   └── references.md                     — All sources and further reading
-├── proposals/                            — Design proposals for the modular architecture
-└── nuget.config                          — NuGet source (nuget.org only)
+│   ├── BasicUsage/                           — all-MiniLM-L6-v2: all embedding API surfaces
+│   ├── BgeSmallEmbedding/                    — BGE-small: query prefix pattern
+│   ├── E5SmallEmbedding/                     — E5-small: query/passage prefixes
+│   ├── GteSmallEmbedding/                    — GTE-small: semantic search (no prefix)
+│   ├── ComposablePoolingComparison/          — 3 pooling strategies, shared inference
+│   ├── IntermediateInspection/               — Inspect tokens, masks, raw output
+│   ├── MeaiProviderAgnostic/                 — Provider-agnostic MEAI transform
+│   ├── Classification/
+│   │   ├── SentimentDistilBERT/              — Sentiment analysis with DistilBERT
+│   │   ├── EmotionRoBERTa/                   — Multi-class emotion classification
+│   │   └── ZeroShotDeBERTa/                  — Zero-shot NLI classification with DeBERTa
+│   ├── Reranking/
+│   │   ├── MsMarcoMiniLM/                    — MS MARCO cross-encoder reranking
+│   │   └── BgeReranker/                      — BGE reranker for retrieval
+│   ├── NER/
+│   │   ├── BertBaseNER/                      — Named entity recognition with BERT-base
+│   │   └── MultilingualNER/                  — Multilingual NER with XLM-RoBERTa
+│   ├── QA/
+│   │   ├── RobertaSquad2/                    — Extractive QA with RoBERTa on SQuAD 2.0
+│   │   └── MiniLMSquad2/                     — Extractive QA with MiniLM on SQuAD 2.0
+│   ├── TextGenerationMeai/                   — Provider-agnostic text generation (IChatClient)
+│   └── TextGenerationLocal/                  — Local ORT GenAI text generation
+├── docs/                                     — Detailed documentation
+│   ├── architecture-decision-record.md       — ADR for multi-task platform decisions
+│   ├── architecture.md                       — Component walkthrough + pipeline stages
+│   ├── design-decisions.md                   — Why every choice was made
+│   ├── extending.md                          — How to modify, extend, and add new tasks
+│   ├── tensor-deep-dive.md                   — System.Numerics.Tensors for AI workloads
+│   └── references.md                         — All sources and further reading
+├── proposals/                                — Design proposals for the modular architecture
+└── nuget.config                              — NuGet source (nuget.org only)
 ```
 
 ## Samples
@@ -214,18 +279,77 @@ mlnet-text-inference-custom-transforms/
 | [ComposablePoolingComparison](samples/ComposablePoolingComparison/) | all-MiniLM-L6-v2 | **3 pooling strategies**, shared tokenizer+scorer (key modularization demo) |
 | [IntermediateInspection](samples/IntermediateInspection/) | all-MiniLM-L6-v2 | Inspect token IDs, attention masks, raw output at each pipeline stage |
 | [MeaiProviderAgnostic](samples/MeaiProviderAgnostic/) | all-MiniLM-L6-v2 | `EmbeddingGeneratorEstimator` wrapping `IEmbeddingGenerator` |
+| [SentimentDistilBERT](samples/Classification/SentimentDistilBERT/) | DistilBERT-SST2 | Sentiment classification with softmax post-processing |
+| [EmotionRoBERTa](samples/Classification/EmotionRoBERTa/) | RoBERTa-emotion | Multi-class emotion classification |
+| [ZeroShotDeBERTa](samples/Classification/ZeroShotDeBERTa/) | DeBERTa-v3-NLI | Zero-shot classification via NLI entailment |
+| [MsMarcoMiniLM](samples/Reranking/MsMarcoMiniLM/) | MS MARCO MiniLM | Cross-encoder reranking with text-pair tokenization |
+| [BgeReranker](samples/Reranking/BgeReranker/) | BAAI/bge-reranker | BGE cross-encoder reranking for retrieval |
+| [BertBaseNER](samples/NER/BertBaseNER/) | BERT-base-NER | Named entity recognition with BIO tag decoding |
+| [MultilingualNER](samples/NER/MultilingualNER/) | XLM-RoBERTa-NER | Multilingual named entity recognition |
+| [RobertaSquad2](samples/QA/RobertaSquad2/) | RoBERTa-SQuAD2 | Extractive question answering with span extraction |
+| [MiniLMSquad2](samples/QA/MiniLMSquad2/) | MiniLM-SQuAD2 | Extractive question answering (lighter model) |
+| [TextGenerationMeai](samples/TextGenerationMeai/) | Any IChatClient | Provider-agnostic text generation via MEAI |
+| [TextGenerationLocal](samples/TextGenerationLocal/) | ORT GenAI model | Local text generation with ONNX Runtime GenAI |
 
 ## API at a Glance
+
+### Shared Foundation
 
 | Class | Role | Key Methods |
 |-------|------|-------------|
 | `TextTokenizerEstimator` | Transform 1: Tokenization | `Fit(IDataView)` |
 | `OnnxTextModelScorerEstimator` | Transform 2: ONNX Scoring | `Fit(IDataView)` → `.HiddenDim`, `.HasPooledOutput` |
+
+### Embeddings
+
+| Class | Role | Key Methods |
+|-------|------|-------------|
 | `EmbeddingPoolingEstimator` | Transform 3: Pooling | `Fit(IDataView)` |
-| `OnnxTextEmbeddingEstimator` | Embedding Facade (chains 1→2→3) | `Fit(IDataView)`, `GetOutputSchema()` |
-| `OnnxTextEmbeddingTransformer` | Embedding Facade transformer | `Transform(IDataView)`, `Save(path)`, `Load(ctx, path)` |
+| `OnnxTextEmbeddingEstimator` | Facade (chains 1→2→3) | `Fit(IDataView)`, `GetOutputSchema()` |
+| `OnnxTextEmbeddingTransformer` | Facade transformer | `Transform(IDataView)`, `Save(path)`, `Load(ctx, path)` |
 | `EmbeddingGeneratorEstimator` | MEAI wrapper transform | `Fit(IDataView)` |
 | `OnnxEmbeddingGenerator` | MEAI `IEmbeddingGenerator` | `GenerateAsync(texts)` |
+
+### Classification
+
+| Class | Role | Key Methods |
+|-------|------|-------------|
+| `SoftmaxClassificationEstimator` | Softmax post-processing | `Fit(IDataView)` |
+| `OnnxTextClassificationEstimator` | Facade (tokenize→score→softmax) | `Fit(IDataView)` |
+| `OnnxTextClassificationTransformer` | Facade transformer | `Transform(IDataView)`, `Classify(texts)` |
+
+### Reranking
+
+| Class | Role | Key Methods |
+|-------|------|-------------|
+| `SigmoidScorerEstimator` | Sigmoid scoring transform | `Fit(IDataView)` |
+| `OnnxRerankerEstimator` | Facade (text-pair tokenize→score→sigmoid) | `Fit(IDataView)` |
+| `OnnxRerankerTransformer` | Facade transformer | `Transform(IDataView)`, `Rerank(query, docs)` |
+
+### Named Entity Recognition
+
+| Class | Role | Key Methods |
+|-------|------|-------------|
+| `NerDecodingEstimator` | BIO tag decoding | `Fit(IDataView)` |
+| `OnnxNerEstimator` | Facade (tokenize→score→decode) | `Fit(IDataView)` |
+| `OnnxNerTransformer` | Facade transformer | `Transform(IDataView)`, `RecognizeEntities(texts)` |
+
+### Question Answering
+
+| Class | Role | Key Methods |
+|-------|------|-------------|
+| `QaSpanExtractionEstimator` | Span extraction from logits | `Fit(IDataView)` |
+| `OnnxQaEstimator` | Facade (tokenize→multi-score→extract) | `Fit(IDataView)` |
+| `OnnxQaTransformer` | Facade transformer | `Transform(IDataView)`, `Answer(questions)` |
+
+### Text Generation
+
+| Class | Role | Key Methods |
+|-------|------|-------------|
+| `ChatClientEstimator` | Provider-agnostic (wraps IChatClient) | `Fit(IDataView)` |
+| `ChatClientTransformer` | Provider-agnostic transformer | `Transform(IDataView)` |
+| `OnnxTextGenerationEstimator` | ORT GenAI local generation | `Fit(IDataView)` |
+| `OnnxTextGenerationTransformer` | ORT GenAI transformer | `Transform(IDataView)` |
 
 ## GPU Support (CUDA)
 
@@ -306,13 +430,23 @@ When `FallbackToCpu = true`, if CUDA initialization fails the estimator silently
 
 ## NuGet Dependencies
 
+### MLNet.TextInference.Onnx (encoder tasks)
+
 | Package | Version | Purpose |
 |---------|---------|---------|
 | `Microsoft.ML` | 5.0.0 | IEstimator/ITransformer, IDataView, MLContext |
 | `Microsoft.ML.OnnxRuntime.Managed` | 1.24.2 | InferenceSession, OrtValue (managed API; bring your own native runtime) |
 | `Microsoft.ML.Tokenizers` | 2.0.0 | BertTokenizer (WordPiece), BPE, SentencePiece |
-| `Microsoft.Extensions.AI.Abstractions` | 10.3.0 | IEmbeddingGenerator |
+| `Microsoft.Extensions.AI.Abstractions` | 10.3.0 | IEmbeddingGenerator, IChatClient |
 | `System.Numerics.Tensors` | 10.0.3 | Tensor\<T\>, TensorPrimitives |
+
+### MLNet.TextGeneration.OnnxGenAI (local text generation)
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `Microsoft.ML` | 5.0.0 | IEstimator/ITransformer, IDataView, MLContext |
+| `Microsoft.ML.OnnxRuntimeGenAI` | 0.7.1 | ORT GenAI for local autoregressive generation |
+| `Microsoft.Extensions.AI.Abstractions` | 10.3.0 | IChatClient |
 
 ## Documentation
 
