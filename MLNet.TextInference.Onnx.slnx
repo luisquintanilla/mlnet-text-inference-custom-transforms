@@ -10,8 +10,11 @@
     <Project Path="samples/Classification/SentimentDistilBERT/SentimentDistilBERT.csproj" />
     <Project Path="samples/Classification/EmotionRoBERTa/EmotionRoBERTa.csproj" />
     <Project Path="samples/Classification/ZeroShotDeBERTa/ZeroShotDeBERTa.csproj" />
+    <Project Path="samples/TextGenerationMeai/TextGenerationMeai.csproj" />
+    <Project Path="samples/TextGenerationLocal/TextGenerationLocal.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj" />
+    <Project Path="src/MLNet.TextGeneration.OnnxGenAI/MLNet.TextGeneration.OnnxGenAI.csproj" />
   </Folder>
 </Solution>
