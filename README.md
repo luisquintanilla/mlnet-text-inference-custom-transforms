@@ -489,13 +489,13 @@ Pre-built packages are published to [GitHub Packages](https://github.com/luisqui
 <configuration>
   <packageSources>
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-    <add key="github-luisquintanilla" value="https://nuget.pkg.github.com/luisquintanilla/index.json" />
+    <add key="github-packages" value="https://nuget.pkg.github.com/luisquintanilla/index.json" />
   </packageSources>
   <packageSourceCredentials>
-    <github-luisquintanilla>
+    <github-packages>
       <add key="Username" value="YOUR_GITHUB_USERNAME" />
       <add key="ClearTextPassword" value="YOUR_GITHUB_PAT" />
-    </github-luisquintanilla>
+    </github-packages>
   </packageSourceCredentials>
 </configuration>
 ```
