@@ -14,13 +14,13 @@ Runs ONNX inference on tokenized text inputs. This is the **universal second ste
 
 | File | Contents |
 |------|----------|
-| `src/MLNet.Embeddings.Onnx/OnnxTextModelScorerEstimator.cs` | Estimator + options class |
-| `src/MLNet.Embeddings.Onnx/OnnxTextModelScorerTransformer.cs` | Transformer |
+| `src/MLNet.TextInference.Onnx/OnnxTextModelScorerEstimator.cs` | Estimator + options class |
+| `src/MLNet.TextInference.Onnx/OnnxTextModelScorerTransformer.cs` | Transformer |
 
 ## Options Class
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Configuration for the ONNX text model scorer transform.
@@ -92,7 +92,7 @@ This separation is important because column names are a pipeline concern (how tr
 ## Estimator
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET IEstimator that creates an OnnxTextModelScorerTransformer.
@@ -216,7 +216,7 @@ internal sealed record OnnxModelMetadata(
 ## Transformer
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET ITransformer that runs ONNX inference on tokenized text inputs.

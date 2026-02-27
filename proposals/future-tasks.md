@@ -2,21 +2,32 @@
 
 ## The Platform Vision
 
-The three-way split creates a reusable foundation for ANY transformer-based ONNX model task in ML.NET. The tokenizer and scorer are shared; only the post-processing varies by task.
+The `MLNet.TextInference.Onnx` platform provides a reusable foundation for ANY transformer-based ONNX model task in ML.NET. The tokenizer and scorer are shared; only the post-processing varies by task.
 
 ```
                     TextTokenizerTransformer
                             │
                             ▼
-                 OnnxTextModelScorerTransformer
+                 OnnxTextModelScorerTransformer       (task-agnostic)
                             │
-            ┌───────────────┼───────────────────────────┐
-            │               │               │           │
-            ▼               ▼               ▼           ▼
-     EmbeddingPooling  SoftmaxClassify  NerDecoding  CrossEncoder
-     Transformer       Transformer      Transformer  Transformer
-     (exists)          (future)         (future)     (future)
+            ┌───────────────┼────────────────┐
+            │               │                │
+     EmbeddingPooling  SoftmaxClassify  (more tasks)
+     Transformer       Transformer      coming soon
 ```
+
+## Current Task Status
+
+| Task | Status | Post-processor | Facade |
+|------|--------|---------------|--------|
+| Embeddings | ✅ Implemented | `EmbeddingPoolingTransformer` | `OnnxTextEmbeddingEstimator` |
+| Classification | 🔲 Planned | `SoftmaxClassificationTransformer` | `OnnxTextClassificationEstimator` |
+| Reranking | 🔲 Planned | `SigmoidScorerTransformer` | `OnnxRerankerEstimator` |
+| NER | 🔲 Planned | `NerDecodingTransformer` | `OnnxNerEstimator` |
+| QA | 🔲 Planned | `QaSpanExtractionTransformer` | `OnnxQaEstimator` |
+| Text Generation | 🔲 Planned | `ChatClientTransformer` | N/A |
+
+For the step-by-step guide on adding a new task, see [docs/extending.md](../docs/extending.md#how-to-add-a-new-task).
 
 ## Task: Text Classification
 

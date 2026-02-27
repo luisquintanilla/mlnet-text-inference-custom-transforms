@@ -27,7 +27,7 @@ After the modular transform pipeline (proposals 01–05) merges, add samples tha
 ```csharp
 using System.Numerics.Tensors;
 using Microsoft.ML;
-using MLNet.Embeddings.Onnx;
+using MLNet.TextInference.Onnx;
 
 var modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models", "model.onnx"));
 var tokenizerPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models")); // directory — auto-detects from tokenizer_config.json or known vocab files
@@ -131,7 +131,7 @@ public class EmbeddingResult { public string Text { get; set; } = ""; public flo
 
 ```csharp
 using Microsoft.ML;
-using MLNet.Embeddings.Onnx;
+using MLNet.TextInference.Onnx;
 
 var modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models", "model.onnx"));
 var tokenizerPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models")); // directory — auto-detects tokenizer
@@ -265,7 +265,7 @@ public class EmbeddingResult { public string Text { get; set; } = ""; public flo
 using System.Numerics.Tensors;
 using Microsoft.Extensions.AI;
 using Microsoft.ML;
-using MLNet.Embeddings.Onnx;
+using MLNet.TextInference.Onnx;
 
 var modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models", "model.onnx"));
 var tokenizerPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models")); // directory — auto-detects tokenizer

@@ -1,6 +1,6 @@
 # Design Decisions
 
-This document explains *why* every major design choice was made. It's written for developers and AI coding agents who need to understand the trade-off space before modifying or extending the solution.
+This document explains *why* every major design choice was made. It's written for developers and AI coding agents who need to understand the trade-off space before modifying or extending the `MLNet.TextInference.Onnx` solution.
 
 ## The ML.NET Constraint Landscape
 
@@ -261,7 +261,19 @@ The original monolithic `OnnxTextEmbeddingTransformer` bundled tokenization, ONN
 
 ### Why Keep the Facade?
 
-The `OnnxTextEmbeddingEstimator`/`OnnxTextEmbeddingTransformer` remain as a convenience facade that chains all three transforms internally. This preserves the existing public API (zero breaking changes) while allowing advanced users to compose the transforms directly.
+The `OnnxTextEmbeddingEstimator`/`OnnxTextEmbeddingTransformer` remain as a convenience facade that chains all three transforms internally. This preserves the existing public API (zero breaking changes) while allowing advanced users to compose the transforms directly. Future tasks (classification, NER, reranking, QA) will each get their own facade following the same pattern.
+
+## Why OnnxTextModelScorer Stays Generic
+
+The scorer is intentionally named `OnnxTextModelScorerTransformer`, not `OnnxTextEncoderScorerTransformer` or `OnnxEmbeddingScorerTransformer`. This is deliberate:
+
+1. **Task-agnostic by design**: The scorer runs *any* ONNX encoder model and outputs raw tensors. It has no knowledge of what the downstream task will be — embeddings, classification, NER, reranking, or QA. Naming it after a specific task or architecture would be misleading.
+
+2. **Shared across all tasks**: Every task in the platform (see the [task status table](../README.md)) shares the same scorer. Renaming it for one task would confuse the relationship with other tasks.
+
+3. **Encoder agnostic**: While the current focus is encoder transformers (BERT, RoBERTa, etc.), the scorer's contract is simply "take token columns, run ONNX, output raw tensors." This could theoretically work with non-encoder architectures that accept the same input format.
+
+4. **Convention over configuration**: The name reflects what the class *does* (scores text via an ONNX model) rather than what architecture it targets. This follows the ML.NET naming convention where transforms are named by their action, not their implementation detail.
 
 ### Lazy vs Eager Evaluation
 

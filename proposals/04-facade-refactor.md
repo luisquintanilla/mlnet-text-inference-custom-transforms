@@ -8,9 +8,9 @@ Refactor the existing `OnnxTextEmbeddingEstimator` and `OnnxTextEmbeddingTransfo
 
 | File | Change Type |
 |------|-------------|
-| `src/MLNet.Embeddings.Onnx/OnnxTextEmbeddingEstimator.cs` | Major refactor |
-| `src/MLNet.Embeddings.Onnx/OnnxTextEmbeddingTransformer.cs` | Major refactor |
-| `src/MLNet.Embeddings.Onnx/OnnxTextEmbeddingOptions.cs` | Unchanged |
+| `src/MLNet.TextInference.Onnx/OnnxTextEmbeddingEstimator.cs` | Major refactor |
+| `src/MLNet.TextInference.Onnx/OnnxTextEmbeddingTransformer.cs` | Major refactor |
+| `src/MLNet.TextInference.Onnx/OnnxTextEmbeddingOptions.cs` | Unchanged |
 
 ## What Stays the Same
 
@@ -25,7 +25,7 @@ Refactor the existing `OnnxTextEmbeddingEstimator` and `OnnxTextEmbeddingTransfo
 ## Refactored Estimator
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET IEstimator that creates an OnnxTextEmbeddingTransformer.
@@ -117,7 +117,7 @@ public sealed class OnnxTextEmbeddingEstimator : IEstimator<OnnxTextEmbeddingTra
 ## Refactored Transformer
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET ITransformer that generates text embeddings using a local ONNX model.

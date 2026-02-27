@@ -64,7 +64,7 @@ The original monolithic API still works — `OnnxTextEmbeddingEstimator` is now 
 ### Code shape (main)
 
 ```
-src/MLNet.Embeddings.Onnx/
+src/MLNet.TextInference.Onnx/
 ├── OnnxTextEmbeddingEstimator.cs    (158 lines — loads model, tokenizer, discovers metadata)
 ├── OnnxTextEmbeddingTransformer.cs  (222 lines — tokenize + infer + pool + normalize)
 ├── OnnxTextEmbeddingOptions.cs      (configuration)
@@ -133,21 +133,22 @@ src/MLNet.Embeddings.Onnx/
 ### Code shape (proposals/modular-transforms)
 
 ```
-src/MLNet.Embeddings.Onnx/
+src/MLNet.TextInference.Onnx/
 ├── TextTokenizerEstimator.cs           (239 lines — NEW: smart tokenizer resolution)
 ├── TextTokenizerTransformer.cs         (235 lines — NEW: BPE/WordPiece/SentencePiece)
 ├── OnnxTextModelScorerEstimator.cs     (168 lines — NEW: ONNX metadata discovery)
 ├── OnnxTextModelScorerTransformer.cs   (410 lines — NEW: lookahead batching, lazy cursor)
-├── EmbeddingPoolingEstimator.cs        (95 lines  — NEW: pooling configuration)
-├── EmbeddingPoolingTransformer.cs      (223 lines — NEW: Mean/CLS/Max + normalize)
-├── OnnxTextEmbeddingEstimator.cs       (105 lines — REFACTORED: now chains 3 transforms)
-├── OnnxTextEmbeddingTransformer.cs     (99 lines  — REFACTORED: delegates to 3 sub-transforms)
-├── EmbeddingGeneratorEstimator.cs      (151 lines — NEW: provider-agnostic MEAI wrapper)
-├── OnnxEmbeddingGenerator.cs           (unchanged — MEAI IEmbeddingGenerator)
+├── Embeddings/
+│   ├── EmbeddingPoolingEstimator.cs    (95 lines  — NEW: pooling configuration)
+│   ├── EmbeddingPoolingTransformer.cs  (223 lines — NEW: Mean/CLS/Max + normalize)
+│   ├── OnnxTextEmbeddingEstimator.cs   (105 lines — REFACTORED: now chains 3 transforms)
+│   ├── OnnxTextEmbeddingTransformer.cs (99 lines  — REFACTORED: delegates to 3 sub-transforms)
+│   ├── EmbeddingGeneratorEstimator.cs  (151 lines — NEW: provider-agnostic MEAI wrapper)
+│   ├── OnnxEmbeddingGenerator.cs       (unchanged — MEAI IEmbeddingGenerator)
+│   ├── EmbeddingPooling.cs             (unchanged — SIMD pooling math)
+│   ├── ModelPackager.cs                (unchanged — zip save/load)
+│   └── OnnxTextEmbeddingOptions.cs     (minor changes)
 ├── MLContextExtensions.cs              (64 lines  — EXPANDED: 5 extension methods)
-├── EmbeddingPooling.cs                 (unchanged — SIMD pooling math)
-├── ModelPackager.cs                    (unchanged — zip save/load)
-├── OnnxTextEmbeddingOptions.cs         (minor changes)
 └── PoolingStrategy.cs                  (unchanged)
 ```
 

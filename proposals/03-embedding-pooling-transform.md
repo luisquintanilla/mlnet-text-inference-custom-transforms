@@ -15,13 +15,13 @@ Applies pooling and normalization to raw model output to produce a fixed-length 
 
 | File | Contents |
 |------|----------|
-| `src/MLNet.Embeddings.Onnx/EmbeddingPoolingEstimator.cs` | Estimator + options class |
-| `src/MLNet.Embeddings.Onnx/EmbeddingPoolingTransformer.cs` | Transformer |
+| `src/MLNet.TextInference.Onnx/EmbeddingPoolingEstimator.cs` | Estimator + options class |
+| `src/MLNet.TextInference.Onnx/EmbeddingPoolingTransformer.cs` | Transformer |
 
 ## Options Class
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Configuration for the embedding pooling transform.
@@ -83,7 +83,7 @@ public class EmbeddingPoolingOptions
 ## Estimator
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET IEstimator that creates an EmbeddingPoolingTransformer.
@@ -177,7 +177,7 @@ public sealed class EmbeddingPoolingEstimator : IEstimator<EmbeddingPoolingTrans
 ## Transformer
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET ITransformer that pools raw model output into fixed-length embeddings.

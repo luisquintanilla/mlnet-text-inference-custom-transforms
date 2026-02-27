@@ -1,6 +1,29 @@
 # Architecture
 
-This document walks through every component in the solution and traces the data flow from raw text to final embedding vector. Code references point to the actual source files.
+This document walks through every component in the `MLNet.TextInference.Onnx` solution and traces the data flow from raw text to task-specific output. The architecture is built on a **shared foundation** of tokenization and ONNX scoring, with task-specific post-processing transforms plugged in for each downstream task (embeddings, classification, NER, reranking, QA).
+
+## Shared Foundation
+
+The platform is built on two task-agnostic transforms that are shared across **all** encoder transformer tasks:
+
+1. **`TextTokenizerTransformer`** — Converts raw text into token IDs, attention masks, and token type IDs. Supports BPE, WordPiece, and SentencePiece via smart resolution from HuggingFace model directories.
+
+2. **`OnnxTextModelScorerTransformer`** — Runs the tokenized input through an ONNX encoder model (BERT, RoBERTa, DeBERTa, MiniLM, etc.) and produces raw model output. Uses lookahead batching for efficient ONNX inference while maintaining lazy cursor-based evaluation.
+
+Each task then adds a **post-processing transform** that interprets the raw model output for a specific purpose (pooling for embeddings, softmax for classification, BIO decoding for NER, etc.), plus a **convenience facade** that chains all three transforms together.
+
+### The Facade Pattern
+
+Each task provides a facade estimator that wraps the full pipeline (tokenizer → scorer → post-processor) in a single call. This preserves a simple API for common use cases while allowing advanced users to compose the transforms directly.
+
+### The "Two Faces" Pattern
+
+Each transform exposes two APIs:
+
+- **ML.NET face** (`Transform(IDataView)`): Lazy, wraps input. Returns a wrapping IDataView — no data is materialized. Used by ML.NET pipelines and `.Append()` chains.
+- **Direct face** (`Tokenize()`, `Score()`, `Pool()`): Eager, processes batches directly. Used by `GenerateEmbeddings()` and `OnnxEmbeddingGenerator` for zero-overhead batch processing.
+
+Code references point to the actual source files in `src/MLNet.TextInference.Onnx/`.
 
 ## Component Map
 
@@ -100,6 +123,18 @@ EmbeddingPoolingTransformer:
 Output IDataView
 ```
 
+## How Each Task Plugs In
+
+The shared foundation produces raw model output. Each task adds a post-processing transform that interprets this output:
+
+| Task | Post-processor | What It Does |
+|------|---------------|-------------|
+| Embeddings | `EmbeddingPoolingTransformer` | Mean/CLS/Max pooling + L2 normalization |
+| Classification | `SoftmaxClassificationTransformer` (planned) | Softmax over logits → class probabilities |
+| NER | `NerDecodingTransformer` (planned) | Per-token argmax → BIO entity spans |
+| Reranking | `SigmoidScorerTransformer` (planned) | Sigmoid on logit → relevance score |
+| QA | `QaSpanExtractionTransformer` (planned) | Start/end logit search → answer span |
+
 ## Lazy Evaluation via Custom IDataView / Cursor
 
 Each transform returns a **wrapping IDataView** from `Transform()` — no data is materialized. Computation happens lazily when a downstream consumer iterates via a cursor.
@@ -126,13 +161,6 @@ At any given moment, only **one batch** of intermediate data exists in memory (~
 ### Lookahead Batching (Scorer Only)
 
 The tokenizer and pooler are cheap (microseconds per row) — they process row-by-row. The ONNX scorer uses **lookahead batching**: it reads N rows from the upstream tokenizer cursor, packs them into a single ONNX batch, runs inference once, then serves cached results one at a time. This gives batch throughput with lazy memory semantics.
-
-### Two Faces: ML.NET + Direct
-
-Each transform exposes two faces:
-
-- **ML.NET face** (`Transform(IDataView)`): Lazy, wraps input. Used by ML.NET pipelines.
-- **Direct face** (`Tokenize()`, `Score()`, `Pool()`): Eager, processes batches directly. Used by `GenerateEmbeddings()` and `OnnxEmbeddingGenerator`.
 
 ## Estimator Lifecycle: What Happens in `Fit()`
 
