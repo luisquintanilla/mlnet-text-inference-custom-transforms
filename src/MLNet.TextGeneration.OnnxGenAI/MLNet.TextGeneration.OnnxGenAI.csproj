@@ -4,6 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>MLNet.TextGeneration.OnnxGenAI</PackageId>
+    <Description>Local text generation transform for ML.NET using ONNX Runtime GenAI. Runs autoregressive language models (Phi-3, etc.) directly on device.</Description>
+    <PackageTags>ml.net;onnx;text-generation;onnxruntime-genai;phi-3;local-llm</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

@@ -21,6 +21,7 @@ x86/
 bld/
 [Ll]og/
 [Ll]ogs/
+artifacts/
 
 # IDE
 .idea/

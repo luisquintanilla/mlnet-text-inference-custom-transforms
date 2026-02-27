@@ -478,6 +478,64 @@ When `FallbackToCpu = true`, if CUDA initialization fails the estimator silently
 | `Microsoft.ML.OnnxRuntimeGenAI` | 0.7.1 | ORT GenAI for local autoregressive generation |
 | `Microsoft.Extensions.AI.Abstractions` | 10.3.0 | IChatClient |
 
+## Using as a NuGet Package
+
+Pre-built packages are published to [GitHub Packages](https://github.com/luisquintanilla/mlnet-text-inference-custom-transforms/packages). No need to copy source code.
+
+**1. Add the GitHub Packages NuGet source** (one-time setup):
+
+```xml
+<!-- nuget.config in your project root -->
+<configuration>
+  <packageSources>
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+    <add key="github-luisquintanilla" value="https://nuget.pkg.github.com/luisquintanilla/index.json" />
+  </packageSources>
+  <packageSourceCredentials>
+    <github-luisquintanilla>
+      <add key="Username" value="YOUR_GITHUB_USERNAME" />
+      <add key="ClearTextPassword" value="YOUR_GITHUB_PAT" />
+    </github-luisquintanilla>
+  </packageSourceCredentials>
+</configuration>
+```
+
+> **Note:** GitHub Packages requires authentication even for public packages. Create a [Personal Access Token](https://github.com/settings/tokens) with `read:packages` scope.
+
+**2. Add the package reference:**
+
+```xml
+<!-- Encoder tasks: embeddings, classification, reranking, NER, QA, text generation -->
+<PackageReference Include="MLNet.TextInference.Onnx" Version="0.1.0-preview.1" />
+
+<!-- Local text generation with ORT GenAI (separate package, heavier dependency) -->
+<PackageReference Include="MLNet.TextGeneration.OnnxGenAI" Version="0.1.0-preview.1" />
+```
+
+**3. Use it:**
+
+```csharp
+using MLNet.TextInference.Onnx;
+
+var mlContext = new MLContext();
+var estimator = mlContext.Transforms.OnnxTextClassification(new OnnxTextClassificationOptions
+{
+    ModelPath = "models/model.onnx",
+    TokenizerPath = "models/",
+    Labels = ["negative", "positive"]
+});
+```
+
+### Releasing a new version
+
+Packages are versioned via git tags using [MinVer](https://github.com/adamralph/minver):
+
+```bash
+git tag v0.1.0-preview.1
+git push origin v0.1.0-preview.1
+# → GitHub Actions builds, packs, and publishes to GitHub Packages
+```
+
 ## Documentation
 
 - **[Architecture Decision Record](docs/architecture-decision-record.md)** — Why this repo exists and the platform architecture
@@ -493,4 +551,4 @@ When `FallbackToCpu = true`, if CUDA initialization fails the estimator silently
 
 ## License
 
-This is a prototype / reference implementation for educational purposes.
+[MIT](LICENSE)

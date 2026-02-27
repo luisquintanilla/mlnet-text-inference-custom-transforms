@@ -1,0 +1,27 @@
+<Project>
+
+  <PropertyGroup>
+    <!-- NuGet package metadata (shared across all src/ projects) -->
+    <Authors>Luis Quintanilla</Authors>
+    <Company>Luis Quintanilla</Company>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/luisquintanilla/mlnet-text-inference-custom-transforms</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/luisquintanilla/mlnet-text-inference-custom-transforms</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- Versioning via MinVer (reads from git tags like v0.1.0) -->
+    <MinVerTagPrefix>v</MinVerTagPrefix>
+
+    <!-- Pack settings -->
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="" />
+    <PackageReference Include="MinVer" Version="6.0.0" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

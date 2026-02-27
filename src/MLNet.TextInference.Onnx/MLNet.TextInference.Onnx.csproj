@@ -4,6 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>MLNet.TextInference.Onnx</PackageId>
+    <Description>Multi-task text inference transforms for ML.NET using local HuggingFace ONNX encoder models. Provides embeddings, classification, reranking, NER, question answering, and provider-agnostic text generation.</Description>
+    <PackageTags>ml.net;onnx;embeddings;classification;ner;reranking;qa;text-generation;transformers;huggingface</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
