@@ -28,7 +28,9 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Pack
-        run: dotnet pack src/ --no-build --configuration Release --output ./artifacts
+        run: |
+          dotnet pack src/MLNet.TextInference.Onnx/ --no-build --configuration Release --output ./artifacts
+          dotnet pack src/MLNet.TextGeneration.OnnxGenAI/ --no-build --configuration Release --output ./artifacts
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
