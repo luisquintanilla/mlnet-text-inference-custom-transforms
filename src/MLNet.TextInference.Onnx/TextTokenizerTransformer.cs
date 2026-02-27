@@ -2,7 +2,7 @@ using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.Tokenizers;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Batch of tokenized text. Used by the direct face to pass data between transforms

@@ -1,4 +1,4 @@
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Pooling strategy for converting per-token hidden states into a single embedding vector.

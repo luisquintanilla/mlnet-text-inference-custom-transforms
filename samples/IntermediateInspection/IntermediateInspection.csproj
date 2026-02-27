@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\MLNet.Embeddings.Onnx\MLNet.Embeddings.Onnx.csproj" />
+    <ProjectReference Include="..\..\src\MLNet.TextInference.Onnx\MLNet.TextInference.Onnx.csproj" />
 
   </ItemGroup>
 

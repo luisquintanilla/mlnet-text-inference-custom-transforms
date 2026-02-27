@@ -9,6 +9,6 @@
     <Project Path="samples/MeaiProviderAgnostic/MeaiProviderAgnostic.csproj" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/MLNet.Embeddings.Onnx/MLNet.Embeddings.Onnx.csproj" />
+    <Project Path="src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj" />
   </Folder>
 </Solution>

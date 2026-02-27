@@ -1,7 +1,7 @@
 using Microsoft.Extensions.AI;
 using Microsoft.ML;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// MEAI IEmbeddingGenerator wrapper around OnnxTextEmbeddingTransformer.
@@ -31,7 +31,7 @@ public sealed class OnnxEmbeddingGenerator : IEmbeddingGenerator<string, Embeddi
     }
 
     public EmbeddingGeneratorMetadata Metadata => new(
-        "MLNet.Embeddings.Onnx",
+        "MLNet.TextInference.Onnx",
         null,
         Path.GetFileNameWithoutExtension(_transformer.Options.ModelPath),
         _transformer.EmbeddingDimension);

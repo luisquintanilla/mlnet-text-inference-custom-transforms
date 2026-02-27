@@ -4,7 +4,7 @@ using Microsoft.ML;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.Tokenizers;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Handles saving and loading OnnxTextEmbeddingTransformer to/from a self-contained zip file.
@@ -56,7 +56,7 @@ internal static class ModelPackager
         var manifest = new Manifest
         {
             Version = "1.0",
-            Framework = "MLNet.Embeddings.Onnx",
+            Framework = "MLNet.TextInference.Onnx",
             EmbeddingDimension = transformer.EmbeddingDimension,
             CreatedAt = DateTime.UtcNow.ToString("o")
         };
@@ -156,7 +156,7 @@ internal static class ModelPackager
     internal sealed class Manifest
     {
         public string Version { get; set; } = "1.0";
-        public string Framework { get; set; } = "MLNet.Embeddings.Onnx";
+        public string Framework { get; set; } = "MLNet.TextInference.Onnx";
         public int EmbeddingDimension { get; set; }
         public string CreatedAt { get; set; } = "";
     }

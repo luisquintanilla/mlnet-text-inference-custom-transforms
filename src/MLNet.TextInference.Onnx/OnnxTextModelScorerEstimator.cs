@@ -2,7 +2,7 @@ using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.OnnxRuntime;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Configuration for the ONNX text model scorer transform.
@@ -65,6 +65,13 @@ public class OnnxTextModelScorerOptions
     /// Default: false.
     /// </summary>
     public bool FallbackToCpu { get; set; }
+
+    /// <summary>
+    /// Preferred ONNX output tensor names, searched in order.
+    /// Used by task facades to hint the appropriate output for their task.
+    /// Null = use generic auto-discovery.
+    /// </summary>
+    public string[]? PreferredOutputNames { get; set; }
 }
 
 /// <summary>
@@ -152,6 +159,26 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
             hasPooledOutput = !dims.Contains(-1) && dims.Length == 2;
             hiddenDim = (int)dims.Last();
             outputRank = dims.Length;
+        }
+        else if (_options.PreferredOutputNames != null)
+        {
+            var preferred = TryFindTensorName(outputMeta, _options.PreferredOutputNames);
+            if (preferred != null)
+            {
+                outputName = preferred;
+                var dims = outputMeta[preferred].Dimensions;
+                hasPooledOutput = !dims.Contains(-1) && dims.Length == 2;
+                hiddenDim = (int)dims.Last();
+                outputRank = dims.Length;
+            }
+            else
+            {
+                outputName = outputMeta.Keys.First();
+                var dims = outputMeta[outputName].Dimensions;
+                hasPooledOutput = !dims.Contains(-1) && dims.Length == 2;
+                hiddenDim = (int)dims.Last();
+                outputRank = dims.Length;
+            }
         }
         else
         {

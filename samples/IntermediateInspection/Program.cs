@@ -1,6 +1,6 @@
 using Microsoft.ML;
 using Microsoft.ML.Data;
-using MLNet.Embeddings.Onnx;
+using MLNet.TextInference.Onnx;
 
 var modelPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models", "model.onnx"));
 var tokenizerPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models"));

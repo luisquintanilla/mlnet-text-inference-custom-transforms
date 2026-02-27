@@ -1,7 +1,7 @@
 using Microsoft.ML;
 using Microsoft.ML.Data;
 
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET IEstimator that creates an OnnxTextEmbeddingTransformer.
@@ -54,6 +54,7 @@ public sealed class OnnxTextEmbeddingEstimator : IEstimator<OnnxTextEmbeddingTra
             OutputTensorName = _options.OutputTensorName,
             GpuDeviceId = _options.GpuDeviceId,
             FallbackToCpu = _options.FallbackToCpu,
+            PreferredOutputNames = ["sentence_embedding", "pooler_output", "last_hidden_state"],
         };
         var scorerEstimator = new OnnxTextModelScorerEstimator(_mlContext, scorerOptions);
         var scorerTransformer = scorerEstimator.Fit(tokenizedData);
@@ -100,6 +101,7 @@ public sealed class OnnxTextEmbeddingEstimator : IEstimator<OnnxTextEmbeddingTra
             OutputTensorName = _options.OutputTensorName,
             GpuDeviceId = _options.GpuDeviceId,
             FallbackToCpu = _options.FallbackToCpu,
+            PreferredOutputNames = ["sentence_embedding", "pooler_output", "last_hidden_state"],
         });
         var metadata = scorerEstimator.DiscoverModelMetadata();
         embeddingDim = metadata.HiddenDim;
