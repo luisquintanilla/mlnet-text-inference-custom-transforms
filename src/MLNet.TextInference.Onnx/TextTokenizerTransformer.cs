@@ -127,6 +127,7 @@ public sealed class TextTokenizerTransformer : ITransformer
     /// <summary>
     /// Direct face: tokenize text pairs for cross-encoder models.
     /// Produces [CLS] A [SEP] B [SEP] with proper token_type_ids.
+    /// When OutputOffsets is true, records character offsets for B segment tokens.
     /// </summary>
     internal TokenizedBatch Tokenize(IReadOnlyList<string> textsA, IReadOnlyList<string> textsB)
     {
@@ -137,6 +138,8 @@ public sealed class TextTokenizerTransformer : ITransformer
         var allTokenIds = new long[textsA.Count][];
         var allAttentionMasks = new long[textsA.Count][];
         var allTokenTypeIds = new long[textsA.Count][];
+        var allStartOffsets = _options.OutputOffsets ? new long[textsA.Count][] : null;
+        var allEndOffsets = _options.OutputOffsets ? new long[textsA.Count][] : null;
 
         for (int i = 0; i < textsA.Count; i++)
         {
@@ -144,19 +147,44 @@ public sealed class TextTokenizerTransformer : ITransformer
             var attentionMask = new long[seqLen];
             var tokenTypeIds = new long[seqLen];
 
-            // EncodeToIds returns [CLS, ...A..., SEP] and [CLS, ...B..., SEP]
             var tokensA = _tokenizer.EncodeToIds(textsA[i], seqLen, out _, out _);
-            var tokensB = _tokenizer.EncodeToIds(textsB[i], seqLen, out _, out _);
+            int firstSepIdx = tokensA.Count - 1;
 
-            // Combine: [CLS, ...A..., SEP, ...B (skip CLS)..., SEP]
             var combined = new List<int>(tokensA);
-            combined.AddRange(tokensB.Skip(1)); // skip B's CLS
+            long[]? startOffsets = null;
+            long[]? endOffsets = null;
 
-            if (combined.Count > seqLen)
-                combined.RemoveRange(seqLen, combined.Count - seqLen);
+            if (_options.OutputOffsets)
+            {
+                startOffsets = new long[seqLen];
+                endOffsets = new long[seqLen];
+
+                var encodedB = _tokenizer.EncodeToTokens(textsB[i], out _);
+                for (int bIdx = 1; bIdx < encodedB.Count; bIdx++)
+                    combined.Add(encodedB[bIdx].Id);
+
+                if (combined.Count > seqLen)
+                    combined.RemoveRange(seqLen, combined.Count - seqLen);
+
+                // Record B segment offsets (relative to B text)
+                for (int bIdx = 1; bIdx < encodedB.Count; bIdx++)
+                {
+                    int combinedIdx = firstSepIdx + bIdx;
+                    if (combinedIdx >= seqLen) break;
+                    startOffsets[combinedIdx] = encodedB[bIdx].Offset.Start.Value;
+                    endOffsets[combinedIdx] = encodedB[bIdx].Offset.End.Value;
+                }
+            }
+            else
+            {
+                var tokensB = _tokenizer.EncodeToIds(textsB[i], seqLen, out _, out _);
+                combined.AddRange(tokensB.Skip(1)); // skip B's CLS
+
+                if (combined.Count > seqLen)
+                    combined.RemoveRange(seqLen, combined.Count - seqLen);
+            }
 
             // token_type_ids: 0 for A segment (up to and including first SEP), 1 for B segment
-            int firstSepIdx = tokensA.Count - 1;
             for (int s = 0; s < combined.Count && s < seqLen; s++)
             {
                 tokenIds[s] = combined[s];
@@ -167,9 +195,12 @@ public sealed class TextTokenizerTransformer : ITransformer
             allTokenIds[i] = tokenIds;
             allAttentionMasks[i] = attentionMask;
             allTokenTypeIds[i] = tokenTypeIds;
+            if (allStartOffsets != null) allStartOffsets[i] = startOffsets!;
+            if (allEndOffsets != null) allEndOffsets[i] = endOffsets!;
         }
 
-        return new TokenizedBatch(allTokenIds, allAttentionMasks, allTokenTypeIds, seqLen);
+        return new TokenizedBatch(allTokenIds, allAttentionMasks, allTokenTypeIds, seqLen,
+            allStartOffsets, allEndOffsets);
     }
 
     public DataViewSchema GetOutputSchema(DataViewSchema inputSchema)
@@ -331,17 +362,41 @@ internal sealed class TokenizerCursor : DataViewRowCursor
             string text2 = textValue2.ToString();
 
             var tokensA = _tokenizer.EncodeToIds(text, seqLen, out _, out _);
-            var tokensB = _tokenizer.EncodeToIds(text2, seqLen, out _, out _);
+            int firstSepIdx = tokensA.Count - 1;
 
-            // Combine: [CLS, ...A..., SEP, ...B (skip CLS)..., SEP]
             var combined = new List<int>(tokensA);
-            combined.AddRange(tokensB.Skip(1));
 
-            if (combined.Count > seqLen)
-                combined.RemoveRange(seqLen, combined.Count - seqLen);
+            if (_options.OutputOffsets)
+            {
+                _currentStartOffsets = new long[seqLen];
+                _currentEndOffsets = new long[seqLen];
+
+                var encodedB = _tokenizer.EncodeToTokens(text2, out _);
+                for (int bIdx = 1; bIdx < encodedB.Count; bIdx++)
+                    combined.Add(encodedB[bIdx].Id);
+
+                if (combined.Count > seqLen)
+                    combined.RemoveRange(seqLen, combined.Count - seqLen);
+
+                // Record B segment offsets (relative to B text)
+                for (int bIdx = 1; bIdx < encodedB.Count; bIdx++)
+                {
+                    int combinedIdx = firstSepIdx + bIdx;
+                    if (combinedIdx >= seqLen) break;
+                    _currentStartOffsets[combinedIdx] = encodedB[bIdx].Offset.Start.Value;
+                    _currentEndOffsets[combinedIdx] = encodedB[bIdx].Offset.End.Value;
+                }
+            }
+            else
+            {
+                var tokensB = _tokenizer.EncodeToIds(text2, seqLen, out _, out _);
+                combined.AddRange(tokensB.Skip(1));
+
+                if (combined.Count > seqLen)
+                    combined.RemoveRange(seqLen, combined.Count - seqLen);
+            }
 
             _currentTokenTypeIds ??= new long[seqLen];
-            int firstSepIdx = tokensA.Count - 1;
             for (int s = 0; s < combined.Count && s < seqLen; s++)
             {
                 _currentTokenIds[s] = combined[s];

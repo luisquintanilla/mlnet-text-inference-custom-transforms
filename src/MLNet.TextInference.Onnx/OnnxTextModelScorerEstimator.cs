@@ -72,6 +72,17 @@ public class OnnxTextModelScorerOptions
     /// Null = use generic auto-discovery.
     /// </summary>
     public string[]? PreferredOutputNames { get; set; }
+
+    /// <summary>
+    /// Additional ONNX output tensor names to include as separate columns.
+    /// Used by QA models that produce start_logits and end_logits as separate outputs.
+    /// </summary>
+    public string[]? AdditionalOutputTensorNames { get; set; }
+
+    /// <summary>
+    /// Column names for additional output tensors. Must match AdditionalOutputTensorNames length.
+    /// </summary>
+    public string[]? AdditionalOutputColumnNames { get; set; }
 }
 
 /// <summary>
@@ -84,7 +95,9 @@ internal sealed record OnnxModelMetadata(
     string OutputTensorName,
     int HiddenDim,
     bool HasPooledOutput,
-    int OutputRank);
+    int OutputRank,
+    string[]? AdditionalOutputNames = null,
+    int[]? AdditionalOutputDims = null);
 
 /// <summary>
 /// ML.NET IEstimator that creates an OnnxTextModelScorerTransformer.
@@ -131,6 +144,21 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
             (SchemaShape?)null
         ]);
         result[_options.OutputColumnName] = outputCol;
+
+        if (_options.AdditionalOutputColumnNames != null)
+        {
+            foreach (var additionalColName in _options.AdditionalOutputColumnNames)
+            {
+                var additionalCol = (SchemaShape.Column)colCtor.Invoke([
+                    additionalColName,
+                    SchemaShape.Column.VectorKind.Vector,
+                    (DataViewType)NumberDataViewType.Single,
+                    false,
+                    (SchemaShape?)null
+                ]);
+                result[additionalColName] = additionalCol;
+            }
+        }
 
         return new SchemaShape(result.Values);
     }
@@ -205,9 +233,44 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
             throw new InvalidOperationException(
                 $"Could not determine hidden dimension from ONNX output '{outputName}'.");
 
+        // Discover additional output tensors if configured
+        string[]? additionalOutputNames = null;
+        int[]? additionalOutputDims = null;
+
+        if (_options.AdditionalOutputTensorNames != null)
+        {
+            if (_options.AdditionalOutputColumnNames == null ||
+                _options.AdditionalOutputColumnNames.Length != _options.AdditionalOutputTensorNames.Length)
+                throw new ArgumentException(
+                    "AdditionalOutputColumnNames must be set with the same length as AdditionalOutputTensorNames.");
+
+            additionalOutputNames = new string[_options.AdditionalOutputTensorNames.Length];
+            additionalOutputDims = new int[_options.AdditionalOutputTensorNames.Length];
+
+            for (int i = 0; i < _options.AdditionalOutputTensorNames.Length; i++)
+            {
+                var name = _options.AdditionalOutputTensorNames[i];
+                if (!outputMeta.ContainsKey(name))
+                    throw new InvalidOperationException(
+                        $"Additional output tensor '{name}' not found in ONNX model outputs. " +
+                        $"Available: [{string.Join(", ", outputMeta.Keys)}]");
+
+                additionalOutputNames[i] = name;
+                var dims = outputMeta[name].Dimensions;
+                int lastDim = (int)dims.Last();
+                if (lastDim <= 0)
+                    additionalOutputDims[i] = _options.MaxTokenLength;
+                else if (dims.Length == 2)
+                    additionalOutputDims[i] = lastDim;
+                else
+                    additionalOutputDims[i] = _options.MaxTokenLength * lastDim;
+            }
+        }
+
         return new OnnxModelMetadata(
             inputIdsName, attentionMaskName, tokenTypeIdsName,
-            outputName, hiddenDim, hasPooledOutput, outputRank);
+            outputName, hiddenDim, hasPooledOutput, outputRank,
+            additionalOutputNames, additionalOutputDims);
     }
 
     /// <summary>
