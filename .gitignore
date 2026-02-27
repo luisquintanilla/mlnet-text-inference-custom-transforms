@@ -34,6 +34,12 @@ bld/
 # Tokenizer vocab files (downloaded with models)
 samples/*/models/*.txt
 
+# Future task sample model directories
+samples/Classification/*/models/
+samples/NER/*/models/
+samples/Reranking/*/models/
+samples/QA/*/models/
+
 # ML.NET saved models
 *.mlnet
 *.zip

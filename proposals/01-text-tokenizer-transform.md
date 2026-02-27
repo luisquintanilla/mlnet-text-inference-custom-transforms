@@ -8,13 +8,13 @@ Tokenizes text into token IDs, attention masks, and token type IDs suitable for 
 
 | File | Contents |
 |------|----------|
-| `src/MLNet.Embeddings.Onnx/TextTokenizerEstimator.cs` | Estimator + options class |
-| `src/MLNet.Embeddings.Onnx/TextTokenizerTransformer.cs` | Transformer |
+| `src/MLNet.TextInference.Onnx/TextTokenizerEstimator.cs` | Estimator + options class |
+| `src/MLNet.TextInference.Onnx/TextTokenizerTransformer.cs` | Transformer |
 
 ## Options Class
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Configuration for the text tokenizer transform.
@@ -72,7 +72,7 @@ public class TextTokenizerOptions
 ## Estimator
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET IEstimator that creates a TextTokenizerTransformer.
@@ -168,7 +168,7 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
 ## Transformer
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET ITransformer that tokenizes text into token IDs, attention masks,

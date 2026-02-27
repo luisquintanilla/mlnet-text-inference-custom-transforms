@@ -1,34 +1,55 @@
-# MLNet.Embeddings.Onnx
+# ML.NET Text Inference Custom Transforms
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/luisquintanilla/mlnet-embedding-custom-transforms?quickstart=1)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/luisquintanilla/mlnet-text-inference-custom-transforms?quickstart=1)
 
-A custom ML.NET `IEstimator` / `ITransformer` that generates text embeddings using local HuggingFace ONNX models. Provides both a **convenience facade** (single estimator) and a **composable modular pipeline** (three independent transforms) for tokenization, ONNX inference, pooling, and normalization.
+A **multi-task text inference platform** for ML.NET that runs local HuggingFace ONNX encoder models. Provides a shared foundation of tokenization + ONNX scoring, with task-specific post-processing transforms for embeddings, classification, NER, reranking, question answering, and more.
 
 ```
-                                            ┌─ MeanPooling ─┐
-Raw text → [TextTokenizer] → token IDs  →  [OnnxScorer] → [Pooling] → L2-normalized embedding
-           (BPE / WordPiece)   + masks      (ONNX Runtime)  └─ CLS / Max ─┘
+                    TextTokenizerTransformer
+                            │
+                            ▼
+                 OnnxTextModelScorerTransformer       (task-agnostic)
+                            │
+            ┌───────────────┼────────────────┐
+            │               │                │
+     EmbeddingPooling  SoftmaxClassify  (more tasks)
+     Transformer       Transformer      coming soon
 ```
+
+## Task Status
+
+| Task | Status | Post-processor | Facade |
+|------|--------|---------------|--------|
+| Embeddings | ✅ Implemented | `EmbeddingPoolingTransformer` | `OnnxTextEmbeddingEstimator` |
+| Classification | 🔲 Planned | `SoftmaxClassificationTransformer` | `OnnxTextClassificationEstimator` |
+| Reranking | 🔲 Planned | `SigmoidScorerTransformer` | `OnnxRerankerEstimator` |
+| NER | 🔲 Planned | `NerDecodingTransformer` | `OnnxNerEstimator` |
+| QA | 🔲 Planned | `QaSpanExtractionTransformer` | `OnnxQaEstimator` |
+| Text Generation | 🔲 Planned | `ChatClientTransformer` | N/A |
 
 ## Why This Exists
 
-ML.NET has no built-in transform for modern HuggingFace embedding models (all-MiniLM-L6-v2, BGE, E5, etc.). Building one is hard because ML.NET's convenient internal base classes (`RowToRowTransformerBase`, `OneToOneTransformerBase`) have `private protected` constructors — they can't be subclassed from external projects.
+This project is forked from [`mlnet-embedding-custom-transforms`](https://github.com/luisquintanilla/mlnet-embedding-custom-transforms), which provides embedding generation only. This fork extends the platform to support **all encoder transformer tasks** — embeddings, classification, NER, reranking, and question answering — by sharing a task-agnostic tokenization and ONNX scoring foundation and adding task-specific post-processing transforms.
 
-This project implements a custom transform using direct `IEstimator<T>` / `ITransformer` interfaces (Approach C from the [ML.NET Custom Transformer Guide](https://github.com/luisquintanilla/mlnet-custom-transformer-guide)), enhanced with custom zip-based save/load for model persistence.
+ML.NET has no built-in transform for modern HuggingFace encoder models (all-MiniLM-L6-v2, BGE, E5, DeBERTa, etc.). Building one is hard because ML.NET's convenient internal base classes (`RowToRowTransformerBase`, `OneToOneTransformerBase`) have `private protected` constructors — they can't be subclassed from external projects.
+
+This project implements custom transforms using direct `IEstimator<T>` / `ITransformer` interfaces (Approach C from the [ML.NET Custom Transformer Guide](https://github.com/luisquintanilla/mlnet-custom-transformer-guide)), enhanced with custom zip-based save/load for model persistence.
 
 ## Features
 
-- **Composable modular pipeline** — three independent transforms (`TokenizeText → ScoreOnnxTextModel → PoolEmbedding`) that can be inspected, swapped, and reused
-- **Convenience facade** — `OnnxTextEmbeddingEstimator` wraps all three transforms in a single call
+- **Composable modular pipeline** — task-agnostic transforms (`TokenizeText → ScoreOnnxTextModel`) plus task-specific post-processing that can be inspected, swapped, and reused
+- **Convenience facades** — `OnnxTextEmbeddingEstimator` wraps all transforms for embeddings in a single call; more task facades planned
 - **Provider-agnostic MEAI integration** — `EmbeddingGeneratorEstimator` wraps any `IEmbeddingGenerator<string, Embedding<float>>` as an ML.NET transform
 - **Smart tokenizer resolution** — point to a directory; auto-detects from `tokenizer_config.json` or known vocab files (BPE, SentencePiece, WordPiece)
-- **ONNX auto-discovery** — automatically detects input/output tensor names, shapes, and embedding dimensions from model metadata
+- **ONNX auto-discovery** — automatically detects input/output tensor names, shapes, and dimensions from model metadata
 - **Self-contained save/load** — serializes to a portable `.mlnet` zip file containing the ONNX model, tokenizer, and config
-- **SIMD-accelerated pooling** — mean pooling and L2 normalization use `TensorPrimitives` for hardware-vectorized math
+- **SIMD-accelerated post-processing** — pooling and normalization use `TensorPrimitives` for hardware-vectorized math
 - **Configurable batching** — process rows in configurable batch sizes to bound memory usage
-- **Multiple pooling strategies** — Mean, CLS token, and Max pooling
+- **Multiple pooling strategies** — Mean, CLS token, and Max pooling (for embeddings)
 
-## Quickstart
+## Quick Start (Embeddings)
+
+> **Note:** Embeddings are the first implemented task. More tasks (classification, NER, reranking, QA) are coming soon — each will follow the same pattern of shared tokenization + scoring with a task-specific post-processing transform.
 
 ### 1. Get the model files
 
@@ -46,7 +67,7 @@ Invoke-WebRequest -Uri "https://huggingface.co/sentence-transformers/all-MiniLM-
 
 ```csharp
 using Microsoft.ML;
-using MLNet.Embeddings.Onnx;
+using MLNet.TextInference.Onnx;
 
 var mlContext = new MLContext();
 var data = mlContext.Data.LoadFromEnumerable(new[]
@@ -120,21 +141,49 @@ transformer.Save("my-embedding-model.mlnet");
 var loaded = OnnxTextEmbeddingTransformer.Load(mlContext, "my-embedding-model.mlnet");
 ```
 
+## Model Compatibility
+
+The shared foundation supports any encoder transformer ONNX model. Compatible model architectures include:
+
+- **BERT** and derivatives (all-MiniLM, all-mpnet)
+- **RoBERTa** (including XLM-RoBERTa for multilingual)
+- **DistilBERT**
+- **DeBERTa** / DeBERTa-v2
+- **MiniLM** (Microsoft)
+- **MPNet** (Microsoft)
+- **E5** (intfloat)
+- **BGE** (BAAI)
+- **GTE** (Alibaba)
+
+### Tested Embedding Models
+
+| Model | Dimensions | Size | Tested | Sample |
+|-------|:----------:|:----:|:------:|--------|
+| [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | 384 | ~86 MB | ✅ | [BasicUsage](samples/BasicUsage/) |
+| [BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5) | 384 | ~127 MB | ✅ | [BgeSmallEmbedding](samples/BgeSmallEmbedding/) |
+| [intfloat/e5-small-v2](https://huggingface.co/intfloat/e5-small-v2) | 384 | ~127 MB | ✅ | [E5SmallEmbedding](samples/E5SmallEmbedding/) |
+| [thenlper/gte-small](https://huggingface.co/thenlper/gte-small) | 384 | ~127 MB | ✅ | [GteSmallEmbedding](samples/GteSmallEmbedding/) |
+| [all-MiniLM-L12-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2) | 384 | ~120 MB | — | |
+| [all-mpnet-base-v2](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) | 768 | ~420 MB | — | |
+
+Models with `sentence_embedding` output (pre-pooled) are auto-detected and pooling is skipped.
+
 ## Project Structure
 
 ```
-mlnet-embedding-custom-transforms/
-├── src/MLNet.Embeddings.Onnx/
+mlnet-text-inference-custom-transforms/
+├── src/MLNet.TextInference.Onnx/
 │   ├── TextTokenizerEstimator.cs         — Transform 1: tokenization (BPE/WordPiece/SentencePiece)
 │   ├── OnnxTextModelScorerEstimator.cs   — Transform 2: ONNX inference with lookahead batching
-│   ├── EmbeddingPoolingEstimator.cs      — Transform 3: pooling + L2 normalization
-│   ├── OnnxTextEmbeddingEstimator.cs     — Convenience facade (chains all three)
-│   ├── EmbeddingGeneratorEstimator.cs    — Provider-agnostic MEAI wrapper
-│   ├── OnnxEmbeddingGenerator.cs         — MEAI IEmbeddingGenerator for ONNX models
-│   ├── MLContextExtensions.cs            — Extension methods for fluent API
-│   ├── EmbeddingPooling.cs               — SIMD-accelerated pooling via TensorPrimitives
-│   ├── ModelPackager.cs                  — Save/load to self-contained zip
-│   └── PoolingStrategy.cs               — Mean / CLS / Max pooling enum
+│   ├── Embeddings/
+│   │   ├── EmbeddingPoolingEstimator.cs  — Transform 3: pooling + L2 normalization
+│   │   ├── OnnxTextEmbeddingEstimator.cs — Convenience facade (chains all three)
+│   │   ├── EmbeddingGeneratorEstimator.cs— Provider-agnostic MEAI wrapper
+│   │   ├── OnnxEmbeddingGenerator.cs     — MEAI IEmbeddingGenerator for ONNX models
+│   │   ├── EmbeddingPooling.cs           — SIMD-accelerated pooling via TensorPrimitives
+│   │   ├── ModelPackager.cs              — Save/load to self-contained zip
+│   │   └── PoolingStrategy.cs            — Mean / CLS / Max pooling enum
+│   └── MLContextExtensions.cs            — Extension methods for fluent API
 ├── samples/
 │   ├── BasicUsage/                       — all-MiniLM-L6-v2: all API surfaces
 │   ├── BgeSmallEmbedding/                — BGE-small: query prefix pattern
@@ -144,10 +193,11 @@ mlnet-embedding-custom-transforms/
 │   ├── IntermediateInspection/           — Inspect tokens, masks, raw output
 │   └── MeaiProviderAgnostic/             — Provider-agnostic MEAI transform
 ├── docs/                                 — Detailed documentation
-│   ├── design-decisions.md               — Why every choice was made
+│   ├── architecture-decision-record.md   — ADR for multi-task platform decisions
 │   ├── architecture.md                   — Component walkthrough + pipeline stages
+│   ├── design-decisions.md               — Why every choice was made
+│   ├── extending.md                      — How to modify, extend, and add new tasks
 │   ├── tensor-deep-dive.md               — System.Numerics.Tensors for AI workloads
-│   ├── extending.md                      — How to modify and extend
 │   └── references.md                     — All sources and further reading
 ├── proposals/                            — Design proposals for the modular architecture
 └── nuget.config                          — NuGet source (nuget.org only)
@@ -172,25 +222,10 @@ mlnet-embedding-custom-transforms/
 | `TextTokenizerEstimator` | Transform 1: Tokenization | `Fit(IDataView)` |
 | `OnnxTextModelScorerEstimator` | Transform 2: ONNX Scoring | `Fit(IDataView)` → `.HiddenDim`, `.HasPooledOutput` |
 | `EmbeddingPoolingEstimator` | Transform 3: Pooling | `Fit(IDataView)` |
-| `OnnxTextEmbeddingEstimator` | Facade (chains 1→2→3) | `Fit(IDataView)`, `GetOutputSchema()` |
-| `OnnxTextEmbeddingTransformer` | Facade transformer | `Transform(IDataView)`, `Save(path)`, `Load(ctx, path)` |
+| `OnnxTextEmbeddingEstimator` | Embedding Facade (chains 1→2→3) | `Fit(IDataView)`, `GetOutputSchema()` |
+| `OnnxTextEmbeddingTransformer` | Embedding Facade transformer | `Transform(IDataView)`, `Save(path)`, `Load(ctx, path)` |
 | `EmbeddingGeneratorEstimator` | MEAI wrapper transform | `Fit(IDataView)` |
 | `OnnxEmbeddingGenerator` | MEAI `IEmbeddingGenerator` | `GenerateAsync(texts)` |
-
-## Supported Models
-
-Any sentence-transformer ONNX model that follows the standard input/output convention:
-
-| Model | Dimensions | Size | Tested | Sample |
-|-------|:----------:|:----:|:------:|--------|
-| [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) | 384 | ~86 MB | ✅ | [BasicUsage](samples/BasicUsage/) |
-| [BAAI/bge-small-en-v1.5](https://huggingface.co/BAAI/bge-small-en-v1.5) | 384 | ~127 MB | ✅ | [BgeSmallEmbedding](samples/BgeSmallEmbedding/) |
-| [intfloat/e5-small-v2](https://huggingface.co/intfloat/e5-small-v2) | 384 | ~127 MB | ✅ | [E5SmallEmbedding](samples/E5SmallEmbedding/) |
-| [thenlper/gte-small](https://huggingface.co/thenlper/gte-small) | 384 | ~127 MB | ✅ | [GteSmallEmbedding](samples/GteSmallEmbedding/) |
-| [all-MiniLM-L12-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2) | 384 | ~120 MB | — | |
-| [all-mpnet-base-v2](https://huggingface.co/sentence-transformers/all-mpnet-base-v2) | 768 | ~420 MB | — | |
-
-Models with `sentence_embedding` output (pre-pooled) are auto-detected and pooling is skipped.
 
 ## GPU Support (CUDA)
 
@@ -281,13 +316,11 @@ When `FallbackToCpu = true`, if CUDA initialization fails the estimator silently
 
 ## Documentation
 
-For detailed documentation on the design, architecture, and implementation:
-
 - **[Architecture Decision Record](docs/architecture-decision-record.md)** — Why this repo exists and the platform architecture
-- **[Design Decisions](docs/design-decisions.md)** — Why every choice was made
 - **[Architecture](docs/architecture.md)** — Component walkthrough and pipeline stages
+- **[Design Decisions](docs/design-decisions.md)** — Why every choice was made
+- **[Extending](docs/extending.md)** — How to modify, extend, and add new tasks
 - **[Tensor Deep Dive](docs/tensor-deep-dive.md)** — System.Numerics.Tensors for AI workloads
-- **[Extending](docs/extending.md)** — How to modify, extend, and harden
 - **[References](docs/references.md)** — All sources and further reading
 
 ## Target Framework

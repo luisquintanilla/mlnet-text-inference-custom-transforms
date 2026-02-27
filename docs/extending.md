@@ -2,11 +2,120 @@
 
 This document covers how to modify, extend, and harden the solution. Each section includes the specific files to change and the patterns to follow.
 
+## How to Add a New Task
+
+The platform is designed so that adding a new task (classification, NER, reranking, QA) requires only a few new files — the shared tokenizer and scorer are reused. Follow these steps:
+
+### Step 1: Create an options class
+
+Create a new file in the appropriate task subdirectory (e.g., `src/MLNet.TextInference.Onnx/Classification/`):
+
+```csharp
+namespace MLNet.TextInference.Onnx.Classification;
+
+public class SoftmaxClassificationOptions
+{
+    public string InputColumnName { get; set; } = "RawOutput";
+    public string ProbabilitiesColumnName { get; set; } = "Probabilities";
+    public string PredictedLabelColumnName { get; set; } = "PredictedLabel";
+    public string[]? Labels { get; set; }  // e.g., ["negative", "positive"]
+}
+```
+
+### Step 2: Create a post-processing estimator + transformer
+
+Follow the same pattern as `EmbeddingPoolingEstimator` / `EmbeddingPoolingTransformer`:
+
+- The **estimator** validates options and returns a fitted transformer
+- The **transformer** implements `ITransformer` with both ML.NET and direct faces:
+  - `Transform(IDataView)` — returns a lazy wrapping `IDataView`
+  - Internal batch method (e.g., `Classify()`) — eager, for the facade's direct path
+
+```csharp
+namespace MLNet.TextInference.Onnx.Classification;
+
+public class SoftmaxClassificationEstimator
+    : IEstimator<SoftmaxClassificationTransformer>
+{
+    public SoftmaxClassificationTransformer Fit(IDataView input) { ... }
+    public SchemaShape GetOutputSchema(SchemaShape inputSchema) { ... }
+}
+```
+
+The transformer reads the `RawOutput` column from the scorer, applies task-specific logic (softmax, argmax, BIO decoding, etc.), and outputs new columns.
+
+### Step 3: Create a facade estimator
+
+Create a convenience facade that chains tokenizer → scorer → your post-processor:
+
+```csharp
+namespace MLNet.TextInference.Onnx.Classification;
+
+public class OnnxTextClassificationEstimator
+    : IEstimator<OnnxTextClassificationTransformer>
+{
+    public OnnxTextClassificationEstimator(MLContext mlContext, OnnxTextClassificationOptions options) { ... }
+
+    public OnnxTextClassificationTransformer Fit(IDataView input)
+    {
+        // 1. Create and fit tokenizer
+        // 2. Create and fit scorer
+        // 3. Create and fit SoftmaxClassification post-processor
+        // 4. Return composite transformer
+    }
+}
+```
+
+### Step 4: Add extension methods to MLContextExtensions.cs
+
+Add fluent API extensions for both the post-processor and the facade:
+
+```csharp
+// Post-processor extension
+public static SoftmaxClassificationEstimator SoftmaxClassify(
+    this TransformsCatalog catalog, SoftmaxClassificationOptions options)
+{
+    return new SoftmaxClassificationEstimator(options);
+}
+
+// Facade extension
+public static OnnxTextClassificationEstimator OnnxTextClassification(
+    this TransformsCatalog catalog, OnnxTextClassificationOptions options)
+{
+    var mlContext = GetMLContext(catalog);
+    return new OnnxTextClassificationEstimator(mlContext, options);
+}
+```
+
+### Step 5: Create a sample
+
+Add a new sample directory (e.g., `samples/SentimentClassification/`) demonstrating both the composable pipeline and the facade:
+
+```csharp
+// Composable pipeline
+var pipeline = mlContext.Transforms.TokenizeText(tokOpts)
+    .Append(mlContext.Transforms.ScoreOnnxTextModel(scorerOpts))
+    .Append(mlContext.Transforms.SoftmaxClassify(classOpts));
+
+// Facade
+var estimator = mlContext.Transforms.OnnxTextClassification(options);
+```
+
+### Summary checklist for a new task
+
+- [ ] Options class in `src/MLNet.TextInference.Onnx/<Task>/`
+- [ ] Post-processing estimator + transformer
+- [ ] Facade estimator + transformer (chains tokenizer → scorer → post-processor)
+- [ ] Extension methods in `MLContextExtensions.cs`
+- [ ] Sample in `samples/`
+- [ ] Update the task status table in `README.md`
+- [ ] Update `docs/architecture.md` component map
+
 ## Adding New Pooling Strategies
 
-**File to modify:** `EmbeddingPooling.cs`
+**File to modify:** `src/MLNet.TextInference.Onnx/Embeddings/EmbeddingPooling.cs`
 
-1. Add a value to the `PoolingStrategy` enum in `PoolingStrategy.cs`:
+1. Add a value to the `PoolingStrategy` enum in `Embeddings/PoolingStrategy.cs`:
 
 ```csharp
 public enum PoolingStrategy
@@ -18,7 +127,7 @@ public enum PoolingStrategy
 }
 ```
 
-2. Add a private method and a case to the `Pool()` switch in `EmbeddingPooling.cs`:
+2. Add a private method and a case to the `Pool()` switch in `Embeddings/EmbeddingPooling.cs`:
 
 ```csharp
 PoolingStrategy.WeightedMeanPooling => WeightedMeanPool(
@@ -61,7 +170,7 @@ private static float[] WeightedMeanPool(
 
 ## Supporting New Tokenizer Formats
 
-**File to modify:** `TextTokenizerEstimator.cs` — `LoadTokenizer()` method
+**File to modify:** `src/MLNet.TextInference.Onnx/TextTokenizerEstimator.cs` — `LoadTokenizer()` method
 
 `LoadTokenizer()` uses smart resolution to handle directories, HuggingFace config files, and direct vocab files. It currently supports:
 
@@ -210,9 +319,14 @@ var pooled = pooler.Transform(scored);
 
 ## Adding New Post-Processing Transforms
 
-The composable architecture makes it easy to add new task-specific transforms that consume the scorer's raw output:
+The composable architecture makes it easy to add new task-specific transforms that consume the scorer's raw output. See [How to Add a New Task](#how-to-add-a-new-task) above for the full step-by-step guide.
 
 ```csharp
+// Embeddings (implemented)
+var pipeline = mlContext.Transforms.TokenizeText(tokOpts)
+    .Append(mlContext.Transforms.ScoreOnnxTextModel(scorerOpts))
+    .Append(mlContext.Transforms.PoolEmbedding(poolingOpts));
+
 // Future: text classification
 var pipeline = mlContext.Transforms.TokenizeText(tokOpts)
     .Append(mlContext.Transforms.ScoreOnnxTextModel(scorerOpts))

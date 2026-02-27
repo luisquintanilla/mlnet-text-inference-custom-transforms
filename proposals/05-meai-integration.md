@@ -40,21 +40,21 @@ These are complementary, not competing:
 
 | File | Contents |
 |------|----------|
-| `src/MLNet.Embeddings.Onnx/EmbeddingGeneratorEstimator.cs` | Estimator + transformer + options |
+| `src/MLNet.TextInference.Onnx/EmbeddingGeneratorEstimator.cs` | Estimator + transformer + options |
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/MLNet.Embeddings.Onnx/OnnxEmbeddingGenerator.cs` | Refactor to use sub-transform direct faces |
-| `src/MLNet.Embeddings.Onnx/MLContextExtensions.cs` | Add extension method |
+| `src/MLNet.TextInference.Onnx/OnnxEmbeddingGenerator.cs` | Refactor to use sub-transform direct faces |
+| `src/MLNet.TextInference.Onnx/MLContextExtensions.cs` | Add extension method |
 
 ## EmbeddingGeneratorEstimator
 
 ### Options
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Configuration for the provider-agnostic embedding generator transform.
@@ -78,7 +78,7 @@ public class EmbeddingGeneratorOptions
 ### Estimator
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET IEstimator that wraps any IEmbeddingGenerator to produce embeddings within a pipeline.
@@ -133,7 +133,7 @@ The `EmbeddingGeneratorTransformer` uses **eager evaluation** (not the lazy IDat
 - For ONNX specifically, users should prefer the three-way composable pipeline for lazy evaluation
 
 ```csharp
-namespace MLNet.Embeddings.Onnx;
+namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// ML.NET ITransformer that generates embeddings using any IEmbeddingGenerator.

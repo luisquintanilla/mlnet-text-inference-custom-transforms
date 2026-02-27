@@ -48,8 +48,8 @@ build-test
 ### Files to Create
 | File | Lines (est.) |
 |------|-------------|
-| `src/MLNet.Embeddings.Onnx/TextTokenizerEstimator.cs` | ~120 |
-| `src/MLNet.Embeddings.Onnx/TextTokenizerTransformer.cs` | ~300 (includes TokenizerDataView + TokenizerCursor) |
+| `src/MLNet.TextInference.Onnx/TextTokenizerEstimator.cs` | ~120 |
+| `src/MLNet.TextInference.Onnx/TextTokenizerTransformer.cs` | ~300 (includes TokenizerDataView + TokenizerCursor) |
 
 ### Code to Extract From
 - `OnnxTextEmbeddingEstimator.LoadTokenizer()` → `TextTokenizerEstimator.LoadTokenizer()` (expanded with smart resolution: directory, config, vocab file)
@@ -85,8 +85,8 @@ build-test
 ### Files to Create
 | File | Lines (est.) |
 |------|-------------|
-| `src/MLNet.Embeddings.Onnx/OnnxTextModelScorerEstimator.cs` | ~140 |
-| `src/MLNet.Embeddings.Onnx/OnnxTextModelScorerTransformer.cs` | ~450 (includes ScorerDataView + ScorerCursor with lookahead batching) |
+| `src/MLNet.TextInference.Onnx/OnnxTextModelScorerEstimator.cs` | ~140 |
+| `src/MLNet.TextInference.Onnx/OnnxTextModelScorerTransformer.cs` | ~450 (includes ScorerDataView + ScorerCursor with lookahead batching) |
 
 ### Code to Extract From
 - `OnnxTextEmbeddingEstimator.DiscoverModelMetadata()` → `OnnxTextModelScorerEstimator.DiscoverModelMetadata()`
@@ -125,8 +125,8 @@ build-test
 ### Files to Create
 | File | Lines (est.) |
 |------|-------------|
-| `src/MLNet.Embeddings.Onnx/EmbeddingPoolingEstimator.cs` | ~100 |
-| `src/MLNet.Embeddings.Onnx/EmbeddingPoolingTransformer.cs` | ~280 (includes PoolerDataView + PoolerCursor) |
+| `src/MLNet.TextInference.Onnx/EmbeddingPoolingEstimator.cs` | ~100 |
+| `src/MLNet.TextInference.Onnx/EmbeddingPoolingTransformer.cs` | ~280 (includes PoolerDataView + PoolerCursor) |
 
 ### Code to Extract From
 - `OnnxTextEmbeddingTransformer.ProcessBatch()` lines 173-183 → `EmbeddingPoolingTransformer.Pool()` (direct face) and `PoolerCursor.MoveNext()`
@@ -166,7 +166,7 @@ build-test
 ### Files to Modify
 | File | Change |
 |------|--------|
-| `src/MLNet.Embeddings.Onnx/OnnxTextEmbeddingEstimator.cs` | Major refactor: compose 3 sub-transforms |
+| `src/MLNet.TextInference.Onnx/OnnxTextEmbeddingEstimator.cs` | Major refactor: compose 3 sub-transforms |
 
 ### What Changes
 - `Fit()` creates and chains TokenizerEstimator → ScorerEstimator → PoolingEstimator
@@ -196,7 +196,7 @@ build-test
 ### Files to Modify
 | File | Change |
 |------|--------|
-| `src/MLNet.Embeddings.Onnx/OnnxTextEmbeddingTransformer.cs` | Major refactor: wrap 3 sub-transformers |
+| `src/MLNet.TextInference.Onnx/OnnxTextEmbeddingTransformer.cs` | Major refactor: wrap 3 sub-transformers |
 
 ### What Changes
 - Fields: replace `_session`, `_tokenizer`, tensor names → `_tokenizer`, `_scorer`, `_pooler` sub-transforms
@@ -238,7 +238,7 @@ build-test
 ### Files to Modify
 | File | Change |
 |------|--------|
-| `src/MLNet.Embeddings.Onnx/MLContextExtensions.cs` | Add extension methods |
+| `src/MLNet.TextInference.Onnx/MLContextExtensions.cs` | Add extension methods |
 
 ### New Extension Methods
 - `mlContext.Transforms.TokenizeText(options)` → `TextTokenizerEstimator`
@@ -260,7 +260,7 @@ build-test
 ### Files to Modify
 | File | Change |
 |------|--------|
-| `src/MLNet.Embeddings.Onnx/ModelPackager.cs` | Access sub-transform state via new structure |
+| `src/MLNet.TextInference.Onnx/ModelPackager.cs` | Access sub-transform state via new structure |
 
 ### What Changes
 - `Save()`: access model path via `transformer.Scorer.Options.ModelPath` (or keep via `transformer.Options`)
@@ -286,12 +286,12 @@ If `OnnxTextEmbeddingTransformer` still exposes `Options` (the original `OnnxTex
 ### Files to Create
 | File | Lines (est.) |
 |------|-------------|
-| `src/MLNet.Embeddings.Onnx/EmbeddingGeneratorEstimator.cs` | ~120 |
+| `src/MLNet.TextInference.Onnx/EmbeddingGeneratorEstimator.cs` | ~120 |
 
 ### Files to Modify
 | File | Change |
 |------|--------|
-| `src/MLNet.Embeddings.Onnx/MLContextExtensions.cs` | Add `TextEmbedding(generator)` extension |
+| `src/MLNet.TextInference.Onnx/MLContextExtensions.cs` | Add `TextEmbedding(generator)` extension |
 
 ### Files NOT Modified
 - `OnnxEmbeddingGenerator.cs` — unchanged (benefits automatically from facade refactor)
