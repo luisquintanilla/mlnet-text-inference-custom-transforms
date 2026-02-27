@@ -13,13 +13,18 @@ internal sealed class TokenizedBatch
     public long[][] TokenIds { get; }
     public long[][] AttentionMasks { get; }
     public long[][]? TokenTypeIds { get; }
+    public long[][]? TokenStartOffsets { get; }
+    public long[][]? TokenEndOffsets { get; }
     public int SequenceLength { get; }
 
-    public TokenizedBatch(long[][] tokenIds, long[][] attentionMasks, long[][]? tokenTypeIds, int seqLen)
+    public TokenizedBatch(long[][] tokenIds, long[][] attentionMasks, long[][]? tokenTypeIds, int seqLen,
+        long[][]? tokenStartOffsets = null, long[][]? tokenEndOffsets = null)
     {
         TokenIds = tokenIds;
         AttentionMasks = attentionMasks;
         TokenTypeIds = tokenTypeIds;
+        TokenStartOffsets = tokenStartOffsets;
+        TokenEndOffsets = tokenEndOffsets;
         SequenceLength = seqLen;
     }
 
@@ -72,6 +77,8 @@ public sealed class TextTokenizerTransformer : ITransformer
         var allTokenIds = new long[texts.Count][];
         var allAttentionMasks = new long[texts.Count][];
         var allTokenTypeIds = _options.OutputTokenTypeIds ? new long[texts.Count][] : null;
+        var allStartOffsets = _options.OutputOffsets ? new long[texts.Count][] : null;
+        var allEndOffsets = _options.OutputOffsets ? new long[texts.Count][] : null;
 
         for (int i = 0; i < texts.Count; i++)
         {
@@ -79,12 +86,32 @@ public sealed class TextTokenizerTransformer : ITransformer
             var attentionMask = new long[seqLen];
             var tokenTypeIds = _options.OutputTokenTypeIds ? new long[seqLen] : null;
 
-            var tokens = _tokenizer.EncodeToIds(texts[i], seqLen, out _, out _);
-
-            for (int s = 0; s < tokens.Count && s < seqLen; s++)
+            if (_options.OutputOffsets)
             {
-                tokenIds[s] = tokens[s];
-                attentionMask[s] = 1;
+                var startOffsets = new long[seqLen];
+                var endOffsets = new long[seqLen];
+
+                var encodedTokens = _tokenizer.EncodeToTokens(texts[i], out _);
+                int count = Math.Min(encodedTokens.Count, seqLen);
+                for (int s = 0; s < count; s++)
+                {
+                    tokenIds[s] = encodedTokens[s].Id;
+                    attentionMask[s] = 1;
+                    startOffsets[s] = encodedTokens[s].Offset.Start.Value;
+                    endOffsets[s] = encodedTokens[s].Offset.End.Value;
+                }
+
+                allStartOffsets![i] = startOffsets;
+                allEndOffsets![i] = endOffsets;
+            }
+            else
+            {
+                var tokens = _tokenizer.EncodeToIds(texts[i], seqLen, out _, out _);
+                for (int s = 0; s < tokens.Count && s < seqLen; s++)
+                {
+                    tokenIds[s] = tokens[s];
+                    attentionMask[s] = 1;
+                }
             }
 
             allTokenIds[i] = tokenIds;
@@ -93,7 +120,8 @@ public sealed class TextTokenizerTransformer : ITransformer
                 allTokenTypeIds[i] = tokenTypeIds!;
         }
 
-        return new TokenizedBatch(allTokenIds, allAttentionMasks, allTokenTypeIds, seqLen);
+        return new TokenizedBatch(allTokenIds, allAttentionMasks, allTokenTypeIds, seqLen,
+            allStartOffsets, allEndOffsets);
     }
 
     /// <summary>
@@ -157,6 +185,13 @@ public sealed class TextTokenizerTransformer : ITransformer
         if (_options.OutputTokenTypeIds)
             builder.AddColumn(_options.TokenTypeIdsColumnName,
                 new VectorDataViewType(NumberDataViewType.Int64, seqLen));
+        if (_options.OutputOffsets)
+        {
+            builder.AddColumn(_options.TokenStartOffsetsColumnName,
+                new VectorDataViewType(NumberDataViewType.Int64, seqLen));
+            builder.AddColumn(_options.TokenEndOffsetsColumnName,
+                new VectorDataViewType(NumberDataViewType.Int64, seqLen));
+        }
 
         return builder.ToSchema();
     }
@@ -199,6 +234,13 @@ internal sealed class TokenizerDataView : IDataView
         if (options.OutputTokenTypeIds)
             builder.AddColumn(options.TokenTypeIdsColumnName,
                 new VectorDataViewType(NumberDataViewType.Int64, seqLen));
+        if (options.OutputOffsets)
+        {
+            builder.AddColumn(options.TokenStartOffsetsColumnName,
+                new VectorDataViewType(NumberDataViewType.Int64, seqLen));
+            builder.AddColumn(options.TokenEndOffsetsColumnName,
+                new VectorDataViewType(NumberDataViewType.Int64, seqLen));
+        }
 
         Schema = builder.ToSchema();
     }
@@ -244,6 +286,8 @@ internal sealed class TokenizerCursor : DataViewRowCursor
     private long[]? _currentTokenIds;
     private long[]? _currentAttentionMask;
     private long[]? _currentTokenTypeIds;
+    private long[]? _currentStartOffsets;
+    private long[]? _currentEndOffsets;
 
     public override DataViewSchema Schema => _parent.Schema;
     public override long Position => _inputCursor.Position;
@@ -305,6 +349,21 @@ internal sealed class TokenizerCursor : DataViewRowCursor
                 _currentTokenTypeIds[s] = s <= firstSepIdx ? 0 : 1;
             }
         }
+        else if (_options.OutputOffsets)
+        {
+            _currentStartOffsets = new long[seqLen];
+            _currentEndOffsets = new long[seqLen];
+
+            var encodedTokens = _tokenizer.EncodeToTokens(text, out _);
+            int count = Math.Min(encodedTokens.Count, seqLen);
+            for (int s = 0; s < count; s++)
+            {
+                _currentTokenIds[s] = encodedTokens[s].Id;
+                _currentAttentionMask[s] = 1;
+                _currentStartOffsets[s] = encodedTokens[s].Offset.Start.Value;
+                _currentEndOffsets[s] = encodedTokens[s].Offset.End.Value;
+            }
+        }
         else
         {
             // Single-text tokenization (existing path)
@@ -325,7 +384,9 @@ internal sealed class TokenizerCursor : DataViewRowCursor
         var inputCol = _inputCursor.Schema.GetColumnOrNull(column.Name);
         if (inputCol != null && column.Name != _options.TokenIdsColumnName
             && column.Name != _options.AttentionMaskColumnName
-            && column.Name != _options.TokenTypeIdsColumnName)
+            && column.Name != _options.TokenTypeIdsColumnName
+            && column.Name != _options.TokenStartOffsetsColumnName
+            && column.Name != _options.TokenEndOffsetsColumnName)
         {
             return _inputCursor.GetGetter<TValue>(inputCol.Value);
         }
@@ -337,6 +398,10 @@ internal sealed class TokenizerCursor : DataViewRowCursor
             return MakeVBufferGetter<TValue>(() => _currentAttentionMask!);
         if (column.Name == _options.TokenTypeIdsColumnName)
             return MakeVBufferGetter<TValue>(() => _currentTokenTypeIds ?? new long[_options.MaxTokenLength]);
+        if (column.Name == _options.TokenStartOffsetsColumnName)
+            return MakeVBufferGetter<TValue>(() => _currentStartOffsets ?? new long[_options.MaxTokenLength]);
+        if (column.Name == _options.TokenEndOffsetsColumnName)
+            return MakeVBufferGetter<TValue>(() => _currentEndOffsets ?? new long[_options.MaxTokenLength]);
 
         throw new InvalidOperationException($"Unknown column: {column.Name}");
     }

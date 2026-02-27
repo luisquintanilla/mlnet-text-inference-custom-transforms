@@ -64,6 +64,18 @@ public class TextTokenizerOptions
     /// Default: true.
     /// </summary>
     public bool OutputTokenTypeIds { get; set; } = true;
+
+    /// <summary>
+    /// If true, output token character offsets. Required for NER.
+    /// Default: false.
+    /// </summary>
+    public bool OutputOffsets { get; set; }
+
+    /// <summary>Name of the output column for token start character offsets. Default: "TokenStartOffsets".</summary>
+    public string TokenStartOffsetsColumnName { get; set; } = "TokenStartOffsets";
+
+    /// <summary>Name of the output column for token end character offsets. Default: "TokenEndOffsets".</summary>
+    public string TokenEndOffsetsColumnName { get; set; } = "TokenEndOffsets";
 }
 
 /// <summary>
@@ -130,6 +142,11 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
         AddVectorColumn(result, _options.AttentionMaskColumnName, NumberDataViewType.Int64);
         if (_options.OutputTokenTypeIds)
             AddVectorColumn(result, _options.TokenTypeIdsColumnName, NumberDataViewType.Int64);
+        if (_options.OutputOffsets)
+        {
+            AddVectorColumn(result, _options.TokenStartOffsetsColumnName, NumberDataViewType.Int64);
+            AddVectorColumn(result, _options.TokenEndOffsetsColumnName, NumberDataViewType.Int64);
+        }
 
         return new SchemaShape(result.Values);
     }

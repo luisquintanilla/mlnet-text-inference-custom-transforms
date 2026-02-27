@@ -14,6 +14,8 @@
     <Project Path="samples/TextGenerationLocal/TextGenerationLocal.csproj" />
     <Project Path="samples/Reranking/MsMarcoMiniLM/MsMarcoMiniLM.csproj" />
     <Project Path="samples/Reranking/BgeReranker/BgeReranker.csproj" />
+    <Project Path="samples/NER/BertBaseNER/BertBaseNER.csproj" />
+    <Project Path="samples/NER/MultilingualNER/MultilingualNER.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj" />

@@ -111,6 +111,24 @@ public static class MLContextExtensions
         return new OnnxRerankerEstimator(catalog.GetMLContext(), options);
     }
 
+    /// <summary>
+    /// Creates a NER decoding transform that converts BIO-tagged model output into entity spans.
+    /// </summary>
+    public static NerDecodingEstimator NerDecode(
+        this TransformsCatalog catalog, NerDecodingOptions options)
+    {
+        return new NerDecodingEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>
+    /// Creates an end-to-end ONNX NER transform (tokenizer → scorer → decoder).
+    /// </summary>
+    public static OnnxNerEstimator OnnxNer(
+        this TransformsCatalog catalog, OnnxNerOptions options)
+    {
+        return new OnnxNerEstimator(catalog.GetMLContext(), options);
+    }
+
     // Gets the real MLContext from TransformsCatalog via reflection so that
     // context-level settings (e.g. GpuDeviceId) are preserved.
     private static MLContext GetMLContext(this TransformsCatalog catalog)
