@@ -8,6 +8,9 @@
         "ghcr.io/devcontainers/features/nvidia-cuda:1": {
             "cudaVersion": "12.6",
             "installCudnn": true
+        },
+        "ghcr.io/devcontainers/features/python:1": {
+            "version": "3.12"
         }
     },
     "postCreateCommand": "bash .devcontainer/post-create.sh",

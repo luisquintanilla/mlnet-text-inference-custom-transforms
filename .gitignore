@@ -39,6 +39,7 @@ samples/Classification/*/models/
 samples/NER/*/models/
 samples/Reranking/*/models/
 samples/QA/*/models/
+samples/TextGenerationLocal/models/
 
 # ML.NET saved models
 *.mlnet

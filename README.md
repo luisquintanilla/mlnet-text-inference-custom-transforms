@@ -53,23 +53,53 @@ This project implements custom transforms using direct `IEstimator<T>` / `ITrans
 - **Configurable batching** — process rows in configurable batch sizes to bound memory usage
 - **Multiple pooling strategies** — Mean, CLS token, and Max pooling (for embeddings)
 
-## Quick Start (Embeddings)
+## Quick Start
 
-> **Note:** Embeddings are the simplest task. See sections below for classification, reranking, NER, QA, and text generation quick starts, or browse the [samples/](samples/) directory.
+### Option A: GitHub Codespaces (fastest)
 
-### 1. Get the model files
+Click **"Open in GitHub Codespaces"** above. The dev container automatically:
+1. Installs .NET 10, Python 3.12, and CUDA toolkit
+2. Restores packages and builds the solution
+3. Downloads the starter model (all-MiniLM-L6-v2, ~86MB)
 
-Download [all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) ONNX model and vocabulary:
+Once ready, run the first sample:
 
-```powershell
-mkdir models
-# ONNX model (~86 MB)
-Invoke-WebRequest -Uri "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx" -OutFile "models/model.onnx"
-# Vocabulary file
-Invoke-WebRequest -Uri "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/vocab.txt" -OutFile "models/vocab.txt"
+```bash
+cd samples/BasicUsage && dotnet run
 ```
 
-### 2. Composable pipeline (modular)
+Download models for other tasks:
+
+```bash
+bash scripts/download-models.sh classification  # sentiment, emotion, zero-shot
+bash scripts/download-models.sh reranking       # cross-encoder reranking
+bash scripts/download-models.sh ner             # named entity recognition
+bash scripts/download-models.sh qa              # question answering
+bash scripts/download-models.sh all             # everything (~3.5GB)
+bash scripts/download-models.sh --help          # see all options
+```
+
+### Option B: Local setup
+
+**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Python 3.x needed only for NER/QA model export.
+
+```bash
+dotnet restore && dotnet build
+bash scripts/download-models.sh embeddings-core   # downloads ~86MB starter model
+cd samples/BasicUsage && dotnet run
+```
+
+Or download manually:
+
+```powershell
+mkdir samples/BasicUsage/models
+Invoke-WebRequest -Uri "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx" -OutFile "samples/BasicUsage/models/model.onnx"
+Invoke-WebRequest -Uri "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/vocab.txt" -OutFile "samples/BasicUsage/models/vocab.txt"
+```
+
+## Code Examples (Embeddings)
+
+> **Note:** Embeddings are the simplest task. Browse the [samples/](samples/) directory for classification, reranking, NER, QA, and text generation examples.
 
 ```csharp
 using Microsoft.ML;
@@ -113,7 +143,7 @@ var pipeline = mlContext.Transforms.TokenizeText(tokenizerOpts)
 var model = pipeline.Fit(data);
 ```
 
-### 3. Convenience facade (single-shot)
+### Convenience facade (single-shot)
 
 ```csharp
 var estimator = new OnnxTextEmbeddingEstimator(mlContext, new OnnxTextEmbeddingOptions
@@ -125,7 +155,7 @@ var transformer = estimator.Fit(data);
 var embeddings = transformer.Transform(data);
 ```
 
-### 4. Provider-agnostic MEAI embedding
+### Provider-agnostic MEAI embedding
 
 ```csharp
 using Microsoft.Extensions.AI;
@@ -137,7 +167,7 @@ IEmbeddingGenerator<string, Embedding<float>> generator =
 var estimator = mlContext.Transforms.TextEmbedding(generator);
 ```
 
-### 5. Save and load
+### Save and load
 
 ```csharp
 // Save — bundles ONNX model + tokenizer + config into a portable zip
