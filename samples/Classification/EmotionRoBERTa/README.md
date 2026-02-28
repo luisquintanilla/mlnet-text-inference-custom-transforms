@@ -1,17 +1,22 @@
 # Emotion Classification with RoBERTa (GoEmotions)
 
-Classifies text into 28 emotion categories using `SamLowe/roberta-base-go_emotions`.
+Classifies text into 28 emotion categories using [SamLowe/roberta-base-go_emotions](https://huggingface.co/SamLowe/roberta-base-go_emotions).
 
-## Download Model
+## Model Setup
 
-```bash
-# Download ONNX model
-curl -L -o models/model.onnx "https://huggingface.co/SamLowe/roberta-base-go_emotions/resolve/main/onnx/model.onnx"
+> **Note:** This model does not have a pre-exported ONNX file on HuggingFace.
+> You must export it locally using the Hugging Face Optimum CLI.
 
-# Download tokenizer files
-curl -L -o models/tokenizer.json "https://huggingface.co/SamLowe/roberta-base-go_emotions/resolve/main/tokenizer.json"
-curl -L -o models/tokenizer_config.json "https://huggingface.co/SamLowe/roberta-base-go_emotions/resolve/main/tokenizer_config.json"
-```
+1. Export the ONNX model:
+   ```bash
+   pip install optimum[exporters]
+   optimum-cli export onnx --model SamLowe/roberta-base-go_emotions models/
+   ```
+
+2. The `models/` directory should contain:
+   - `model.onnx`
+   - `vocab.json`, `merges.txt`
+   - `tokenizer_config.json`
 
 ## Run
 

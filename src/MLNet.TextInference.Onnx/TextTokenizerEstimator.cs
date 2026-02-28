@@ -193,9 +193,13 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
         if (File.Exists(spBpeModel))
             return LoadFromVocabFile(spBpeModel);
 
+        var spmModel = Path.Combine(directory, "spm.model");
+        if (File.Exists(spmModel))
+            return LoadFromVocabFile(spmModel);
+
         throw new FileNotFoundException(
             $"No tokenizer_config.json or known vocab file found in '{directory}'. " +
-            $"Expected one of: tokenizer_config.json, vocab.txt, tokenizer.model, sentencepiece.bpe.model.");
+            $"Expected one of: tokenizer_config.json, vocab.txt, tokenizer.model, sentencepiece.bpe.model, spm.model.");
     }
 
     private static Tokenizer LoadFromConfig(string configPath)
@@ -224,11 +228,13 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
             "CamembertTokenizer" => LoadSentencePieceFromDirectory(directory),
             "T5Tokenizer" => LoadSentencePieceFromDirectory(directory),
             "AlbertTokenizer" => LoadSentencePieceFromDirectory(directory),
+            "DebertaTokenizer" => LoadSentencePieceFromDirectory(directory),
+            "DebertaV2Tokenizer" => LoadSentencePieceFromDirectory(directory),
             "GPT2Tokenizer" => LoadBpeFromDirectory(directory),
             "RobertaTokenizer" => LoadBpeFromDirectory(directory),
             _ when !string.IsNullOrEmpty(tokenizerClass) => throw new NotSupportedException(
                 $"Unsupported tokenizer_class '{tokenizerClass}' in {configPath}. " +
-                $"Supported: BertTokenizer, XLMRobertaTokenizer, LlamaTokenizer, GPT2Tokenizer, RobertaTokenizer. " +
+                $"Supported: BertTokenizer, DebertaV2Tokenizer, XLMRobertaTokenizer, LlamaTokenizer, GPT2Tokenizer, RobertaTokenizer. " +
                 $"Use the Tokenizer property to provide a pre-constructed instance for unsupported types."),
             _ => throw new InvalidOperationException(
                 $"No tokenizer_class found in {configPath}. Cannot auto-detect tokenizer type.")
@@ -251,7 +257,7 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
     private static Tokenizer LoadSentencePieceFromDirectory(string directory)
     {
         // Try common SentencePiece file names
-        var candidates = new[] { "sentencepiece.bpe.model", "tokenizer.model", "spiece.model" };
+        var candidates = new[] { "sentencepiece.bpe.model", "tokenizer.model", "spiece.model", "spm.model" };
         foreach (var candidate in candidates)
         {
             var spPath = Path.Combine(directory, candidate);
