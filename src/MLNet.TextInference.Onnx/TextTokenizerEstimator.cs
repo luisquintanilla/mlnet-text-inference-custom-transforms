@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Microsoft.ML;
 using Microsoft.ML.Data;
@@ -26,7 +27,9 @@ public class TextTokenizerOptions
     /// <list type="bullet">
     ///   <item>A directory containing <c>tokenizer_config.json</c> — auto-detects tokenizer type from HuggingFace config</item>
     ///   <item>A <c>tokenizer_config.json</c> file directly — reads <c>tokenizer_class</c> and loads sibling files</item>
+    ///   <item>A <c>tokenizer.json</c> file (HuggingFace fast tokenizer) — supports BPE and WordPiece models</item>
     ///   <item>A vocab file: <c>.txt</c> (BERT/WordPiece), <c>.model</c> (SentencePiece)</item>
+    ///   <item>A directory containing <c>tokenizer.json</c> (used as last-resort fallback when no other tokenizer files are present)</item>
     /// </list>
     /// Used only when <see cref="Tokenizer"/> is not set.
     /// </summary>
@@ -155,8 +158,9 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
     /// Resolves a tokenizer from a path. Supports:
     /// <list type="bullet">
     ///   <item>Directory with <c>tokenizer_config.json</c> → reads <c>tokenizer_class</c>, loads sibling files</item>
-    ///   <item>Directory without config → scans for known vocab files</item>
+    ///   <item>Directory without config → scans for known vocab files, falls back to <c>tokenizer.json</c></item>
     ///   <item><c>tokenizer_config.json</c> file → reads config, loads sibling files</item>
+    ///   <item><c>tokenizer.json</c> file (HuggingFace fast tokenizer) → supports BPE and WordPiece models</item>
     ///   <item>Vocab file (<c>.txt</c>, <c>.model</c>) → infers type from extension</item>
     /// </list>
     /// </summary>
@@ -170,6 +174,9 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
         var fileName = Path.GetFileName(path).ToLowerInvariant();
         if (fileName == "tokenizer_config.json")
             return LoadFromConfig(path);
+
+        if (fileName == "tokenizer.json")
+            return LoadFromHuggingFaceTokenizerJson(path);
 
         return LoadFromVocabFile(path);
     }
@@ -197,9 +204,14 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
         if (File.Exists(spmModel))
             return LoadFromVocabFile(spmModel);
 
+        // Last resort: check for HuggingFace fast tokenizer file
+        var tokenizerJson = Path.Combine(directory, "tokenizer.json");
+        if (File.Exists(tokenizerJson))
+            return LoadFromHuggingFaceTokenizerJson(tokenizerJson);
+
         throw new FileNotFoundException(
             $"No tokenizer_config.json or known vocab file found in '{directory}'. " +
-            $"Expected one of: tokenizer_config.json, vocab.txt, tokenizer.model, sentencepiece.bpe.model, spm.model.");
+            $"Expected one of: tokenizer_config.json, vocab.txt, tokenizer.model, sentencepiece.bpe.model, spm.model, tokenizer.json.");
     }
 
     private static Tokenizer LoadFromConfig(string configPath)
@@ -284,6 +296,109 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
         using var vocabStream = File.OpenRead(vocabJson);
         using var mergesStream = File.Exists(mergesPath) ? File.OpenRead(mergesPath) : null;
         return BpeTokenizer.Create(vocabStream, mergesStream);
+    }
+
+    /// <summary>
+    /// Loads a tokenizer from a HuggingFace <c>tokenizer.json</c> fast tokenizer file.
+    /// Supports BPE and WordPiece model types. Throws <see cref="NotSupportedException"/>
+    /// for Unigram models (use the <c>.model</c> protobuf file instead).
+    /// </summary>
+    private static Tokenizer LoadFromHuggingFaceTokenizerJson(string path)
+    {
+        var json = File.ReadAllText(path);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        if (!root.TryGetProperty("model", out var model))
+            throw new InvalidOperationException(
+                $"tokenizer.json at '{path}' has no 'model' property. " +
+                $"Ensure this is a valid HuggingFace fast tokenizer file.");
+
+        if (!model.TryGetProperty("type", out var typeElement))
+            throw new InvalidOperationException(
+                $"tokenizer.json at '{path}' has no 'model.type' property.");
+
+        var modelType = typeElement.GetString()
+            ?? throw new InvalidOperationException(
+                $"tokenizer.json at '{path}' has null 'model.type' property.");
+
+        return modelType switch
+        {
+            "BPE" => LoadBpeFromTokenizerJson(model, path),
+            "WordPiece" => LoadWordPieceFromTokenizerJson(model, root, path),
+            "Unigram" => throw new NotSupportedException(
+                $"Unigram tokenizer.json is not directly supported. " +
+                $"Point TokenizerPath at the directory containing the .model file instead, " +
+                $"or set the Tokenizer property directly."),
+            _ => throw new NotSupportedException(
+                $"Unsupported tokenizer model type '{modelType}' in '{path}'. " +
+                $"Supported types: BPE, WordPiece.")
+        };
+    }
+
+    private static Tokenizer LoadBpeFromTokenizerJson(JsonElement model, string path)
+    {
+        if (!model.TryGetProperty("vocab", out var vocabElement))
+            throw new InvalidOperationException(
+                $"BPE model in '{path}' has no 'vocab' property.");
+
+        // model.vocab is a JSON dict (same format as vocab.json) — pass raw JSON directly
+        var vocabJson = vocabElement.GetRawText();
+        using var vocabStream = new MemoryStream(Encoding.UTF8.GetBytes(vocabJson));
+
+        MemoryStream? mergesStream = null;
+        if (model.TryGetProperty("merges", out var mergesElement)
+            && mergesElement.ValueKind == JsonValueKind.Array
+            && mergesElement.GetArrayLength() > 0)
+        {
+            var sb = new StringBuilder();
+            foreach (var merge in mergesElement.EnumerateArray())
+            {
+                var mergeString = merge.GetString()
+                    ?? throw new InvalidOperationException(
+                        $"BPE model in '{path}' has a null entry in 'merges', which is not allowed.");
+                sb.AppendLine(mergeString);
+            }
+            mergesStream = new MemoryStream(Encoding.UTF8.GetBytes(sb.ToString()));
+        }
+
+        try
+        {
+            return BpeTokenizer.Create(vocabStream, mergesStream);
+        }
+        finally
+        {
+            mergesStream?.Dispose();
+        }
+    }
+
+    private static Tokenizer LoadWordPieceFromTokenizerJson(JsonElement model, JsonElement root, string path)
+    {
+        if (!model.TryGetProperty("vocab", out var vocabElement))
+            throw new InvalidOperationException(
+                $"WordPiece model in '{path}' has no 'vocab' property.");
+
+        // Check normalizer for lowercase setting (e.g. bert-base-uncased)
+        var lowerCase = false;
+        if (root.TryGetProperty("normalizer", out var normalizer)
+            && normalizer.ValueKind == JsonValueKind.Object
+            && normalizer.TryGetProperty("lowercase", out var lc)
+            && lc.ValueKind == JsonValueKind.True)
+        {
+            lowerCase = true;
+        }
+
+        // model.vocab is {"token": id, ...} — sort by ID and write as vocab.txt format (one token per line)
+        var vocabPairs = new SortedDictionary<int, string>();
+        foreach (var prop in vocabElement.EnumerateObject())
+            vocabPairs[prop.Value.GetInt32()] = prop.Name;
+
+        var sb = new StringBuilder();
+        foreach (var kvp in vocabPairs)
+            sb.AppendLine(kvp.Value);
+
+        using var vocabStream = new MemoryStream(Encoding.UTF8.GetBytes(sb.ToString()));
+        return BertTokenizer.Create(vocabStream, new BertOptions { LowerCaseBeforeTokenization = lowerCase });
     }
 
     private static Tokenizer LoadFromVocabFile(string path)
