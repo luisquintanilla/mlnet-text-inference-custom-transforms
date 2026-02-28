@@ -215,7 +215,7 @@ var estimator = mlContext.Transforms.TextEmbedding(anyGenerator);
 **Decision:** `TokenizerPath` now accepts a **directory** (not just a file). When given a directory, the tokenizer estimator:
 1. Looks for `tokenizer_config.json` and reads `tokenizer_class` to determine the type
 2. Dispatches to the appropriate tokenizer: `BpeTokenizer`, `LlamaTokenizer` (SentencePiece), or `BertTokenizer` (WordPiece)
-3. Falls back to heuristic detection based on known file patterns (`vocab.txt` → WordPiece, `tokenizer.json` → BPE, `tokenizer.model` → SentencePiece)
+3. Falls back to heuristic detection based on known file patterns (`vocab.txt` → WordPiece, `tokenizer.model`/`sentencepiece.bpe.model`/`spm.model` → SentencePiece, `tokenizer.json` → BPE or WordPiece as last resort)
 
 **Rationale:** HuggingFace models use different tokenizer types. Requiring the user to know which tokenizer file to point to and what type it is creates unnecessary friction. With directory-based resolution, you just point to the model directory and the library figures it out.
 
