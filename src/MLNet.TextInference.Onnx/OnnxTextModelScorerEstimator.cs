@@ -186,6 +186,8 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
             var dims = outputMeta[outputName].Dimensions;
             hasPooledOutput = !dims.Contains(-1) && dims.Length == 2;
             hiddenDim = (int)dims.Last();
+            if (hiddenDim <= 0)
+                hiddenDim = _options.MaxTokenLength;
             outputRank = dims.Length;
         }
         else if (_options.PreferredOutputNames != null)
@@ -197,6 +199,8 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
                 var dims = outputMeta[preferred].Dimensions;
                 hasPooledOutput = !dims.Contains(-1) && dims.Length == 2;
                 hiddenDim = (int)dims.Last();
+                if (hiddenDim <= 0)
+                    hiddenDim = _options.MaxTokenLength;
                 outputRank = dims.Length;
             }
             else
@@ -205,6 +209,8 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
                 var dims = outputMeta[outputName].Dimensions;
                 hasPooledOutput = !dims.Contains(-1) && dims.Length == 2;
                 hiddenDim = (int)dims.Last();
+                if (hiddenDim <= 0)
+                    hiddenDim = _options.MaxTokenLength;
                 outputRank = dims.Length;
             }
         }
@@ -216,6 +222,8 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
                 outputName = pooledName;
                 hasPooledOutput = true;
                 hiddenDim = (int)outputMeta[pooledName].Dimensions.Last();
+                if (hiddenDim <= 0)
+                    hiddenDim = _options.MaxTokenLength;
                 outputRank = 2;
             }
             else
@@ -225,6 +233,8 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
                     outputMeta.Keys.First());
                 hasPooledOutput = false;
                 hiddenDim = (int)outputMeta[outputName].Dimensions.Last();
+                if (hiddenDim <= 0)
+                    hiddenDim = _options.MaxTokenLength;
                 outputRank = 3;
             }
         }
