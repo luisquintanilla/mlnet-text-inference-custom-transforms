@@ -177,12 +177,21 @@ private static float[] WeightedMeanPool(
 | Source | Tokenizer | Vocab Files |
 |--------|-----------|-------------|
 | `tokenizer_class: "BertTokenizer"` | `BertTokenizer` | `vocab.txt` |
-| `tokenizer_class: "XLMRobertaTokenizer"` | `LlamaTokenizer` | `sentencepiece.bpe.model`, `tokenizer.model` |
-| `tokenizer_class: "LlamaTokenizer"` | `LlamaTokenizer` | `tokenizer.model` |
+| `tokenizer_class: "DistilBertTokenizer"` | `BertTokenizer` | `vocab.txt` |
+| `tokenizer_class: "DebertaV2Tokenizer"` | `LlamaTokenizer` | `sentencepiece.bpe.model`, `tokenizer.model`, `spm.model` |
+| `tokenizer_class: "DebertaTokenizer"` | `LlamaTokenizer` | `sentencepiece.bpe.model`, `tokenizer.model`, `spm.model` |
+| `tokenizer_class: "XLMRobertaTokenizer"` | `LlamaTokenizer` | `sentencepiece.bpe.model`, `tokenizer.model`, `spm.model` |
+| `tokenizer_class: "LlamaTokenizer"` | `LlamaTokenizer` | `sentencepiece.bpe.model`, `tokenizer.model`, `spm.model` |
+| `tokenizer_class: "CamembertTokenizer"` | `LlamaTokenizer` | `sentencepiece.bpe.model`, `tokenizer.model`, `spm.model` |
+| `tokenizer_class: "T5Tokenizer"` | `LlamaTokenizer` | `sentencepiece.bpe.model`, `tokenizer.model`, `spm.model` |
+| `tokenizer_class: "AlbertTokenizer"` | `LlamaTokenizer` | `sentencepiece.bpe.model`, `tokenizer.model`, `spm.model` |
 | `tokenizer_class: "GPT2Tokenizer"` | `BpeTokenizer` | `vocab.json` + `merges.txt` |
 | `tokenizer_class: "RobertaTokenizer"` | `BpeTokenizer` | `vocab.json` + `merges.txt` |
+| Direct `tokenizer.json` file (BPE) | `BpeTokenizer` | Extracts `model.vocab` + `model.merges` from JSON |
+| Direct `tokenizer.json` file (WordPiece) | `BertTokenizer` | Extracts `model.vocab` from JSON; reads `normalizer.lowercase` |
 | Direct `.txt` file | `BertTokenizer` | (the file itself) |
 | Direct `.model` file | `LlamaTokenizer` | (the file itself) |
+| Directory fallback: `tokenizer.json` | `BpeTokenizer` or `BertTokenizer` | Last resort when no other tokenizer files found |
 
 ### Adding a new tokenizer type
 
@@ -216,6 +225,14 @@ When `TokenizerPath` points to a directory or `tokenizer_config.json`, the loade
 2. Dispatches to the appropriate factory method
 3. Applies config properties (e.g., `do_lower_case` → `BertOptions.LowerCaseBeforeTokenization`)
 4. Finds sibling vocab files in the same directory
+
+When `TokenizerPath` points to a `tokenizer.json` file (HuggingFace fast tokenizer):
+1. Parses the JSON and reads `model.type` (`"BPE"`, `"WordPiece"`, or `"Unigram"`)
+2. For **BPE**: extracts `model.vocab` (JSON dict, same format as `vocab.json`) and `model.merges` (JSON array), creates in-memory streams, and calls `BpeTokenizer.Create()`
+3. For **WordPiece**: extracts `model.vocab`, sorts by ID, writes as `vocab.txt` format, reads `normalizer.lowercase` for uncased models, and calls `BertTokenizer.Create()` with appropriate `BertOptions`
+4. For **Unigram**: throws `NotSupportedException` — Unigram models always ship a `.model` protobuf file alongside `tokenizer.json`, so users should point at the directory instead
+
+When a directory contains no `tokenizer_config.json` or known vocab files, `tokenizer.json` is checked as a **last-resort fallback**.
 
 This mirrors HuggingFace's `AutoTokenizer.from_pretrained()` pattern.
 

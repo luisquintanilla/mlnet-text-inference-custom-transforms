@@ -46,7 +46,7 @@ This project implements custom transforms using direct `IEstimator<T>` / `ITrans
 - **Text-pair tokenization** — cross-encoder reranking uses `[CLS] A [SEP] B [SEP]` with token type IDs for query-document pairs
 - **Token offset tracking** — NER tokenization preserves character offsets via `EncodeToTokens()` for mapping entities back to source text
 - **Multi-output ONNX scoring** — QA models produce separate start/end logit tensors via `AdditionalOutputTensorNames`
-- **Smart tokenizer resolution** — point to a directory; auto-detects from `tokenizer_config.json` or known vocab files (BPE, SentencePiece, WordPiece)
+- **Smart tokenizer resolution** — point to a directory; auto-detects from `tokenizer_config.json`, known vocab files (BPE, SentencePiece, WordPiece), or HuggingFace `tokenizer.json` (fast tokenizer)
 - **ONNX auto-discovery** — automatically detects input/output tensor names, shapes, and dimensions from model metadata
 - **Self-contained save/load** — serializes to a portable `.mlnet` zip file containing the ONNX model, tokenizer, and config
 - **SIMD-accelerated post-processing** — pooling and normalization use `TensorPrimitives` for hardware-vectorized math
