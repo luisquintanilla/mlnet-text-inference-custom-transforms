@@ -87,14 +87,19 @@ Code references point to the actual source files in `src/MLNet.TextInference.Onn
   ┌───────────────────────┐  ┌───────────────▼──────┐  ┌────────────────────┐
   │ EmbeddingPooling-     │  │ Softmax-             │  │ NerDecoding-       │
   │ Transformer           │  │ Transformer          │  │ Transformer        │
-  │                       │  │ (future)             │  │ (future)           │
-  │ RawOutput +           │  │                      │  │                    │
-  │ AttentionMask →       │  │ logits →             │  │ per-token logits → │
-  │   Embedding           │  │ class probabilities  │  │ entity spans       │
+  │                       │  │                      │  │                    │
+  │ RawOutput +           │  │ logits →             │  │ per-token logits → │
+  │ AttentionMask →       │  │ class probabilities  │  │ entity spans       │
+  │   Embedding           │  │                      │  │                    │
   │                       │  │                      │  │                    │
   │ • Mean/CLS/Max pool   │  │                      │  │                    │
   │ • L2 normalize        │  │                      │  │                    │
   └───────────────────────┘  └──────────────────────┘  └────────────────────┘
+
+            + CrossEncoderTransformer (reranking)
+            + QaExtractionTransformer (question answering)
+            + ChatClientTransformer (text generation — MEAI)
+            + OnnxTextGenerationTransformer (text generation — ORT GenAI)
 ```
 
 ## IDataView Column Flow
@@ -130,10 +135,12 @@ The shared foundation produces raw model output. Each task adds a post-processin
 | Task | Post-processor | What It Does |
 |------|---------------|-------------|
 | Embeddings | `EmbeddingPoolingTransformer` | Mean/CLS/Max pooling + L2 normalization |
-| Classification | `SoftmaxClassificationTransformer` (planned) | Softmax over logits → class probabilities |
-| NER | `NerDecodingTransformer` (planned) | Per-token argmax → BIO entity spans |
-| Reranking | `SigmoidScorerTransformer` (planned) | Sigmoid on logit → relevance score |
-| QA | `QaSpanExtractionTransformer` (planned) | Start/end logit search → answer span |
+| Classification | `SoftmaxClassificationTransformer` | Softmax over logits → class probabilities |
+| NER | `NerDecodingTransformer` | Per-token argmax → BIO entity spans |
+| Reranking | `CrossEncoderTransformer` | Sigmoid on logit → relevance score |
+| QA | `QaExtractionTransformer` | Start/end logit search → answer span |
+| Text Gen (MEAI) | `ChatClientTransformer` | Provider-agnostic text generation via `IChatClient` |
+| Text Gen (Local) | `OnnxTextGenerationTransformer` | Autoregressive generation via ORT GenAI (e.g., Phi-3) |
 
 ## Lazy Evaluation via Custom IDataView / Cursor
 

@@ -4,16 +4,29 @@ Extractive Question Answering using [deepset/roberta-base-squad2](https://huggin
 
 ## Model Setup
 
-1. Download or export the ONNX model:
-   ```bash
-   pip install optimum[exporters]
-   optimum-cli export onnx --model deepset/roberta-base-squad2 models/
-   ```
+Download the pre-exported ONNX model and tokenizer files from [lquint/roberta-base-squad2-onnx](https://huggingface.co/lquint/roberta-base-squad2-onnx):
 
-2. The `models/` directory should contain:
-   - `model.onnx`
-   - `vocab.json`, `merges.txt`
-   - `tokenizer_config.json`
+### PowerShell
+
+```powershell
+mkdir models
+Invoke-WebRequest -Uri "https://huggingface.co/lquint/roberta-base-squad2-onnx/resolve/main/model.onnx" -OutFile "models/model.onnx"
+Invoke-WebRequest -Uri "https://huggingface.co/lquint/roberta-base-squad2-onnx/resolve/main/vocab.json" -OutFile "models/vocab.json"
+Invoke-WebRequest -Uri "https://huggingface.co/lquint/roberta-base-squad2-onnx/resolve/main/merges.txt" -OutFile "models/merges.txt"
+```
+
+### Bash
+
+```bash
+mkdir -p models
+curl -L -o models/model.onnx "https://huggingface.co/lquint/roberta-base-squad2-onnx/resolve/main/model.onnx"
+curl -L -o models/vocab.json "https://huggingface.co/lquint/roberta-base-squad2-onnx/resolve/main/vocab.json"
+curl -L -o models/merges.txt "https://huggingface.co/lquint/roberta-base-squad2-onnx/resolve/main/merges.txt"
+```
+
+The `models/` directory should contain:
+- `model.onnx`
+- `vocab.json`, `merges.txt`
 
 ## Run
 

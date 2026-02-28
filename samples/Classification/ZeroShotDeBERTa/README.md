@@ -6,24 +6,27 @@ The model predicts whether a hypothesis **contradicts**, is **neutral** to, or i
 
 ## Model Setup
 
-> **Note:** This model does not have a pre-exported ONNX file on HuggingFace.
-> You must export it locally using the Hugging Face Optimum CLI.
+Download the pre-exported ONNX model and tokenizer files from [lquint/DeBERTa-v3-base-mnli-fever-anli-onnx](https://huggingface.co/lquint/DeBERTa-v3-base-mnli-fever-anli-onnx):
 
-1. Export the ONNX model:
-   ```bash
-   pip install optimum[exporters]
-   optimum-cli export onnx --model MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli models/
-   ```
+### PowerShell
 
-2. Download the SentencePiece model (needed for tokenization):
-   ```bash
-   curl -L -o models/spm.model "https://huggingface.co/MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli/resolve/main/spm.model"
-   ```
+```powershell
+mkdir models
+Invoke-WebRequest -Uri "https://huggingface.co/lquint/DeBERTa-v3-base-mnli-fever-anli-onnx/resolve/main/model.onnx" -OutFile "models/model.onnx"
+Invoke-WebRequest -Uri "https://huggingface.co/lquint/DeBERTa-v3-base-mnli-fever-anli-onnx/resolve/main/spm.model" -OutFile "models/spm.model"
+```
 
-3. The `models/` directory should contain:
-   - `model.onnx`
-   - `spm.model`
-   - `tokenizer_config.json`
+### Bash
+
+```bash
+mkdir -p models
+curl -L -o models/model.onnx "https://huggingface.co/lquint/DeBERTa-v3-base-mnli-fever-anli-onnx/resolve/main/model.onnx"
+curl -L -o models/spm.model "https://huggingface.co/lquint/DeBERTa-v3-base-mnli-fever-anli-onnx/resolve/main/spm.model"
+```
+
+The `models/` directory should contain:
+- `model.onnx`
+- `spm.model`
 
 ## Run
 

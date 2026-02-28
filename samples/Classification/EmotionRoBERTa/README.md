@@ -4,19 +4,29 @@ Classifies text into 28 emotion categories using [SamLowe/roberta-base-go_emotio
 
 ## Model Setup
 
-> **Note:** This model does not have a pre-exported ONNX file on HuggingFace.
-> You must export it locally using the Hugging Face Optimum CLI.
+Download the pre-exported ONNX model and tokenizer files from [lquint/roberta-base-go_emotions-onnx](https://huggingface.co/lquint/roberta-base-go_emotions-onnx):
 
-1. Export the ONNX model:
-   ```bash
-   pip install optimum[exporters]
-   optimum-cli export onnx --model SamLowe/roberta-base-go_emotions models/
-   ```
+### PowerShell
 
-2. The `models/` directory should contain:
-   - `model.onnx`
-   - `vocab.json`, `merges.txt`
-   - `tokenizer_config.json`
+```powershell
+mkdir models
+Invoke-WebRequest -Uri "https://huggingface.co/lquint/roberta-base-go_emotions-onnx/resolve/main/model.onnx" -OutFile "models/model.onnx"
+Invoke-WebRequest -Uri "https://huggingface.co/lquint/roberta-base-go_emotions-onnx/resolve/main/vocab.json" -OutFile "models/vocab.json"
+Invoke-WebRequest -Uri "https://huggingface.co/lquint/roberta-base-go_emotions-onnx/resolve/main/merges.txt" -OutFile "models/merges.txt"
+```
+
+### Bash
+
+```bash
+mkdir -p models
+curl -L -o models/model.onnx "https://huggingface.co/lquint/roberta-base-go_emotions-onnx/resolve/main/model.onnx"
+curl -L -o models/vocab.json "https://huggingface.co/lquint/roberta-base-go_emotions-onnx/resolve/main/vocab.json"
+curl -L -o models/merges.txt "https://huggingface.co/lquint/roberta-base-go_emotions-onnx/resolve/main/merges.txt"
+```
+
+The `models/` directory should contain:
+- `model.onnx`
+- `vocab.json`, `merges.txt`
 
 ## Run
 

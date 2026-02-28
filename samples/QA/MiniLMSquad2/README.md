@@ -4,16 +4,27 @@ Lightweight extractive QA using [deepset/minilm-uncased-squad2](https://huggingf
 
 ## Model Setup
 
-1. Download or export the ONNX model:
-   ```bash
-   pip install optimum[exporters]
-   optimum-cli export onnx --model deepset/minilm-uncased-squad2 models/
-   ```
+Download the pre-exported ONNX model and tokenizer files from [lquint/minilm-uncased-squad2-onnx](https://huggingface.co/lquint/minilm-uncased-squad2-onnx):
 
-2. The `models/` directory should contain:
-   - `model.onnx`
-   - `vocab.txt`
-   - `tokenizer_config.json`
+### PowerShell
+
+```powershell
+mkdir models
+Invoke-WebRequest -Uri "https://huggingface.co/lquint/minilm-uncased-squad2-onnx/resolve/main/model.onnx" -OutFile "models/model.onnx"
+Invoke-WebRequest -Uri "https://huggingface.co/lquint/minilm-uncased-squad2-onnx/resolve/main/vocab.txt" -OutFile "models/vocab.txt"
+```
+
+### Bash
+
+```bash
+mkdir -p models
+curl -L -o models/model.onnx "https://huggingface.co/lquint/minilm-uncased-squad2-onnx/resolve/main/model.onnx"
+curl -L -o models/vocab.txt "https://huggingface.co/lquint/minilm-uncased-squad2-onnx/resolve/main/vocab.txt"
+```
+
+The `models/` directory should contain:
+- `model.onnx`
+- `vocab.txt`
 
 ## Run
 

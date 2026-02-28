@@ -10,7 +10,7 @@
 #   classification     sentiment, emotion, zero-shot models (~1GB)
 #   reranking          cross-encoder reranking models (~1.2GB)
 #   ner                NER models via optimum-cli export (~500MB, needs Python)
-#   qa                 QA models via optimum-cli export (~500MB, needs Python)
+#   qa                 QA models (~600MB)
 #   textgen            Phi-3-mini for local generation (~2GB, needs huggingface-cli)
 #   all                everything except textgen (~3.5GB)
 #   all+textgen        everything including textgen (~5.5GB)
@@ -114,16 +114,14 @@ download_classification() {
     hf_download "$distilbert/vocab.txt" "samples/Classification/SentimentDistilBERT/models/vocab.txt"
 
     echo "  RoBERTa-GoEmotions (emotion):"
-    local roberta="https://huggingface.co/SamLowe/roberta-base-go_emotions/resolve/main"
-    hf_download "$roberta/onnx/model.onnx" "samples/Classification/EmotionRoBERTa/models/model.onnx"
-    hf_download "$roberta/tokenizer.json" "samples/Classification/EmotionRoBERTa/models/tokenizer.json"
-    hf_download "$roberta/tokenizer_config.json" "samples/Classification/EmotionRoBERTa/models/tokenizer_config.json"
+    local roberta="https://huggingface.co/lquint/roberta-base-go_emotions-onnx/resolve/main"
+    hf_download "$roberta/model.onnx" "samples/Classification/EmotionRoBERTa/models/model.onnx"
+    hf_download "$roberta/vocab.json" "samples/Classification/EmotionRoBERTa/models/vocab.json"
+    hf_download "$roberta/merges.txt" "samples/Classification/EmotionRoBERTa/models/merges.txt"
 
     echo "  DeBERTa-v3-NLI (zero-shot):"
-    local deberta="https://huggingface.co/MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli/resolve/main"
-    hf_download "$deberta/onnx/model.onnx" "samples/Classification/ZeroShotDeBERTa/models/model.onnx"
-    hf_download "$deberta/tokenizer.json" "samples/Classification/ZeroShotDeBERTa/models/tokenizer.json"
-    hf_download "$deberta/tokenizer_config.json" "samples/Classification/ZeroShotDeBERTa/models/tokenizer_config.json"
+    local deberta="https://huggingface.co/lquint/DeBERTa-v3-base-mnli-fever-anli-onnx/resolve/main"
+    hf_download "$deberta/model.onnx" "samples/Classification/ZeroShotDeBERTa/models/model.onnx"
     hf_download "$deberta/spm.model" "samples/Classification/ZeroShotDeBERTa/models/spm.model"
 
     echo "  ✅ Ready: SentimentDistilBERT, EmotionRoBERTa, ZeroShotDeBERTa"
@@ -165,14 +163,19 @@ download_ner() {
 
 download_qa() {
     echo ""
-    echo "📦 QA — Question Answering (~500MB, needs Python)"
-    echo "───────────────────────────────────────────────────"
+    echo "📦 QA — Question Answering (~600MB)"
+    echo "─────────────────────────────────────"
 
     echo "  RoBERTa-SQuAD2:"
-    optimum_export "deepset/roberta-base-squad2" "samples/QA/RobertaSquad2/models"
+    local roberta_qa="https://huggingface.co/lquint/roberta-base-squad2-onnx/resolve/main"
+    hf_download "$roberta_qa/model.onnx" "samples/QA/RobertaSquad2/models/model.onnx"
+    hf_download "$roberta_qa/vocab.json" "samples/QA/RobertaSquad2/models/vocab.json"
+    hf_download "$roberta_qa/merges.txt" "samples/QA/RobertaSquad2/models/merges.txt"
 
     echo "  MiniLM-SQuAD2:"
-    optimum_export "deepset/minilm-uncased-squad2" "samples/QA/MiniLMSquad2/models"
+    local minilm_qa="https://huggingface.co/lquint/minilm-uncased-squad2-onnx/resolve/main"
+    hf_download "$minilm_qa/model.onnx" "samples/QA/MiniLMSquad2/models/model.onnx"
+    hf_download "$minilm_qa/vocab.txt" "samples/QA/MiniLMSquad2/models/vocab.txt"
 
     echo "  ✅ Ready: RobertaSquad2, MiniLMSquad2"
 }
@@ -212,7 +215,7 @@ show_help() {
     echo "  classification     sentiment, emotion, zero-shot (~1GB)"
     echo "  reranking          cross-encoder reranking (~1.2GB)"
     echo "  ner                NER via optimum-cli export (~500MB)"
-    echo "  qa                 QA via optimum-cli export (~500MB)"
+    echo "  qa                 QA models (~600MB)"
     echo "  textgen            Phi-3-mini for local generation (~2GB)"
     echo "  all                everything except textgen (~3.5GB)"
     echo "  all+textgen        everything including textgen (~5.5GB)"
