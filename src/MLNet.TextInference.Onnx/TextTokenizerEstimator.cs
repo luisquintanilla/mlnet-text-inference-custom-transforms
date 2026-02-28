@@ -318,12 +318,14 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
             throw new InvalidOperationException(
                 $"tokenizer.json at '{path}' has no 'model.type' property.");
 
-        var modelType = typeElement.GetString();
+        var modelType = typeElement.GetString()
+            ?? throw new InvalidOperationException(
+                $"tokenizer.json at '{path}' has null 'model.type' property.");
 
         return modelType switch
         {
             "BPE" => LoadBpeFromTokenizerJson(model, path),
-            "WordPiece" => LoadWordPieceFromTokenizerJson(model, path),
+            "WordPiece" => LoadWordPieceFromTokenizerJson(model, root, path),
             "Unigram" => throw new NotSupportedException(
                 $"Unigram tokenizer.json is not directly supported. " +
                 $"Point TokenizerPath at the directory containing the .model file instead, " +
@@ -351,7 +353,12 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
         {
             var sb = new StringBuilder();
             foreach (var merge in mergesElement.EnumerateArray())
-                sb.AppendLine(merge.GetString());
+            {
+                var mergeString = merge.GetString()
+                    ?? throw new InvalidOperationException(
+                        $"BPE model in '{path}' has a null entry in 'merges', which is not allowed.");
+                sb.AppendLine(mergeString);
+            }
             mergesStream = new MemoryStream(Encoding.UTF8.GetBytes(sb.ToString()));
         }
 
@@ -365,11 +372,21 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
         }
     }
 
-    private static Tokenizer LoadWordPieceFromTokenizerJson(JsonElement model, string path)
+    private static Tokenizer LoadWordPieceFromTokenizerJson(JsonElement model, JsonElement root, string path)
     {
         if (!model.TryGetProperty("vocab", out var vocabElement))
             throw new InvalidOperationException(
                 $"WordPiece model in '{path}' has no 'vocab' property.");
+
+        // Check normalizer for lowercase setting (e.g. bert-base-uncased)
+        var lowerCase = false;
+        if (root.TryGetProperty("normalizer", out var normalizer)
+            && normalizer.ValueKind == JsonValueKind.Object
+            && normalizer.TryGetProperty("lowercase", out var lc)
+            && lc.ValueKind == JsonValueKind.True)
+        {
+            lowerCase = true;
+        }
 
         // model.vocab is {"token": id, ...} — sort by ID and write as vocab.txt format (one token per line)
         var vocabPairs = new SortedDictionary<int, string>();
@@ -381,7 +398,7 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
             sb.AppendLine(kvp.Value);
 
         using var vocabStream = new MemoryStream(Encoding.UTF8.GetBytes(sb.ToString()));
-        return BertTokenizer.Create(vocabStream);
+        return BertTokenizer.Create(vocabStream, new BertOptions { LowerCaseBeforeTokenization = lowerCase });
     }
 
     private static Tokenizer LoadFromVocabFile(string path)
