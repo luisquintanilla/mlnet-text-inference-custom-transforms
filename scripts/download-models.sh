@@ -118,11 +118,13 @@ download_classification() {
     hf_download "$roberta/model.onnx" "samples/Classification/EmotionRoBERTa/models/model.onnx"
     hf_download "$roberta/vocab.json" "samples/Classification/EmotionRoBERTa/models/vocab.json"
     hf_download "$roberta/merges.txt" "samples/Classification/EmotionRoBERTa/models/merges.txt"
+    hf_download "$roberta/tokenizer_config.json" "samples/Classification/EmotionRoBERTa/models/tokenizer_config.json"
 
     echo "  DeBERTa-v3-NLI (zero-shot):"
     local deberta="https://huggingface.co/lquint/DeBERTa-v3-base-mnli-fever-anli-onnx/resolve/main"
     hf_download "$deberta/model.onnx" "samples/Classification/ZeroShotDeBERTa/models/model.onnx"
     hf_download "$deberta/spm.model" "samples/Classification/ZeroShotDeBERTa/models/spm.model"
+    hf_download "$deberta/tokenizer_config.json" "samples/Classification/ZeroShotDeBERTa/models/tokenizer_config.json"
 
     echo "  ✅ Ready: SentimentDistilBERT, EmotionRoBERTa, ZeroShotDeBERTa"
 }
@@ -171,11 +173,13 @@ download_qa() {
     hf_download "$roberta_qa/model.onnx" "samples/QA/RobertaSquad2/models/model.onnx"
     hf_download "$roberta_qa/vocab.json" "samples/QA/RobertaSquad2/models/vocab.json"
     hf_download "$roberta_qa/merges.txt" "samples/QA/RobertaSquad2/models/merges.txt"
+    hf_download "$roberta_qa/tokenizer_config.json" "samples/QA/RobertaSquad2/models/tokenizer_config.json"
 
     echo "  MiniLM-SQuAD2:"
     local minilm_qa="https://huggingface.co/lquint/minilm-uncased-squad2-onnx/resolve/main"
     hf_download "$minilm_qa/model.onnx" "samples/QA/MiniLMSquad2/models/model.onnx"
     hf_download "$minilm_qa/vocab.txt" "samples/QA/MiniLMSquad2/models/vocab.txt"
+    hf_download "$minilm_qa/tokenizer_config.json" "samples/QA/MiniLMSquad2/models/tokenizer_config.json"
 
     echo "  ✅ Ready: RobertaSquad2, MiniLMSquad2"
 }
