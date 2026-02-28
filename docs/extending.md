@@ -4,7 +4,7 @@ This document covers how to modify, extend, and harden the solution. Each sectio
 
 ## How to Add a New Task
 
-The platform is designed so that adding a new task (classification, NER, reranking, QA) requires only a few new files — the shared tokenizer and scorer are reused. Follow these steps:
+The platform is designed so that adding a new task requires only a few new files — the shared tokenizer and scorer are reused. All encoder tasks (embeddings, classification, NER, reranking, QA) already follow this pattern. Follow these steps:
 
 ### Step 1: Create an options class
 
@@ -322,20 +322,20 @@ var pooled = pooler.Transform(scored);
 The composable architecture makes it easy to add new task-specific transforms that consume the scorer's raw output. See [How to Add a New Task](#how-to-add-a-new-task) above for the full step-by-step guide.
 
 ```csharp
-// Embeddings (implemented)
+// Embeddings
 var pipeline = mlContext.Transforms.TokenizeText(tokOpts)
     .Append(mlContext.Transforms.ScoreOnnxTextModel(scorerOpts))
     .Append(mlContext.Transforms.PoolEmbedding(poolingOpts));
 
-// Future: text classification
+// Text classification
 var pipeline = mlContext.Transforms.TokenizeText(tokOpts)
     .Append(mlContext.Transforms.ScoreOnnxTextModel(scorerOpts))
-    .Append(mlContext.Transforms.SoftmaxClassify(classOpts));  // new transform
+    .Append(mlContext.Transforms.SoftmaxClassify(classOpts));
 
-// Future: named entity recognition
+// Named entity recognition
 var pipeline = mlContext.Transforms.TokenizeText(tokOpts)
     .Append(mlContext.Transforms.ScoreOnnxTextModel(scorerOpts))
-    .Append(mlContext.Transforms.DecodeNerEntities(nerOpts));  // new transform
+    .Append(mlContext.Transforms.DecodeNerEntities(nerOpts));
 ```
 
 Each post-processing transform follows the same pattern:

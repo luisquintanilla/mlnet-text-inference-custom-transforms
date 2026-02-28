@@ -42,9 +42,9 @@ Each downstream task adds exactly **one post-processing transform** plus **one c
                             ▼
             ┌───────────────┼────────────────┐
             │               │                │
-     EmbeddingPooling  SoftmaxClassify  NerDecoding  CrossEncoder
-     Transformer       Transformer      Transformer  Transformer
-     (exists)          (new)            (new)        (new)
+     EmbeddingPooling  SoftmaxClassify  NerDecoding  CrossEncoder  QaExtraction
+     Transformer       Transformer      Transformer  Transformer   Transformer
+     ✅                ✅               ✅           ✅            ✅
 ```
 
 ### Not Decoder Models
@@ -74,27 +74,35 @@ Three reasons drove the naming choice:
 
 The implementation is split into five phases, each building on the shared foundation. Later phases depend on infrastructure added in earlier ones.
 
-| Phase | Task | New Post-Processor | Key Dependencies |
-|:-----:|------|--------------------|--------------------|
-| 1 | **Foundation (restructure)** | — | None — reorganize the repo and establish the shared tokenizer + scorer base. |
-| 2 | **Text Classification** | `SoftmaxClassifyTransformer` | No shared infrastructure changes needed. Uses the existing scorer output directly with softmax + argmax. |
-| 3 | **Cross-Encoder Reranking** | `CrossEncoderTransformer` | Requires **text pair tokenization** — the tokenizer must accept `(query, passage)` pairs and produce segment/type IDs. |
-| 4 | **Named Entity Recognition (NER)** | `NerDecodingTransformer` | Requires **token-to-character offset tracking** — the tokenizer must emit offset mappings so entity spans can be projected back to the original text. |
-| 5 | **Extractive Question Answering** | `QaExtractionTransformer` | Requires **multi-output scorer** (start + end logit tensors) + text pair tokenization (Phase 3) + token offset tracking (Phase 4). |
+| Phase | Task | New Post-Processor | Key Dependencies | Status |
+|:-----:|------|--------------------|--------------------|:------:|
+| 1 | **Foundation (restructure)** | — | None — reorganize the repo and establish the shared tokenizer + scorer base. | ✅ |
+| 2 | **Text Classification** | `SoftmaxClassifyTransformer` | No shared infrastructure changes needed. Uses the existing scorer output directly with softmax + argmax. | ✅ |
+| 3 | **Cross-Encoder Reranking** | `CrossEncoderTransformer` | Requires **text pair tokenization** — the tokenizer must accept `(query, passage)` pairs and produce segment/type IDs. | ✅ |
+| 4 | **Named Entity Recognition (NER)** | `NerDecodingTransformer` | Requires **token-to-character offset tracking** — the tokenizer must emit offset mappings so entity spans can be projected back to the original text. | ✅ |
+| 5 | **Extractive Question Answering** | `QaExtractionTransformer` | Requires **multi-output scorer** (start + end logit tensors) + text pair tokenization (Phase 3) + token offset tracking (Phase 4). | ✅ |
+| 6 | **Text Generation (MEAI)** | `ChatClientTransformer` | Provider-agnostic via `IChatClient`. Wraps any MEAI-compatible chat provider as an ML.NET pipeline step. Lives in the existing project. | ✅ |
+| 7 | **Text Generation (ORT GenAI)** | `OnnxTextGenerationTransformer` | ONNX Runtime GenAI dependency. Autoregressive generation loop for local decoder models (e.g., Phi-3). Lives in a separate `MLNet.TextGeneration.OnnxGenAI` project. | ✅ |
 
 ### Dependency Chain
 
 ```
 Phase 1: Foundation ──────────────────────────────────┐
     │                                                  │
-    ├── Phase 2: Classification (no new infra)         │
+    ├── Phase 2: Classification (no new infra)         │  ✅
     │                                                  │
-    ├── Phase 3: Reranking (text pair tokenization) ───┤
+    ├── Phase 3: Reranking (text pair tokenization) ───┤  ✅
     │                                                  │
-    ├── Phase 4: NER (token offset tracking) ──────────┤
+    ├── Phase 4: NER (token offset tracking) ──────────┤  ✅
     │                                                  │
-    └── Phase 5: QA (multi-output + pairs + offsets) ──┘
-         depends on Phases 3 & 4
+    ├── Phase 5: QA (multi-output + pairs + offsets) ──┘  ✅
+    │    depends on Phases 3 & 4
+    │
+    ├── Phase 6: Text Generation — MEAI (IChatClient)     ✅
+    │    provider-agnostic, no new encoder infra
+    │
+    └── Phase 7: Text Generation — ORT GenAI              ✅
+         separate project, decoder models (Phi-3, etc.)
 ```
 
 ---
