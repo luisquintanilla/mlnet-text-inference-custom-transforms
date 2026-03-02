@@ -196,10 +196,13 @@ public sealed class TextTokenizerTransformer : ITransformer
             combined.Add(encodedA[j].Id);
 
         combined.Add(sepId);
-        int firstSepIdx = combined.Count - 1;
 
         if (options.DoubleSeparator)
             combined.Add(sepId);
+
+        // Boundary between segment A and segment B for token_type_ids.
+        // Both separators (if double) belong to the A side.
+        int firstSepIdx = combined.Count - 1;
 
         int bStartIdx = combined.Count;
         for (int j = 0; j < encodedB.Count; j++)

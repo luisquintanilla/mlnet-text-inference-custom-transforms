@@ -132,8 +132,17 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
 
         var tokenizer = _options.Tokenizer ?? LoadTokenizer(_options.TokenizerPath!);
 
-        if (_options.BosTokenId == null && _options.TokenizerPath != null)
+        if ((_options.BosTokenId == null || _options.SepTokenId == null) && _options.TokenizerPath != null)
             PopulateSpecialTokens(_options.TokenizerPath, _options);
+
+        if (_options.SecondInputColumnName != null
+            && (_options.BosTokenId == null || _options.SepTokenId == null))
+        {
+            throw new InvalidOperationException(
+                "Text-pair tokenization requires special token IDs (BOS/CLS and SEP) but they could not be resolved. " +
+                "Ensure TokenizerPath points to a directory containing tokenizer_config.json with " +
+                "cls_token/sep_token definitions or added_tokens_decoder.");
+        }
 
         return new TextTokenizerTransformer(_mlContext, _options, tokenizer);
     }
