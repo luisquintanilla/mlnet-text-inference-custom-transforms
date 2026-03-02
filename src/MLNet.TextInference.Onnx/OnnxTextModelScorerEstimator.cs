@@ -184,10 +184,8 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
         {
             outputName = _options.OutputTensorName;
             var dims = outputMeta[outputName].Dimensions;
-            hasPooledOutput = !dims.Contains(-1) && dims.Length == 2;
-            hiddenDim = (int)dims.Last();
-            if (hiddenDim <= 0)
-                hiddenDim = _options.MaxTokenLength;
+            hasPooledOutput = dims.Length == 2 && (int)dims.Last() > 0;
+            hiddenDim = ResolveLastDimension(outputName, (int)dims.Last(), allowDynamicFallback: true);
             outputRank = dims.Length;
         }
         else if (_options.PreferredOutputNames != null)
@@ -197,20 +195,16 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
             {
                 outputName = preferred;
                 var dims = outputMeta[preferred].Dimensions;
-                hasPooledOutput = !dims.Contains(-1) && dims.Length == 2;
-                hiddenDim = (int)dims.Last();
-                if (hiddenDim <= 0)
-                    hiddenDim = _options.MaxTokenLength;
+                hasPooledOutput = dims.Length == 2 && (int)dims.Last() > 0;
+                hiddenDim = ResolveLastDimension(preferred, (int)dims.Last(), allowDynamicFallback: true);
                 outputRank = dims.Length;
             }
             else
             {
                 outputName = outputMeta.Keys.First();
                 var dims = outputMeta[outputName].Dimensions;
-                hasPooledOutput = !dims.Contains(-1) && dims.Length == 2;
-                hiddenDim = (int)dims.Last();
-                if (hiddenDim <= 0)
-                    hiddenDim = _options.MaxTokenLength;
+                hasPooledOutput = dims.Length == 2 && (int)dims.Last() > 0;
+                hiddenDim = ResolveLastDimension(outputName, (int)dims.Last(), allowDynamicFallback: true);
                 outputRank = dims.Length;
             }
         }
@@ -221,9 +215,8 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
             {
                 outputName = pooledName;
                 hasPooledOutput = true;
-                hiddenDim = (int)outputMeta[pooledName].Dimensions.Last();
-                if (hiddenDim <= 0)
-                    hiddenDim = _options.MaxTokenLength;
+                hiddenDim = ResolveLastDimension(pooledName,
+                    (int)outputMeta[pooledName].Dimensions.Last(), allowDynamicFallback: false);
                 outputRank = 2;
             }
             else
@@ -232,9 +225,8 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
                     ["last_hidden_state", "output", "hidden_states"],
                     outputMeta.Keys.First());
                 hasPooledOutput = false;
-                hiddenDim = (int)outputMeta[outputName].Dimensions.Last();
-                if (hiddenDim <= 0)
-                    hiddenDim = _options.MaxTokenLength;
+                hiddenDim = ResolveLastDimension(outputName,
+                    (int)outputMeta[outputName].Dimensions.Last(), allowDynamicFallback: false);
                 outputRank = 3;
             }
         }
@@ -291,6 +283,24 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
     {
         using var session = CreateInferenceSession();
         return DiscoverModelMetadata(session);
+    }
+
+    /// <summary>
+    /// Resolves the last dimension of an ONNX output tensor.
+    /// For dynamic dimensions (&lt;= 0), either falls back to MaxTokenLength (for QA logit outputs)
+    /// or throws (for pooled/rank-3 outputs where the hidden dim must be static).
+    /// </summary>
+    private int ResolveLastDimension(string tensorName, int rawDim, bool allowDynamicFallback)
+    {
+        if (rawDim > 0)
+            return rawDim;
+
+        if (allowDynamicFallback)
+            return _options.MaxTokenLength;
+
+        throw new InvalidOperationException(
+            $"ONNX output '{tensorName}' has a dynamic last dimension, which is not supported. " +
+            $"Set OutputTensorName explicitly or use a model with a static dimension.");
     }
 
     /// <summary>
