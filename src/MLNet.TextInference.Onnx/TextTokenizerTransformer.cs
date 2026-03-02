@@ -126,7 +126,7 @@ public sealed class TextTokenizerTransformer : ITransformer
 
     /// <summary>
     /// Direct face: tokenize text pairs for cross-encoder models.
-    /// Produces [CLS] A [SEP] B [SEP] with proper token_type_ids.
+    /// Produces [BOS] A [SEP] B [SEP] with proper token_type_ids.
     /// When OutputOffsets is true, records character offsets for B segment tokens.
     /// </summary>
     internal TokenizedBatch Tokenize(IReadOnlyList<string> textsA, IReadOnlyList<string> textsB)
@@ -146,51 +146,11 @@ public sealed class TextTokenizerTransformer : ITransformer
             var tokenIds = new long[seqLen];
             var attentionMask = new long[seqLen];
             var tokenTypeIds = new long[seqLen];
+            long[]? startOffsets = _options.OutputOffsets ? new long[seqLen] : null;
+            long[]? endOffsets = _options.OutputOffsets ? new long[seqLen] : null;
 
-            var tokensA = _tokenizer.EncodeToIds(textsA[i], seqLen, out _, out _);
-            int firstSepIdx = tokensA.Count - 1;
-
-            var combined = new List<int>(tokensA);
-            long[]? startOffsets = null;
-            long[]? endOffsets = null;
-
-            if (_options.OutputOffsets)
-            {
-                startOffsets = new long[seqLen];
-                endOffsets = new long[seqLen];
-
-                var encodedB = _tokenizer.EncodeToTokens(textsB[i], out _);
-                for (int bIdx = 1; bIdx < encodedB.Count; bIdx++)
-                    combined.Add(encodedB[bIdx].Id);
-
-                if (combined.Count > seqLen)
-                    combined.RemoveRange(seqLen, combined.Count - seqLen);
-
-                // Record B segment offsets (relative to B text)
-                for (int bIdx = 1; bIdx < encodedB.Count; bIdx++)
-                {
-                    int combinedIdx = firstSepIdx + bIdx;
-                    if (combinedIdx >= seqLen) break;
-                    startOffsets[combinedIdx] = encodedB[bIdx].Offset.Start.Value;
-                    endOffsets[combinedIdx] = encodedB[bIdx].Offset.End.Value;
-                }
-            }
-            else
-            {
-                var tokensB = _tokenizer.EncodeToIds(textsB[i], seqLen, out _, out _);
-                combined.AddRange(tokensB.Skip(1)); // skip B's CLS
-
-                if (combined.Count > seqLen)
-                    combined.RemoveRange(seqLen, combined.Count - seqLen);
-            }
-
-            // token_type_ids: 0 for A segment (up to and including first SEP), 1 for B segment
-            for (int s = 0; s < combined.Count && s < seqLen; s++)
-            {
-                tokenIds[s] = combined[s];
-                attentionMask[s] = 1;
-                tokenTypeIds[s] = s <= firstSepIdx ? 0 : 1;
-            }
+            TokenizePair(_tokenizer, _options, textsA[i], textsB[i],
+                tokenIds, attentionMask, tokenTypeIds, startOffsets, endOffsets);
 
             allTokenIds[i] = tokenIds;
             allAttentionMasks[i] = attentionMask;
@@ -201,6 +161,73 @@ public sealed class TextTokenizerTransformer : ITransformer
 
         return new TokenizedBatch(allTokenIds, allAttentionMasks, allTokenTypeIds, seqLen,
             allStartOffsets, allEndOffsets);
+    }
+
+    /// <summary>
+    /// Core text-pair tokenization: [BOS] A [SEP] (SEP)? B [SEP].
+    /// Uses EncodeToTokens (which never auto-injects special tokens for any tokenizer type)
+    /// and manually injects BOS/SEP tokens for a uniform approach across BERT, BPE, and SentencePiece.
+    /// </summary>
+    internal static void TokenizePair(
+        Tokenizer tokenizer, TextTokenizerOptions options,
+        string textA, string textB,
+        long[] tokenIds, long[] attentionMask, long[] tokenTypeIds,
+        long[]? startOffsets, long[]? endOffsets)
+    {
+        int seqLen = options.MaxTokenLength;
+        int bosId = options.BosTokenId
+            ?? throw new InvalidOperationException(
+                "Text-pair tokenization requires special token IDs (BOS/CLS and SEP). " +
+                "Load the tokenizer from a directory containing tokenizer_config.json.");
+        int sepId = options.SepTokenId
+            ?? throw new InvalidOperationException(
+                "Text-pair tokenization requires special token IDs (BOS/CLS and SEP). " +
+                "Load the tokenizer from a directory containing tokenizer_config.json.");
+
+        // EncodeToTokens never adds special tokens for any tokenizer type
+        var encodedA = tokenizer.EncodeToTokens(textA, out _);
+        var encodedB = tokenizer.EncodeToTokens(textB, out _);
+
+        // Build: [BOS] A_tokens [SEP] (SEP if double) B_tokens [SEP]
+        var combined = new List<int>(seqLen);
+        combined.Add(bosId);
+
+        for (int j = 0; j < encodedA.Count; j++)
+            combined.Add(encodedA[j].Id);
+
+        combined.Add(sepId);
+        int firstSepIdx = combined.Count - 1;
+
+        if (options.DoubleSeparator)
+            combined.Add(sepId);
+
+        int bStartIdx = combined.Count;
+        for (int j = 0; j < encodedB.Count; j++)
+            combined.Add(encodedB[j].Id);
+
+        combined.Add(sepId);
+
+        if (combined.Count > seqLen)
+            combined.RemoveRange(seqLen, combined.Count - seqLen);
+
+        for (int s = 0; s < combined.Count; s++)
+        {
+            tokenIds[s] = combined[s];
+            attentionMask[s] = 1;
+            tokenTypeIds[s] = s <= firstSepIdx ? 0 : 1;
+        }
+
+        // Record B segment character offsets (for QA answer extraction)
+        if (startOffsets != null && endOffsets != null)
+        {
+            for (int bIdx = 0; bIdx < encodedB.Count; bIdx++)
+            {
+                int combinedIdx = bStartIdx + bIdx;
+                if (combinedIdx >= seqLen) break;
+                startOffsets[combinedIdx] = encodedB[bIdx].Offset.Start.Value;
+                endOffsets[combinedIdx] = encodedB[bIdx].Offset.End.Value;
+            }
+        }
     }
 
     public DataViewSchema GetOutputSchema(DataViewSchema inputSchema)
@@ -354,55 +381,24 @@ internal sealed class TokenizerCursor : DataViewRowCursor
 
         if (_options.SecondInputColumnName != null)
         {
-            // Text-pair tokenization: [CLS] A [SEP] B [SEP]
+            // Text-pair tokenization via shared helper
             var textCol2 = _inputCursor.Schema[_options.SecondInputColumnName];
             var getter2 = _inputCursor.GetGetter<ReadOnlyMemory<char>>(textCol2);
             ReadOnlyMemory<char> textValue2 = default;
             getter2(ref textValue2);
             string text2 = textValue2.ToString();
 
-            var tokensA = _tokenizer.EncodeToIds(text, seqLen, out _, out _);
-            int firstSepIdx = tokensA.Count - 1;
-
-            var combined = new List<int>(tokensA);
-
+            _currentTokenTypeIds ??= new long[seqLen];
             if (_options.OutputOffsets)
             {
                 _currentStartOffsets = new long[seqLen];
                 _currentEndOffsets = new long[seqLen];
-
-                var encodedB = _tokenizer.EncodeToTokens(text2, out _);
-                for (int bIdx = 1; bIdx < encodedB.Count; bIdx++)
-                    combined.Add(encodedB[bIdx].Id);
-
-                if (combined.Count > seqLen)
-                    combined.RemoveRange(seqLen, combined.Count - seqLen);
-
-                // Record B segment offsets (relative to B text)
-                for (int bIdx = 1; bIdx < encodedB.Count; bIdx++)
-                {
-                    int combinedIdx = firstSepIdx + bIdx;
-                    if (combinedIdx >= seqLen) break;
-                    _currentStartOffsets[combinedIdx] = encodedB[bIdx].Offset.Start.Value;
-                    _currentEndOffsets[combinedIdx] = encodedB[bIdx].Offset.End.Value;
-                }
-            }
-            else
-            {
-                var tokensB = _tokenizer.EncodeToIds(text2, seqLen, out _, out _);
-                combined.AddRange(tokensB.Skip(1));
-
-                if (combined.Count > seqLen)
-                    combined.RemoveRange(seqLen, combined.Count - seqLen);
             }
 
-            _currentTokenTypeIds ??= new long[seqLen];
-            for (int s = 0; s < combined.Count && s < seqLen; s++)
-            {
-                _currentTokenIds[s] = combined[s];
-                _currentAttentionMask[s] = 1;
-                _currentTokenTypeIds[s] = s <= firstSepIdx ? 0 : 1;
-            }
+            TextTokenizerTransformer.TokenizePair(
+                _tokenizer, _options, text, text2,
+                _currentTokenIds, _currentAttentionMask, _currentTokenTypeIds,
+                _currentStartOffsets, _currentEndOffsets);
         }
         else if (_options.OutputOffsets)
         {

@@ -79,6 +79,12 @@ public class TextTokenizerOptions
 
     /// <summary>Name of the output column for token end character offsets. Default: "TokenEndOffsets".</summary>
     public string TokenEndOffsetsColumnName { get; set; } = "TokenEndOffsets";
+
+    // Special token IDs populated during tokenizer loading from tokenizer_config.json.
+    // Used by text-pair tokenization to manually inject [CLS]/[SEP] tokens.
+    internal int? BosTokenId { get; set; }
+    internal int? SepTokenId { get; set; }
+    internal bool DoubleSeparator { get; set; }
 }
 
 /// <summary>
@@ -125,6 +131,10 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
         }
 
         var tokenizer = _options.Tokenizer ?? LoadTokenizer(_options.TokenizerPath!);
+
+        if (_options.BosTokenId == null && _options.TokenizerPath != null)
+            PopulateSpecialTokens(_options.TokenizerPath, _options);
+
         return new TextTokenizerTransformer(_mlContext, _options, tokenizer);
     }
 
@@ -432,5 +442,70 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
             (SchemaShape?)null
         ]);
         schema[name] = col;
+    }
+
+    /// <summary>
+    /// Extracts special token IDs (BOS/CLS and SEP) from tokenizer_config.json.
+    /// These are needed for manual special token injection in text-pair tokenization.
+    /// </summary>
+    private static void PopulateSpecialTokens(string tokenizerPath, TextTokenizerOptions options)
+    {
+        string? configPath = null;
+        if (Directory.Exists(tokenizerPath))
+            configPath = Path.Combine(tokenizerPath, "tokenizer_config.json");
+        else if (Path.GetFileName(tokenizerPath).Equals("tokenizer_config.json", StringComparison.OrdinalIgnoreCase))
+            configPath = tokenizerPath;
+
+        if (configPath == null || !File.Exists(configPath))
+            return;
+
+        var json = File.ReadAllText(configPath);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        var clsTokenStr = root.TryGetProperty("cls_token", out var cls) ? cls.GetString() : null;
+        var sepTokenStr = root.TryGetProperty("sep_token", out var sep) ? sep.GetString() : null;
+
+        // Resolve token string → ID via added_tokens_decoder
+        if (clsTokenStr != null && sepTokenStr != null
+            && root.TryGetProperty("added_tokens_decoder", out var decoder))
+        {
+            foreach (var entry in decoder.EnumerateObject())
+            {
+                if (!int.TryParse(entry.Name, out int tokenId)) continue;
+                var content = entry.Value.TryGetProperty("content", out var c) ? c.GetString() : null;
+                if (content == null) continue;
+
+                if (content == clsTokenStr && options.BosTokenId == null)
+                    options.BosTokenId = tokenId;
+                if (content == sepTokenStr && options.SepTokenId == null)
+                    options.SepTokenId = tokenId;
+            }
+        }
+
+        // Fallback: well-known defaults by tokenizer class
+        if (options.BosTokenId == null || options.SepTokenId == null)
+        {
+            var tokenizerClass = root.TryGetProperty("tokenizer_class", out var tc) ? tc.GetString() ?? "" : "";
+            if (tokenizerClass.EndsWith("Fast", StringComparison.Ordinal))
+                tokenizerClass = tokenizerClass[..^4];
+
+            (int? defaultBos, int? defaultSep) = tokenizerClass switch
+            {
+                "BertTokenizer" or "DistilBertTokenizer" => ((int?)101, (int?)102),
+                "RobertaTokenizer" or "GPT2Tokenizer" => ((int?)0, (int?)2),
+                "DebertaTokenizer" or "DebertaV2Tokenizer" => ((int?)1, (int?)2),
+                "XLMRobertaTokenizer" => ((int?)0, (int?)2),
+                _ => ((int?)null, (int?)null)
+            };
+            options.BosTokenId ??= defaultBos;
+            options.SepTokenId ??= defaultSep;
+        }
+
+        // RoBERTa-family uses double separator between segments: <s> A </s></s> B </s>
+        var tokClass = root.TryGetProperty("tokenizer_class", out var t) ? t.GetString() ?? "" : "";
+        if (tokClass.EndsWith("Fast", StringComparison.Ordinal))
+            tokClass = tokClass[..^4];
+        options.DoubleSeparator = tokClass is "RobertaTokenizer" or "GPT2Tokenizer" or "XLMRobertaTokenizer";
     }
 }
