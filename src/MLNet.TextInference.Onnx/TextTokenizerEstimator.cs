@@ -276,7 +276,7 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
             if (File.Exists(spPath))
             {
                 using var stream = File.OpenRead(spPath);
-                return LlamaTokenizer.Create(stream);
+                return SentencePieceTokenizer.Create(stream, addBeginningOfSentence: false, addEndOfSentence: false);
             }
         }
 
