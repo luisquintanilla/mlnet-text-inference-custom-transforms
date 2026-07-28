@@ -24,7 +24,7 @@ Cross-encoder reranking demo using **BAAI/bge-reranker-base** with longer docume
 cd samples/Reranking/BgeReranker
 mkdir models -Force
 Invoke-WebRequest -Uri "https://huggingface.co/BAAI/bge-reranker-base/resolve/main/onnx/model.onnx" -OutFile "models/model.onnx"
-Invoke-WebRequest -Uri "https://huggingface.co/BAAI/bge-reranker-base/resolve/main/vocab.txt" -OutFile "models/vocab.txt"
+Invoke-WebRequest -Uri "https://huggingface.co/BAAI/bge-reranker-base/resolve/main/sentencepiece.bpe.model" -OutFile "models/sentencepiece.bpe.model"
 Invoke-WebRequest -Uri "https://huggingface.co/BAAI/bge-reranker-base/resolve/main/tokenizer_config.json" -OutFile "models/tokenizer_config.json"
 ```
 
@@ -34,7 +34,7 @@ Invoke-WebRequest -Uri "https://huggingface.co/BAAI/bge-reranker-base/resolve/ma
 cd samples/Reranking/BgeReranker
 mkdir -p models
 curl -L -o models/model.onnx "https://huggingface.co/BAAI/bge-reranker-base/resolve/main/onnx/model.onnx"
-curl -L -o models/vocab.txt "https://huggingface.co/BAAI/bge-reranker-base/resolve/main/vocab.txt"
+curl -L -o models/sentencepiece.bpe.model "https://huggingface.co/BAAI/bge-reranker-base/resolve/main/sentencepiece.bpe.model"
 curl -L -o models/tokenizer_config.json "https://huggingface.co/BAAI/bge-reranker-base/resolve/main/tokenizer_config.json"
 ```
 
