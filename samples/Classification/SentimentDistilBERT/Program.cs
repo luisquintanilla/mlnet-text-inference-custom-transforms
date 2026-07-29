@@ -11,12 +11,22 @@ Console.WriteLine("=== Sentiment Classification with DistilBERT ===\n");
 
 var mlContext = new MLContext();
 
+/*
+ * https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english/blob/main/config.json
+ 
+"id2label": {
+    "0": "NEGATIVE",
+    "1": "POSITIVE"
+  },
+*/
+string[] labels = ["NEGATIVE", "POSITIVE"];
+
 var options = new OnnxTextClassificationOptions
 {
     ModelPath = modelPath,
     TokenizerPath = vocabPath,
     InputColumnName = "Text",
-    Labels = ["NEGATIVE", "POSITIVE"],
+    Labels = labels,
     MaxTokenLength = 128,
     BatchSize = 8,
 };
@@ -31,6 +41,11 @@ var sampleData = new[]
     new TextData { Text = "What an amazing concert! Best night ever!" },
     new TextData { Text = "I'm really disappointed with the quality." },
     new TextData { Text = "The service was friendly and the atmosphere was great." },
+    // French examples (seems not to work)
+    new TextData { Text = "Il était très mécontent." },
+    new TextData { Text = "Le repas était décevant." },
+    new TextData { Text = "Le repas était excellent." },
+    new TextData { Text = "Le menu était très bon avec un dessert délicieux." },
 };
 
 var dataView = mlContext.Data.LoadFromEnumerable(sampleData);

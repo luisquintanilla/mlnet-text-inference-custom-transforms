@@ -4,6 +4,16 @@ Classifies text as **POSITIVE** or **NEGATIVE** using `distilbert-base-uncased-f
 
 ## Download Model
 
+### PowerShell
+
+```powershell
+mkdir models
+Invoke-WebRequest -Uri "https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/onnx/model.onnx" -OutFile "models/model.onnx"
+Invoke-WebRequest -Uri "https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/vocab.txt" -OutFile "models/vocab.txt"
+```
+
+### Bash
+
 ```bash
 # Download ONNX model
 curl -L -o models/model.onnx "https://huggingface.co/distilbert/distilbert-base-uncased-finetuned-sst-2-english/resolve/main/onnx/model.onnx"
