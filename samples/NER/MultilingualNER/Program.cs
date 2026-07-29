@@ -12,6 +12,21 @@ var mlContext = new MLContext();
 // BIO labels for Davlan/bert-base-multilingual-cased-ner-hrl
 string[] labels = ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "B-DATE", "I-DATE"];
 
+/*
+bert-base-multilingual-cased-ner-hrl is a Named Entity Recognition model created by Davlan that identifies 
+three entity types—person (PER), organization (ORG), and location (LOC)—across 10 languages: 
+Arabic, German, English, Spanish, French, Italian, Latvian, Dutch, Portuguese, and Chinese.
+
+Abbreviation	Description
+O	    Outside of a named entity
+B-PER	Beginning of a person’s name right after another person’s name
+I-PER	Person’s name
+B-ORG	Beginning of an organisation right after another organisation
+I-ORG	Organisation
+B-LOC	Beginning of a location right after another location
+I-LOC	Location
+ */
+
 var nerOptions = new OnnxNerOptions
 {
     ModelPath = modelPath,
