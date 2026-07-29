@@ -10,7 +10,37 @@ Console.WriteLine("=== BERT-base NER (dslim/bert-base-NER) ===\n");
 var mlContext = new MLContext();
 
 // BIO labels for dslim/bert-base-NER
-string[] labels = ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "B-MISC", "I-MISC"];
+//string[] labels = ["O", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC", "B-MISC", "I-MISC"];
+string[] labels = ["O", "B-MISC", "I-MISC", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"];
+
+// https://huggingface.co/dslim/bert-base-NER/blob/main/onnx/config.json
+/*
+ "id2label": {
+    "0": "O",
+    "1": "B-MISC",
+    "2": "I-MISC",
+    "3": "B-PER",
+    "4": "I-PER",
+    "5": "B-ORG",
+    "6": "I-ORG",
+    "7": "B-LOC",
+    "8": "I-LOC"
+  }
+*/
+
+/*
+ Abbreviation	Description
+O	Outside of a named entity
+B-MISC	Beginning of a miscellaneous entity right after another miscellaneous entity
+I-MISC	Miscellaneous entity
+B-PER	Beginning of a person’s name right after another person’s name
+I-PER	Person’s name
+B-ORG	Beginning of an organization right after another organization
+I-ORG	organization
+B-LOC	Beginning of a location right after another location
+I-LOC	Location
+ */
+
 
 // --- 1. End-to-end facade ---
 Console.WriteLine("1. End-to-end OnnxNer facade");
@@ -33,7 +63,27 @@ var sampleData = new[]
 {
     new TextData { Text = "John Smith works at Microsoft in Seattle." },
     new TextData { Text = "Angela Merkel met with Emmanuel Macron in Berlin." },
-    new TextData { Text = "The United Nations headquarters is in New York." }
+    new TextData { Text = "The United Nations headquarters is in New York." },
+    new TextData { Text = "Elon Musk founded SpaceX and Tesla." },
+    new TextData { Text = "Barack Obama was the 44th President of the United States." },
+    new TextData { Text = "The Eiffel Tower is located in Paris, France." },
+    new TextData { Text = "The Great Wall of China is a historic landmark." },
+    new TextData { Text = "The Amazon rainforest is home to diverse wildlife." },
+    new TextData { Text = "The Taj Mahal is a famous mausoleum in India." },
+    new TextData { Text = "The Sydney Opera House is an iconic building in Australia." },
+    new TextData { Text = "The Colosseum is an ancient amphitheater in Rome, Italy." },
+    new TextData { Text = "The Statue of Liberty is a symbol of freedom in the United States." },
+    new TextData { Text = "The Great Barrier Reef is the world's largest coral reef system." },
+    new TextData { Text = "The Pyramids of Giza are ancient structures in Egypt." },
+    new TextData { Text = "The Kremlin is a historic fortified complex in Moscow, Russia." },
+    new TextData { Text = "The Louvre Museum is a famous art museum in Paris, France." },
+    new TextData { Text = "The Golden Gate Bridge is a suspension bridge in San Francisco, California." },
+    new TextData { Text = "The Acropolis is an ancient citadel in Athens, Greece." },
+    new TextData { Text = "The Great Sphinx of Giza is a limestone statue in Egypt." },
+    new TextData { Text = "The Burj Khalifa is the tallest building in the world, located in Dubai, United Arab Emirates." },
+    new TextData { Text = "The Great Wall of China is a UNESCO World Heritage site." },
+    new TextData { Text = "The Amazon River is the second longest river in the world." },
+    new TextData { Text = "The Sahara Desert is the largest hot desert in the world." }
 };
 
 var dataView = mlContext.Data.LoadFromEnumerable(sampleData);
