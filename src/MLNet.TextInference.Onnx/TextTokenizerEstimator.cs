@@ -303,6 +303,12 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
             $"SentencePiece tokenizer requires one of [{string.Join(", ", candidates)}] in '{directory}'.");
     }
 
+    /// <summary>
+    /// Loads a BPE tokenizer from a directory containing vocab.json and merges.txt (optional).
+    /// </summary>
+    /// <param name="directory"></param>
+    /// <returns></returns>
+    /// <exception cref="FileNotFoundException"></exception>
     private static Tokenizer LoadBpeFromDirectory(string directory)
     {
         var vocabJson = Path.Combine(directory, "vocab.json");
