@@ -93,9 +93,15 @@ var composableResult = sigmoidTransformer.Transform(scoredData);
 
 var composableScores = mlContext.Data.CreateEnumerable<RerankResult>(composableResult, reuseRowObject: false).ToList();
 
-for (int i = 0; i < composableScores.Count; i++)
+// Sort by score descending
+ranked = composableScores
+    .Select((s, i) => (Score: s.Score, Index: i, Document: documents[i]))
+    .OrderByDescending(x => x.Score)
+    .ToList();
+
+foreach (var (score, index, document) in ranked)
 {
-    Console.WriteLine($"  [{composableScores[i].Score:F4}] {documents[i]}");
+    Console.WriteLine($"  [{score:F4}] {document}");
 }
 
 // Cleanup
