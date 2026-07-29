@@ -11,20 +11,56 @@ Console.WriteLine("=== Emotion Classification with RoBERTa (GoEmotions) ===\n");
 
 var mlContext = new MLContext();
 
-var options = new OnnxTextClassificationOptions
-{
-    ModelPath = modelPath,
-    TokenizerPath = tokenizerPath,
-    InputColumnName = "Text",
-    Labels =
-    [
+/*
+ * https://huggingface.co/lquint/roberta-base-go_emotions-onnx/blob/main/config.json
+ 
+  "id2label": {
+    "0": "admiration",
+    "1": "amusement",
+    "2": "anger",
+    "3": "annoyance",
+    "4": "approval",
+    "5": "caring",
+    "6": "confusion",
+    "7": "curiosity",
+    "8": "desire",
+    "9": "disappointment",
+    "10": "disapproval",
+    "11": "disgust",
+    "12": "embarrassment",
+    "13": "excitement",
+    "14": "fear",
+    "15": "gratitude",
+    "16": "grief",
+    "17": "joy",
+    "18": "love",
+    "19": "nervousness",
+    "20": "optimism",
+    "21": "pride",
+    "22": "realization",
+    "23": "relief",
+    "24": "remorse",
+    "25": "sadness",
+    "26": "surprise",
+    "27": "neutral"
+  }, 
+ */
+
+string[] labels = [
         "admiration", "amusement", "anger", "annoyance", "approval",
         "caring", "confusion", "curiosity", "desire", "disappointment",
         "disapproval", "disgust", "embarrassment", "excitement", "fear",
         "gratitude", "grief", "joy", "love", "nervousness",
         "optimism", "pride", "realization", "relief", "remorse",
         "sadness", "surprise", "neutral"
-    ],
+    ];
+
+var options = new OnnxTextClassificationOptions
+{
+    ModelPath = modelPath,
+    TokenizerPath = tokenizerPath,
+    InputColumnName = "Text",
+    Labels = labels,
     MaxTokenLength = 128,
     BatchSize = 8,
 };
@@ -41,6 +77,10 @@ var sampleData = new[]
     new TextData { Text = "I'm not sure what to think about this." },
     new TextData { Text = "I love spending time with my family." },
     new TextData { Text = "This is so frustrating and annoying." },
+    new TextData { Text = "I feel so proud of my accomplishments." },
+    new TextData { Text = "I am so sad that this example don't work with french text." },
+    new TextData { Text = "Je suis vraiment déçu que cet exemple ne fonctionne pas avec du texte en français." },
+    new TextData { Text = "I admire the C# developers for their work on ML.NET." },
 };
 
 var dataView = mlContext.Data.LoadFromEnumerable(sampleData);
