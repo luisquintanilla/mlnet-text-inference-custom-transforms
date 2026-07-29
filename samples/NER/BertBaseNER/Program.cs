@@ -83,7 +83,13 @@ var sampleData = new[]
     new TextData { Text = "The Burj Khalifa is the tallest building in the world, located in Dubai, United Arab Emirates." },
     new TextData { Text = "The Great Wall of China is a UNESCO World Heritage site." },
     new TextData { Text = "The Amazon River is the second longest river in the world." },
-    new TextData { Text = "The Sahara Desert is the largest hot desert in the world." }
+    new TextData { Text = "The Sahara Desert is the largest hot desert in the world." },
+    new TextData { Text = "François Hollande a été président de la France." },
+    new TextData { Text = "Steven Paul Jobs (February 24, 1955 – October 5, 2011) was an American businessman, inventor, and investor. A pioneer of the personal computer revolution of the 1970s and 1980s, Jobs co-founded Apple Inc. with his early business partner Steve Wozniak as Apple Computer Company in 1976." },
+    new TextData { Text = "Elon Musk (born June 28, 1971) is a business magnate, industrial designer, and engineer. He is the founder, CEO, CTO, and chief designer of SpaceX; early investor, CEO, and product architect of Tesla, Inc.; founder of The Boring Company; co-founder of Neuralink; and co-founder and initial co-chairman of OpenAI." },
+    new TextData { Text = "Jobs was born in San Francisco in 1955 and adopted shortly afterward. Jobs co-founded Apple Inc. with his early business partner Steve Wozniak." },
+    new TextData { Text = "Barack Hussein Obama II (born August 4, 1961) is an American former politician who served as the 44th president of the United States from 2009 to 2017. A member of the Democratic Party, he was the first African American to serve as president. Obama represented Illinois in the United States Senate from 2005 to 2008 and served as an Illinois state senator from 1997 to 2004." },
+
 };
 
 var dataView = mlContext.Data.LoadFromEnumerable(sampleData);
