@@ -4,25 +4,35 @@ Use `OnnxTextGenerationEstimator` for **local text generation** with ONNX Runtim
 
 ## Model Download
 
-This sample requires a local ONNX GenAI model. We recommend [Phi-3-mini-4k-instruct](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx).
+This sample requires a local ONNX GenAI model. We recommend :
+[Phi-3-mini-4k-instruct](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-onnx).
+[Phi-4-mini-instruct-onnx](https://huggingface.co/microsoft/Phi-4-mini-instruct-onnx)
+
+### PowerShell
+
+```powershell
+authicate with:
+hf auth login
+or
+hf auth login --token <your_token>
+hf auth whoami
+
+then run:
+hf download microsoft/Phi-3-mini-4k-instruct-onnx --include "cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4/*" --local-dir models/phi-3-mini
+
+For Cpu
+hf download microsoft/Phi-4-mini-instruct-onnx --include "cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4/*" --local-dir models/phi-4-mini
+For Cuda or DirectML
+hf download microsoft/Phi-4-mini-instruct-onnx --include "gpu/*" --local-dir models/phi-4-mini
+
+```
 
 ### Using Hugging Face CLI
 
 ```bash
 pip install huggingface-hub
 
-old command :
 huggingface-cli download microsoft/Phi-3-mini-4k-instruct-onnx --include "cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4/*" --local-dir models/phi-3-mini
-
-new command :
-authicate with:
-hf auth login
-or
-hf auth login --token <your_token>
-hf auth whoami
-then run:
-hf download microsoft/Phi-3-mini-4k-instruct-onnx --include "cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4/*" --local-dir models/phi-3-mini
-Move the files from `models/phi-3-mini/cpu_and_mobile/cpu-int4-rtn-block-32-acc-level-4` to `models/phi-3-mini/` and delete the empty directories.
 ```
 
 ### Manual Download

@@ -1,4 +1,12 @@
 <Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Debug_Cuda" />
+    <BuildType Name="Debug_DirectML" />
+    <BuildType Name="Release" />
+    <BuildType Name="Release_Cuda" />
+    <BuildType Name="Release_DirectML" />
+  </Configurations>
   <Folder Name="/samples/">
     <Project Path="samples/BasicUsage/BasicUsage.csproj" />
     <Project Path="samples/BgeSmallEmbedding/BgeSmallEmbedding.csproj" />

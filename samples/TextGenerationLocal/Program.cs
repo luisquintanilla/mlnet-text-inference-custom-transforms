@@ -6,9 +6,17 @@ Console.WriteLine("Use OnnxTextGenerationEstimator for local text generation wit
 
 // --- Configuration ---
 // Download a model first (see README.md for instructions).
+
+// models\phi-3-mini\cpu_and_mobile\cpu-int4-rtn-block-32-acc-level-4
+//var modelPath = args.Length > 0
+//    ? args[0]
+//    : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models", "phi-3-mini", "cpu_and_mobile", "cpu-int4-rtn-block-32-acc-level-4"));
+
+// models\phi-4-mini\cpu_and_mobile\cpu-int4-rtn-block-32-acc-level-4
 var modelPath = args.Length > 0
     ? args[0]
-    : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models", "phi-3-mini"));
+    : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "models", "phi-4-mini", "cpu_and_mobile", "cpu-int4-rtn-block-32-acc-level-4"));
+
 
 if (!Directory.Exists(modelPath))
 {
