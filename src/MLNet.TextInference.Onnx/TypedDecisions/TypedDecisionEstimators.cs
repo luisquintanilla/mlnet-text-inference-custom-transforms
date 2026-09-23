@@ -551,13 +551,13 @@ internal sealed class DecodeDecisionDataView : IDataView
                 if (column.Name == _parent._options.ResultsColumnName)
                     return TextGetter<TValue>(() => CoreCodec.SerializeResponse(_response));
                 if (column.Name == _parent._options.ChoiceColumnName)
-                    return TextGetter<TValue>(() => _response.Results.FirstOrDefault() is MLNet.TextInference.TypedDecisions.ChoiceDecisionResult choice
+                    return TextGetter<TValue>(() => _response.Results.OfType<MLNet.TextInference.TypedDecisions.ChoiceDecisionResult>().FirstOrDefault() is { } choice
                         ? choice.Choice : string.Empty);
                 if (column.Name == _parent._options.ScoreColumnName)
-                    return FloatGetter<TValue>(() => _response.Results.FirstOrDefault() is MLNet.TextInference.TypedDecisions.ScoreDecisionResult score
+                    return FloatGetter<TValue>(() => _response.Results.OfType<MLNet.TextInference.TypedDecisions.ScoreDecisionResult>().FirstOrDefault() is { } score
                         ? score.Score : float.NaN);
                 if (column.Name == _parent._options.ProbabilityTrueColumnName)
-                    return FloatGetter<TValue>(() => _response.Results.FirstOrDefault() is MLNet.TextInference.TypedDecisions.NoulDecisionResult noul
+                    return FloatGetter<TValue>(() => _response.Results.OfType<MLNet.TextInference.TypedDecisions.NoulDecisionResult>().FirstOrDefault() is { } noul
                         ? noul.ProbabilityTrue : float.NaN);
                 if (column.Name == _parent._options.ConfidenceColumnName)
                     return FloatGetter<TValue>(() => _response.Results.FirstOrDefault()?.Confidence ?? float.NaN);
@@ -756,15 +756,15 @@ internal sealed class TypedDecisionDataView : IDataView
             }
 
             private static string FirstChoice(CoreResponse response) =>
-                response.Results.FirstOrDefault() is MLNet.TextInference.TypedDecisions.ChoiceDecisionResult choice
+                response.Results.OfType<MLNet.TextInference.TypedDecisions.ChoiceDecisionResult>().FirstOrDefault() is { } choice
                     ? choice.Choice : string.Empty;
 
             private static float FirstScore(CoreResponse response) =>
-                response.Results.FirstOrDefault() is MLNet.TextInference.TypedDecisions.ScoreDecisionResult score
+                response.Results.OfType<MLNet.TextInference.TypedDecisions.ScoreDecisionResult>().FirstOrDefault() is { } score
                     ? score.Score : float.NaN;
 
             private static float FirstNoulProbability(CoreResponse response) =>
-                response.Results.FirstOrDefault() is MLNet.TextInference.TypedDecisions.NoulDecisionResult noul
+                response.Results.OfType<MLNet.TextInference.TypedDecisions.NoulDecisionResult>().FirstOrDefault() is { } noul
                     ? noul.ProbabilityTrue : float.NaN;
 
             private static float FirstConfidence(CoreResponse response) =>
