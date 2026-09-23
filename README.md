@@ -66,27 +66,42 @@ the user-facing `TransformsCatalog` verbs, while role types use the repository's
 
 ## Typed decisions
 
-Typed decisions use a versioned local bundle for the English FP32 Laya graph from
-`receptron/laya-onnx` revision `68f27dfe5a27a54fb2b1fefc432f43f972e90868`.
+Typed decisions use a versioned local bundle for the English FP32 Laya graph
+from `receptron/laya-onnx` revision
+`68f27dfe5a27a54fb2b1fefc432f43f972e90868`. The ML.NET facade is the primary
+entry point; the standalone facade and inspectable stages use the same
+implementation. The feature scores caller-supplied alternatives rather than
+generating prose: `Choice` selects a label, `Score` returns an expected
+zero-based option index, and `Noul` returns a Boolean plus the probability of
+the `true` option. `Fit` validates an ML.NET schema and does not train the
+ONNX model.
+
 The core assembly has no `Microsoft.ML` dependency. It uses
 `Microsoft.ML.Tokenizers` for the selected byte-level BPE contract,
 `Microsoft.ML.OnnxRuntime.Managed` for the five-input graph, and C# decoding
-with stable tensor primitives.
+with stable tensor primitives. State is text (including caller-serialized
+JSON); there is no implicit Python-compatible object serializer. Inference
+never downloads model assets.
 
-No model or tokenizer assets are downloaded during inference. The explicit
-acceptance path is:
+The bundle must contain its manifest, model, external-data sidecars, Laya
+configuration, and tokenizer directory. The explicit acceptance launcher
+requires a bundle prepared locally:
 
 ```powershell
 .\scripts\typed-decisions\Invoke-LayaAcceptance.ps1 `
-  -BundlePath C:\models\laya-english-fp32.bundle -Mode facade
+  -BundlePath .\models\laya-english-fp32.bundle -Mode facade
 .\scripts\typed-decisions\Invoke-LayaAcceptance.ps1 `
-  -BundlePath C:\models\laya-english-fp32.bundle -Mode stages -MLNet
+  -BundlePath .\models\laya-english-fp32.bundle -Mode stages -MLNet
 ```
 
-The bundle must contain its manifest, model, external-data sidecars, Laya
-configuration, and tokenizer directory. Ordinary builds and tests use small
-offline fixtures; heavyweight graph parity is only run when this command is
-invoked with a real local bundle.
+The samples document the exact questions, both example input rows, five
+file-based run commands, captured output, tensor shapes, decoder semantics,
+and the tradeoff between the cursor-batched facade and row-oriented JSON
+stages: [samples/TypedDecisions/README.md](samples/TypedDecisions/README.md).
+The direct-core example is in
+[Standalone/README.md](samples/TypedDecisions/Standalone/README.md), and the
+ML.NET pipeline details are in
+[MLNetPipeline/README.md](samples/TypedDecisions/MLNetPipeline/README.md).
 
 `LayaTokenizer` loads and configures the existing Microsoft.ML.Tokenizers BPE
 engine and exposes that `Tokenizer` directly to preparation. The separate
@@ -422,6 +437,14 @@ mlnet-text-inference-custom-transforms/
 | ML.NET facade | `OnnxTypedDecisionsOptions`, `OnnxTypedDecisionsEstimator`, `OnnxTypedDecisionsTransformer` | Schema-aware lazy end-to-end transform |
 | ML.NET stages | `DecisionInputPreparation*`, `OnnxDecisionModelScorer*`, `DecisionDecoding*` | `Options` / `Estimator` / `Transformer` stage types |
 | ML.NET composition | `TransformsCatalog` extensions and `AppendOnnxTypedDecisions` | Standard ML.NET pipeline composition |
+
+The ML.NET facade adds typed scalar columns (`DecisionChoice`,
+`DecisionScore`, `DecisionProbabilityTrue`, `DecisionConfidence`, and
+`DecisionActionProbability`) while `DecisionResults` retains every question
+and distribution. Stages expose JSON through scalar `Text` columns for
+inspection; use the facade for normal cursor-batched inference. ML.NET bundle
+save/load is intentionally unsupported because the bundle remains an explicit
+runtime dependency.
 
 ### Text Generation
 
