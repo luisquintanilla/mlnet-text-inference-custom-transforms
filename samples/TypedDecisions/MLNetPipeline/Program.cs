@@ -2,6 +2,7 @@
 // same source and package surface as the solution without a sample-only project file.
 #:project ../../../src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj
 #:package Microsoft.ML@5.0.0
+#:package Microsoft.ML.OnnxRuntime@1.24.2
 #:property PublishAot=false
 
 using Microsoft.ML;

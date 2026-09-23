@@ -46,8 +46,8 @@ public sealed class TypedDecisionAdapterTests
 
         var probabilities = output.Single(
             column => column.Name == "Decision_team_Probabilities");
-        Assert.IsNotNull(probabilities.Metadata);
-        var slotNames = probabilities.Metadata!.Single(
+        Assert.IsNotNull(probabilities.Annotations);
+        var slotNames = probabilities.Annotations!.Single(
             column => column.Name == "SlotNames");
         Assert.AreEqual(
             SchemaShape.Column.VectorKind.Vector,

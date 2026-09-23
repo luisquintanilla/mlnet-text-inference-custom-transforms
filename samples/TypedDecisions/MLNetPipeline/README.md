@@ -160,10 +160,10 @@ stages, and composed runs. They are formatted for readability. Provider,
 runtime, and calibration differences can change float digits; labels,
 ordering, finite values, and typed relationships are the stable expectations.
 
-| Source row | Choice | Score | `P(true)` | Confidence | Action probability |
+| Source row | Choice | Score | `P(true)` | Priority confidence | Action probability |
 |---|---:|---:|---:|---:|---:|
-| Row 1, reproducible steps | `high` | `1.1856463` | `0.85206354` | `0.48310703` | `0` |
-| Row 2, missing logs | `low` | `0.61998177` | `0.102742165` | `0.5969056` | `0` |
+| Row 1, reproducible steps | `high` | `1.1856464` | `0.8520637` | `0.4831077` | `0` |
+| Row 2, missing logs | `low` | `0.6199823` | `0.10274245` | `0.5969069` | `0` |
 
 ### Row 1 full `DecisionResults`
 
@@ -174,22 +174,22 @@ ordering, finite values, and typed relationships are the stable expectations.
     {
       "id": "priority",
       "type": "choice",
-      "confidence": 0.48310703,
+      "confidence": 0.4831077,
       "action_probability": 0,
       "labels": [
         "low",
         "high"
       ],
       "probabilities": [
-        0.1157068,
-        0.8842932
+        0.115706585,
+        0.88429344
       ],
       "choice": "high"
     },
     {
       "id": "quality",
       "type": "score",
-      "confidence": 0.2157098,
+      "confidence": 0.21570939,
       "action_probability": 0,
       "labels": [
         "0",
@@ -197,11 +197,11 @@ ordering, finite values, and typed relationships are the stable expectations.
         "2"
       ],
       "probabilities": [
-        0.0903531,
-        0.63364744,
-        0.27599943
+        0.09035328,
+        0.6336471,
+        0.27599967
       ],
-      "score": 1.1856463,
+      "score": 1.1856464,
       "legend": {
         "0": "weak",
         "1": "moderate",
@@ -211,18 +211,18 @@ ordering, finite values, and typed relationships are the stable expectations.
     {
       "id": "actionable",
       "type": "noul",
-      "confidence": 0.3953479,
+      "confidence": 0.39534837,
       "action_probability": 0,
       "labels": [
         "false",
         "true"
       ],
       "probabilities": [
-        0.14793645,
-        0.85206354
+        0.14793624,
+        0.8520637
       ],
       "noul": true,
-      "probability_true": 0.85206354
+      "probability_true": 0.8520637
     }
   ]
 }
@@ -237,22 +237,22 @@ ordering, finite values, and typed relationships are the stable expectations.
     {
       "id": "priority",
       "type": "choice",
-      "confidence": 0.5969056,
+      "confidence": 0.5969069,
       "action_probability": 0,
       "labels": [
         "low",
         "high"
       ],
       "probabilities": [
-        0.9197401,
-        0.080259964
+        0.91974044,
+        0.08025956
       ],
       "choice": "low"
     },
     {
       "id": "quality",
       "type": "score",
-      "confidence": 0.2239992,
+      "confidence": 0.22399896,
       "action_probability": 0,
       "labels": [
         "0",
@@ -260,11 +260,11 @@ ordering, finite values, and typed relationships are the stable expectations.
         "2"
       ],
       "probabilities": [
-        0.42993343,
-        0.52015144,
-        0.04991516
+        0.42993295,
+        0.52015173,
+        0.04991528
       ],
-      "score": 0.61998177,
+      "score": 0.6199823,
       "legend": {
         "0": "weak",
         "1": "moderate",
@@ -274,24 +274,24 @@ ordering, finite values, and typed relationships are the stable expectations.
     {
       "id": "actionable",
       "type": "noul",
-      "confidence": 0.52237165,
+      "confidence": 0.5223708,
       "action_probability": 0,
       "labels": [
         "false",
         "true"
       ],
       "probabilities": [
-        0.8972578,
-        0.102742165
+        0.89725757,
+        0.10274245
       ],
       "noul": false,
-      "probability_true": 0.102742165
+      "probability_true": 0.10274245
     }
   ]
 }
 ```
 
 Row 1's ordinal score is visible as
-`0 * 0.0903531 + 1 * 0.63364744 + 2 * 0.27599943 ~= 1.1856463`.
+`0 * 0.09035328 + 1 * 0.6336471 + 2 * 0.27599967 ~= 1.1856464`.
 The composed run printed the same two rows under the `AppendedDecision_*`
 columns and the `AppendedDecisionResults` JSON column.

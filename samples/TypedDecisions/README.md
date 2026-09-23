@@ -138,13 +138,13 @@ facade, stages, and composed runs. Providers and runtime versions can change
 floating-point digits; labels, ordering, finite values, probability
 normalization, and the typed relationships are the stable expectations.
 
-| State row | Choice (`priority`) | Score (`quality`) | `P(true)` (`actionable`) | Confidence | Action probability |
+| State row | Choice (`priority`) | Score (`quality`) | `P(true)` (`actionable`) | Priority confidence | Action probability |
 |---|---|---:|---:|---:|---:|
-| Reproducible steps, urgent fix | `high` | `1.1856463` | `0.85206354` | `0.48310703` | `0` |
-| Missing logs, no requested action | `low` | `0.61998177` | `0.102742165` | `0.5969056` | `0` |
+| Reproducible steps, urgent fix | `high` | `1.1856464` | `0.8520637` | `0.4831077` | `0` |
+| Missing logs, no requested action | `low` | `0.6199823` | `0.10274245` | `0.5969069` | `0` |
 
 For Row 1's ordinal score, the arithmetic is
-`0 * 0.0903531 + 1 * 0.63364744 + 2 * 0.27599943 ~= 1.1856463`.
+`0 * 0.09035328 + 1 * 0.6336471 + 2 * 0.27599967 ~= 1.1856464`.
 
 The full readable JSON responses, native stage output details, and the actual
 per-question column names are in
