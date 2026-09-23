@@ -115,6 +115,18 @@ dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
 dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
   --mode facade --model-assets .\models\laya-english-fp32
 
+# Native single-row PredictionEngine mapping
+dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
+  --mode prediction-engine --model-assets .\models\laya-english-fp32
+
+# PredictionEngine over the explicit native stages
+dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
+  --mode prediction-engine-stages --model-assets .\models\laya-english-fp32
+
+# PredictionEngine over an append-composed facade
+dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
+  --mode prediction-engine-composed --model-assets .\models\laya-english-fp32
+
 # Native inspectable stages
 dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
   --mode stages --model-assets .\models\laya-english-fp32
@@ -129,7 +141,12 @@ performs one model call, and caches pass-through columns. The stage chain
 exposes native numeric/vector/Boolean columns for the same five tensors and
 the two model outputs; the sample prints their dimensions and the decoded
 fields, not an intermediate JSON transport. All paths use the same
-preparation, scoring, and decoding kernels.
+preparation, scoring, and decoding kernels. The `prediction-engine` mode uses
+ML.NET's native single-row `PredictionEngine` mapper over the facade; it reads
+the typed columns directly for each prediction, rather than creating a new
+`MLContext`, `IDataView`, or cursor per getter. `PredictionEngine` instances
+are not thread-safe: use one instance per caller or pool instances when
+sharing a fitted transformer.
 
 ## Captured output
 
@@ -169,9 +186,8 @@ labels. Each confidence and action-probability column belongs to the same
 question. `DecisionResults` remains an optional full diagnostic JSON column
 with every question and distribution.
 
-The direct API and lazy `IDataView` paths are supported. Native ML.NET
-`Save`/`Load` and single-row `PredictionEngine` mapping are not implemented in
-this release; the transformers report those capabilities as unavailable.
-External assets are a packaging consideration, not an inherent limitation of
-either capability. The direct method is `transformer.Infer(state)` or
-`transformer.Infer(states)`.
+The direct API, lazy `IDataView` paths, and native single-row
+`PredictionEngine` mapping are supported. Native ML.NET `Save`/`Load` remains
+unimplemented in this release. External assets are a packaging consideration,
+not an inherent technical limitation of row mapping or persistence. The direct methods are
+`transformer.Infer(state)` and `transformer.Infer(states)`.

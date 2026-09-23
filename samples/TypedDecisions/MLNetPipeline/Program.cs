@@ -66,7 +66,51 @@ switch (mode.ToLowerInvariant())
         }
         break;
 
+    case "prediction-engine":
+        using (var transformer = ml.Transforms.OnnxTypedDecisions(options).Fit(data))
+        using (var engine = ml.Model.CreatePredictionEngine<StateRow, DecisionRow>(
+            transformer,
+            new PredictionEngineOptions { OwnsTransformer = false }))
+        {
+            foreach (var state in states)
+                PrintPrediction(engine.Predict(new StateRow { State = state }));
+        }
+        break;
+
+    case "prediction-engine-stages":
+    {
+        var prepared = new DecisionInputPreparationOptions
+        {
+            ModelAssetsPath = modelAssetsPath,
+            Questions = questions
+        };
+        var scored = new OnnxDecisionModelScorerOptions { ModelAssetsPath = modelAssetsPath };
+        var decoded = new DecisionDecodingOptions
+        {
+            ModelAssetsPath = modelAssetsPath,
+            Questions = questions
+        };
+        var stages = ml.Transforms.PrepareDecisionInputs(prepared)
+            .Append(ml.Transforms.ScoreOnnxDecisionModel(scored))
+            .Append(ml.Transforms.DecodeDecisions(decoded));
+        var stageTransformer = stages.Fit(data);
+        try
+        {
+            using var engine = ml.Model.CreatePredictionEngine<StateRow, StageRow>(
+                stageTransformer,
+                new PredictionEngineOptions { OwnsTransformer = false });
+            foreach (var state in states)
+                PrintStageRow(engine.Predict(new StateRow { State = state }));
+        }
+        finally
+        {
+            (stageTransformer as IDisposable)?.Dispose();
+        }
+        break;
+    }
+
     case "stages":
+    {
         var prepared = new DecisionInputPreparationOptions
         {
             ModelAssetsPath = modelAssetsPath,
@@ -94,8 +138,39 @@ switch (mode.ToLowerInvariant())
             (stageTransformer as IDisposable)?.Dispose();
         }
         break;
+    }
+
+    case "prediction-engine-composed":
+    {
+        var appendedOptions = new OnnxTypedDecisionsOptions
+        {
+            ModelAssetsPath = options.ModelAssetsPath,
+            Questions = options.Questions,
+            StateColumnName = options.StateColumnName,
+            ResultsColumnName = "AppendedDecisionResults",
+            OutputPrefix = "AppendedDecision_",
+            BatchSize = options.BatchSize
+        };
+        var composedTransformer = ml.Transforms.OnnxTypedDecisions(options)
+            .AppendOnnxTypedDecisions(ml, appendedOptions)
+            .Fit(data);
+        try
+        {
+            using var engine = ml.Model.CreatePredictionEngine<StateRow, ComposedDecisionRow>(
+                composedTransformer,
+                new PredictionEngineOptions { OwnsTransformer = false });
+            foreach (var state in states)
+                PrintComposedRow(engine.Predict(new StateRow { State = state }));
+        }
+        finally
+        {
+            (composedTransformer as IDisposable)?.Dispose();
+        }
+        break;
+    }
 
     case "composed":
+    {
         var appendedOptions = new OnnxTypedDecisionsOptions
         {
             ModelAssetsPath = options.ModelAssetsPath,
@@ -120,9 +195,12 @@ switch (mode.ToLowerInvariant())
             (composedTransformer as IDisposable)?.Dispose();
         }
         break;
+    }
 
     default:
-        Console.Error.WriteLine($"Unknown mode '{mode}'. Use direct, facade, stages, or composed.");
+        Console.Error.WriteLine(
+            $"Unknown mode '{mode}'. Use direct, facade, prediction-engine, " +
+            "prediction-engine-stages, prediction-engine-composed, stages, or composed.");
         return 2;
 }
 
@@ -141,6 +219,17 @@ static void PrintRows(IEnumerable<DecisionRow> rows)
         PrintScalars(row);
         Console.WriteLine(row.DecisionResults);
     }
+}
+
+static void PrintPrediction(DecisionRow row)
+{
+    PrintScalars(row);
+    Console.WriteLine(row.DecisionResults);
+}
+
+static void PrintStageRow(StageRow row)
+{
+    PrintStageRows([row]);
 }
 
 static void PrintStageRows(IEnumerable<StageRow> rows)
@@ -164,11 +253,24 @@ static void PrintComposedRows(IEnumerable<ComposedDecisionRow> rows)
         Console.WriteLine(row.DecisionResults);
         Console.WriteLine(
             $"appended_priority={row.AppendedDecision_priority_PredictedLabel}; " +
+            $"appended_priority_confidence={row.AppendedDecision_priority_Confidence}; " +
+            $"appended_priority_action_probability={row.AppendedDecision_priority_ActionProbability}; " +
+            $"appended_priority_probabilities={string.Join(",", row.AppendedDecision_priority_Probabilities.DenseValues())}; " +
             $"appended_quality_score={row.AppendedDecision_quality_Score}; " +
+            $"appended_quality_confidence={row.AppendedDecision_quality_Confidence}; " +
+            $"appended_quality_action_probability={row.AppendedDecision_quality_ActionProbability}; " +
+            $"appended_quality_probabilities={string.Join(",", row.AppendedDecision_quality_Probabilities.DenseValues())}; " +
             $"appended_actionable={row.AppendedDecision_actionable_PredictedLabel}; " +
-            $"appended_actionable_true_probability={row.AppendedDecision_actionable_Probability}");
+            $"appended_actionable_true_probability={row.AppendedDecision_actionable_Probability}; " +
+            $"appended_actionable_confidence={row.AppendedDecision_actionable_Confidence}; " +
+            $"appended_actionable_action_probability={row.AppendedDecision_actionable_ActionProbability}");
         Console.WriteLine(row.AppendedDecisionResults);
     }
+}
+
+static void PrintComposedRow(ComposedDecisionRow row)
+{
+    PrintComposedRows([row]);
 }
 
 static void PrintScalars(DecisionRow row)
@@ -179,9 +281,13 @@ static void PrintScalars(DecisionRow row)
         $"actionable={row.Decision_actionable_PredictedLabel}; " +
         $"actionable_true_probability={row.Decision_actionable_Probability}; " +
         $"priority_confidence={row.Decision_priority_Confidence}; " +
+        $"priority_action_probability={row.Decision_priority_ActionProbability}; " +
         $"quality_confidence={row.Decision_quality_Confidence}; " +
+        $"quality_action_probability={row.Decision_quality_ActionProbability}; " +
         $"actionable_confidence={row.Decision_actionable_Confidence}; " +
-        $"actionable_action_probability={row.Decision_actionable_ActionProbability}");
+        $"actionable_action_probability={row.Decision_actionable_ActionProbability}; " +
+        $"priority_probabilities={string.Join(",", row.Decision_priority_Probabilities.DenseValues())}; " +
+        $"quality_probabilities={string.Join(",", row.Decision_quality_Probabilities.DenseValues())}");
 }
 
 static void PrintJson(string json) => Console.WriteLine(json);
@@ -189,7 +295,7 @@ static void PrintJson(string json) => Console.WriteLine(json);
 static void PrintUsage()
 {
     Console.WriteLine("""
-        Usage: dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- --mode <direct|facade|stages|composed> --model-assets <directory-or-zip>
+        Usage: dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- --mode <direct|facade|prediction-engine|prediction-engine-stages|prediction-engine-composed|stages|composed> --model-assets <directory-or-zip>
         """);
 }
 

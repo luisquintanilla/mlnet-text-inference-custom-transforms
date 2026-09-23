@@ -134,7 +134,7 @@ public sealed class OnnxTypedDecisionsTransformer : ITransformer, IDisposable
         return _engine.Infer(states, _options.Questions, _options.BatchSize);
     }
 
-    public bool IsRowToRowMapper => false;
+    public bool IsRowToRowMapper => true;
 
     public IDataView Transform(IDataView input)
     {
@@ -150,9 +150,11 @@ public sealed class OnnxTypedDecisionsTransformer : ITransformer, IDisposable
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException(
-            "Typed decisions use the lazy cursor-batched IDataView or direct Infer API; " +
-            "single-row PredictionEngine mapping is not supported.");
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ValidateTextColumn(inputSchema, _options.StateColumnName);
+        return new TypedDecisionRowToRowMapper(inputSchema, _engine, _options);
+    }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException(
@@ -184,7 +186,7 @@ public sealed class DecisionInputPreparationTransformer : ITransformer, IDisposa
             _bundle.Tokenizer.Metadata);
     }
 
-    public bool IsRowToRowMapper => false;
+    public bool IsRowToRowMapper => true;
 
     public IDataView Transform(IDataView input)
     {
@@ -200,7 +202,11 @@ public sealed class DecisionInputPreparationTransformer : ITransformer, IDisposa
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException("Typed decision stages expose a lazy IDataView, not a row mapper.");
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ValidateTextColumn(inputSchema, _options.StateColumnName);
+        return new DecisionPreparationRowToRowMapper(inputSchema, _preparer, _options);
+    }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException("Typed decision assets are referenced by path.");
@@ -236,7 +242,7 @@ public sealed class OnnxDecisionModelScorerTransformer : ITransformer, IDisposab
         }
     }
 
-    public bool IsRowToRowMapper => false;
+    public bool IsRowToRowMapper => true;
 
     public IDataView Transform(IDataView input)
     {
@@ -252,7 +258,11 @@ public sealed class OnnxDecisionModelScorerTransformer : ITransformer, IDisposab
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException("Typed decision stages expose a lazy IDataView, not a row mapper.");
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        DecisionSchema.ValidatePreparationColumns(inputSchema, _options);
+        return new DecisionScoringRowToRowMapper(inputSchema, _scorer, _options);
+    }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException("Typed decision assets are referenced by path.");
@@ -281,7 +291,7 @@ public sealed class DecisionDecodingTransformer : ITransformer, IDisposable
         _decoder = new DecodeDecisions(_bundle.Profile.TemperaturePolicy, _bundle.Manifest.Decoder);
     }
 
-    public bool IsRowToRowMapper => false;
+    public bool IsRowToRowMapper => true;
 
     public IDataView Transform(IDataView input)
     {
@@ -297,7 +307,11 @@ public sealed class DecisionDecodingTransformer : ITransformer, IDisposable
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException("Typed decision stages expose a lazy IDataView, not a row mapper.");
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        DecisionSchema.ValidateScoringColumns(inputSchema, _options);
+        return new DecisionDecodingRowToRowMapper(inputSchema, _decoder, _options);
+    }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException("Typed decision assets are referenced by path.");

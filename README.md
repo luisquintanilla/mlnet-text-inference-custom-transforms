@@ -441,10 +441,11 @@ expected zero-based `Score` and its probability vector; Noul exposes Boolean
 own entropy `Confidence` and `ActionProbability`. `DecisionResults` remains
 an optional full diagnostic JSON column. Preparation and scoring stages use
 native ML.NET numeric/vector/Boolean columns, and the facade is the normal
-cursor-batched path. Native ML.NET `Save`/`Load` and single-row
-`PredictionEngine` mapping are not implemented in this release; the
-transformers report those capabilities as unavailable. External assets are a
-packaging consideration, not an inherent limitation of either capability.
+cursor-batched path. Native single-row `PredictionEngine` mapping is supported
+through the transformer and native stage row mappers. Native ML.NET `Save`/`Load`
+remains unimplemented for typed decisions in this release. External assets are
+a packaging consideration, not an inherent limitation of row mapping or
+persistence.
 
 ### Text Generation
 

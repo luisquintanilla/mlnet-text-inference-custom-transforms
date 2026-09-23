@@ -67,6 +67,18 @@ dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
 dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
   --mode facade --model-assets .\models\laya-english-fp32
 
+# Native single-row PredictionEngine mapping
+dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
+  --mode prediction-engine --model-assets .\models\laya-english-fp32
+
+# PredictionEngine over the explicit native stages
+dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
+  --mode prediction-engine-stages --model-assets .\models\laya-english-fp32
+
+# PredictionEngine over an append-composed facade
+dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
+  --mode prediction-engine-composed --model-assets .\models\laya-english-fp32
+
 # Preparation -> scoring -> decoding stages
 dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
   --mode stages --model-assets .\models\laya-english-fp32
@@ -123,6 +135,24 @@ lengths and decoded result fields; it does not print every token or vector
 element. The `DecisionResults` text column is the optional full diagnostic
 JSON output, not stage transport.
 
+## PredictionEngine mode
+
+`prediction-engine` uses
+`MLContext.Model.CreatePredictionEngine<StateRow, DecisionRow>` against the
+fitted facade. The mapper computes the requested typed columns from the
+current input row and reuses the fitted tokenizer, decoder, and ONNX session.
+The sample prints the actual probability vectors, typed scalar values, and
+`DecisionResults` for both states.
+
+`prediction-engine-stages` uses `StageRow` and exposes the native prepared and
+scored vectors through the same single-row mapper. `prediction-engine-composed`
+uses `ComposedDecisionRow` and reads both the original and appended typed
+column sets from one mapped row.
+
+`PredictionEngine` is a single-row convenience API and is not thread-safe.
+Create one instance per caller, or use a pool of instances when sharing a
+fitted transformer. Do not share one instance concurrently.
+
 ## Output mapping
 
 Each configured question receives an unambiguous prefix:
@@ -147,11 +177,9 @@ Both applications use the same request and assets, so the values should match
 within floating-point tolerance. Accessing multiple output getters does not
 repeat inference for the same cursor row.
 
-Native ML.NET model `Save`/`Load` and single-row `PredictionEngine` mapping are
-not implemented in this release. The transformers report those capabilities
-as unavailable; external local assets are a packaging consideration, not an
-inherent technical limitation. Use the direct `Infer` method or lazy
-`IDataView` materialization today.
+Native ML.NET model `Save`/`Load` remains unimplemented in this release.
+External local assets are a packaging consideration, not an inherent
+technical limitation of row mapping or persistence.
 
 ## Captured outputs
 
