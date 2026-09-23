@@ -148,8 +148,10 @@ within floating-point tolerance. Accessing multiple output getters does not
 repeat inference for the same cursor row.
 
 Native ML.NET model `Save`/`Load` and single-row `PredictionEngine` mapping are
-not supported because these transforms reference external local assets. Use
-the direct `Infer` method or lazy `IDataView` materialization.
+not implemented in this release. The transformers report those capabilities
+as unavailable; external local assets are a packaging consideration, not an
+inherent technical limitation. Use the direct `Infer` method or lazy
+`IDataView` materialization today.
 
 ## Captured outputs
 

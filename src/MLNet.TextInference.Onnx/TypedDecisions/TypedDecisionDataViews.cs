@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using MLNet.TextInference.TypedDecisions;
@@ -70,6 +71,41 @@ internal abstract class DecisionCursorBase : DataViewRowCursor
     protected List<Action> Readers { get; } = [];
     protected DataViewRowId CurrentId;
     protected bool IsRequested(string columnName) => _activeColumns.Contains(columnName);
+
+    protected void EnsureColumnActive(DataViewSchema.Column column)
+    {
+        if (!_activeColumns.Contains(column.Name))
+            throw new InvalidOperationException(
+                $"Column '{column.Name}' was not requested by this cursor.");
+    }
+
+    protected void InitializeActiveUpstreamColumns(
+        IEnumerable<DataViewSchema.Column> columnsNeeded,
+        Action<DataViewSchema.Column> register)
+    {
+        foreach (var column in columnsNeeded)
+        {
+            var upstream = InputCursor.Schema.GetColumnOrNull(column.Name);
+            if (upstream is not null)
+                register(upstream.Value);
+        }
+    }
+
+    protected static void InvokeGenericRegistration(
+        object target,
+        string methodName,
+        DataViewSchema.Column column)
+    {
+        var method = target.GetType()
+            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            .SingleOrDefault(item =>
+                item.Name == methodName &&
+                item.IsGenericMethodDefinition &&
+                item.GetParameters().Length == 1)
+            ?? throw new InvalidOperationException(
+                $"Could not find generic cache registration method '{methodName}'.");
+        method.MakeGenericMethod(column.Type.RawType).Invoke(target, [column]);
+    }
 
     public override DataViewSchema Schema => Parent.Schema;
     public override long Position => InputCursor.Position;
@@ -174,6 +210,7 @@ internal sealed class DecisionPreparationDataView : DecisionDataViewBase
                 inputCursor.Schema[parent._options.StateColumnName]);
             _needsPreparation = columnsNeeded.Any(column =>
                 parent._options.ColumnNames().Any(item => item.Name == column.Name));
+            InitializeActiveUpstreamColumns(columnsNeeded, RegisterActiveUpstreamColumn);
         }
 
         public override bool MoveNext()
@@ -191,6 +228,7 @@ internal sealed class DecisionPreparationDataView : DecisionDataViewBase
 
         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
         {
+            EnsureColumnActive(column);
             if (column.Name == _parent._options.InputIdsColumnName)
                 return VectorGetter<TValue, long>(() => _batch?.InputIds ?? []);
             if (column.Name == _parent._options.AttentionMaskColumnName)
@@ -213,6 +251,12 @@ internal sealed class DecisionPreparationDataView : DecisionDataViewBase
                 throw new InvalidOperationException($"Unknown column '{column.Name}'.");
             return GetCachedUpstreamGetter<TValue>(upstream.Value);
         }
+
+        private void RegisterActiveUpstreamColumn(DataViewSchema.Column column)
+            => InvokeGenericRegistration(this, nameof(RegisterActiveUpstreamColumnTyped), column);
+
+        private void RegisterActiveUpstreamColumnTyped<TValue>(DataViewSchema.Column column)
+            => GetCachedUpstreamGetter<TValue>(column);
     }
 }
 
@@ -302,6 +346,7 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
                 inputCursor.Schema[parent._options.SequenceLengthColumnName]);
             _markerWidthGetter = inputCursor.GetGetter<int>(
                 inputCursor.Schema[parent._options.MarkerWidthColumnName]);
+            InitializeActiveUpstreamColumns(columnsNeeded, RegisterActiveUpstreamColumn);
         }
 
         public override long Position => _position;
@@ -366,6 +411,7 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
 
         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
         {
+            EnsureColumnActive(column);
             if (column.Name == _parent._options.LogitsColumnName)
                 return VectorGetter<TValue, float>(() => _scoredRows[_index].Logits);
             if (column.Name == _parent._options.ActionProbabilitiesColumnName)
@@ -376,6 +422,12 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
                 throw new InvalidOperationException($"Unknown column '{column.Name}'.");
             return GetCachedBatchGetter<TValue>(upstream.Value);
         }
+
+        private void RegisterActiveUpstreamColumn(DataViewSchema.Column column)
+            => InvokeGenericRegistration(this, nameof(RegisterActiveUpstreamColumnTyped), column);
+
+        private void RegisterActiveUpstreamColumnTyped<TValue>(DataViewSchema.Column column)
+            => GetCachedBatchGetter<TValue>(column);
 
         public override ValueGetter<DataViewRowId> GetIdGetter()
             => (ref DataViewRowId value) => value = _ids[_index];
@@ -588,6 +640,7 @@ internal sealed class DecisionDecodingDataView : DecisionDataViewBase
                 parent._options.Questions
                     .Select((question, index) => (question, index))
                     .Any(item => IsQuestionColumn(item.question, item.index, column.Name)));
+            InitializeActiveUpstreamColumns(columnsNeeded, RegisterActiveUpstreamColumn);
         }
 
         public override bool MoveNext()
@@ -647,6 +700,7 @@ internal sealed class DecisionDecodingDataView : DecisionDataViewBase
 
         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
         {
+            EnsureColumnActive(column);
             if (column.Name == _parent._options.ResultsColumnName)
                 return TextGetter<TValue>(() => DecisionJsonCodec.SerializeResponse(_response!));
 
@@ -662,6 +716,12 @@ internal sealed class DecisionDecodingDataView : DecisionDataViewBase
                 throw new InvalidOperationException($"Unknown column '{column.Name}'.");
             return GetCachedUpstreamGetter<TValue>(upstream.Value);
         }
+
+        private void RegisterActiveUpstreamColumn(DataViewSchema.Column column)
+            => InvokeGenericRegistration(this, nameof(RegisterActiveUpstreamColumnTyped), column);
+
+        private void RegisterActiveUpstreamColumnTyped<TValue>(DataViewSchema.Column column)
+            => GetCachedUpstreamGetter<TValue>(column);
 
         private bool IsQuestionColumn(DecisionQuestion question, int index, string name)
         {
@@ -765,6 +825,7 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
                 parent._options.Questions
                     .Select((question, index) => (question, index))
                     .Any(item => IsQuestionColumn(item.question, column.Name)));
+            InitializeActiveUpstreamColumns(columnsNeeded, RegisterActiveUpstreamColumn);
         }
 
         public override long Position => _position;
@@ -810,6 +871,7 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
 
         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
         {
+            EnsureColumnActive(column);
             if (column.Name == _parent._options.ResultsColumnName)
                 return TextGetter<TValue>(() => DecisionJsonCodec.SerializeResponse(_responses[_index]));
 
@@ -856,6 +918,12 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
             return (ref TValue value) => value = typedValues[_index];
         }
 
+        private void RegisterActiveUpstreamColumn(DataViewSchema.Column column)
+            => InvokeGenericRegistration(this, nameof(RegisterActiveUpstreamColumnTyped), column);
+
+        private void RegisterActiveUpstreamColumnTyped<TValue>(DataViewSchema.Column column)
+            => GetCachedGetter<TValue>(column);
+
         private ValueGetter<TValue> QuestionGetter<TValue>(int questionIndex, string name)
         {
             var output = _parent._options.OutputNames.ById[
@@ -889,12 +957,24 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
 
 internal static class DecisionDataViewUtils
 {
+    private static readonly MethodInfo CopyVBufferMethod =
+        typeof(DecisionDataViewUtils).GetMethod(
+            nameof(CopyVBuffer),
+            BindingFlags.Static | BindingFlags.NonPublic)
+        ?? throw new InvalidOperationException("CopyVBuffer method was not found.");
+
     internal static T CopyValue<T>(T value)
     {
         if (value is ReadOnlyMemory<char> memory)
             return (T)(object)memory.ToString().AsMemory();
-        if (value is VBuffer<T> vector)
-            return (T)(object)CopyVBuffer(vector);
+        if (typeof(T).IsGenericType &&
+            typeof(T).GetGenericTypeDefinition() == typeof(VBuffer<>))
+        {
+            var elementType = typeof(T).GetGenericArguments()[0];
+            return (T)CopyVBufferMethod
+                .MakeGenericMethod(elementType)
+                .Invoke(null, [value])!;
+        }
         return value;
     }
 

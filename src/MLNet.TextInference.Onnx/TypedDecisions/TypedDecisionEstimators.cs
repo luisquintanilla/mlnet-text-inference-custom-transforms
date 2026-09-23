@@ -597,7 +597,15 @@ internal static class DecisionSchema
                 question.Type == DecisionQuestionType.Noul ? BooleanDataViewType.Instance : TextDataViewType.Instance);
             AddShapeColumnIfPresent(result, output.Score, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Single);
             AddShapeColumnIfPresent(result, output.Probability, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Single);
-            AddShapeColumnIfPresent(result, output.Probabilities, SchemaShape.Column.VectorKind.Vector, NumberDataViewType.Single);
+            if (output.Probabilities is not null)
+            {
+                AddShapeColumn(
+                    result,
+                    output.Probabilities,
+                    SchemaShape.Column.VectorKind.Vector,
+                    NumberDataViewType.Single,
+                    CreateSlotMetadataShape(question.OptionLabels().Count));
+            }
             AddShapeColumn(result, output.Confidence, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Single);
             AddShapeColumn(result, output.ActionProbability, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Single);
         }
@@ -673,6 +681,17 @@ internal static class DecisionSchema
                 destination = editor.Commit();
             });
         return builder.ToAnnotations();
+    }
+
+    private static SchemaShape CreateSlotMetadataShape(int slotCount)
+    {
+        var columns = new Dictionary<string, SchemaShape.Column>(StringComparer.Ordinal);
+        AddShapeColumn(
+            columns,
+            "SlotNames",
+            SchemaShape.Column.VectorKind.Vector,
+            TextDataViewType.Instance);
+        return new SchemaShape(columns.Values);
     }
 
     private static void ValidateIntColumn(DataViewSchema schema, string name)

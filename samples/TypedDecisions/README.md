@@ -170,7 +170,8 @@ question. `DecisionResults` remains an optional full diagnostic JSON column
 with every question and distribution.
 
 The direct API and lazy `IDataView` paths are supported. Native ML.NET
-`Save`/`Load` and single-row `PredictionEngine` mapping are not advertised:
-the transformers reference local external assets and report that row-mapper
-support is unavailable. The direct method is
-`transformer.Infer(state)` or `transformer.Infer(states)`.
+`Save`/`Load` and single-row `PredictionEngine` mapping are not implemented in
+this release; the transformers report those capabilities as unavailable.
+External assets are a packaging consideration, not an inherent limitation of
+either capability. The direct method is `transformer.Infer(state)` or
+`transformer.Infer(states)`.

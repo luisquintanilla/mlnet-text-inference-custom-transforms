@@ -43,6 +43,16 @@ public sealed class TypedDecisionAdapterTests
                 "Decision_risk_ActionProbability"
             },
             names.ToArray());
+
+        var probabilities = output.Single(
+            column => column.Name == "Decision_team_Probabilities");
+        Assert.IsNotNull(probabilities.Metadata);
+        var slotNames = probabilities.Metadata!.Single(
+            column => column.Name == "SlotNames");
+        Assert.AreEqual(
+            SchemaShape.Column.VectorKind.Vector,
+            slotNames.Kind);
+        Assert.AreEqual(TextDataViewType.Instance, slotNames.ItemType);
     }
 
     [TestMethod]
