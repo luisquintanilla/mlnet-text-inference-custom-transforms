@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>MLNet.TextInference.TypedDecisions.Core</PackageId>
+    <Description>ML.NET-independent typed decision inference for Laya-compatible ONNX bundles.</Description>
+    <PackageTags>onnx;typed-decisions;laya;tokenizers;inference</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.24.2" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="2.0.0" />
+    <PackageReference Include="System.Numerics.Tensors" Version="10.0.3" />
+  </ItemGroup>
+
+</Project>

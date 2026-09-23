@@ -29,6 +29,7 @@ A **multi-task text inference platform** for ML.NET that runs local HuggingFace 
 | QA | ✅ Implemented | `QaSpanExtractionTransformer` | `OnnxQaEstimator` |
 | Text Generation | ✅ Implemented | `ChatClientTransformer` | N/A (provider-agnostic) |
 | Text Generation (local) | ✅ Implemented | `OnnxTextGenerationTransformer` | `OnnxTextGenerationEstimator` |
+| Typed decisions (Laya English FP32) | ✅ Implemented | `PrepareDecisionInputs`, `ScoreOnnxDecisionModel`, `DecodeDecisions` | `OnnxTypedDecisions` |
 
 ## Why This Exists
 
@@ -52,6 +53,31 @@ This project implements custom transforms using direct `IEstimator<T>` / `ITrans
 - **SIMD-accelerated post-processing** — pooling and normalization use `TensorPrimitives` for hardware-vectorized math
 - **Configurable batching** — process rows in configurable batch sizes to bound memory usage
 - **Multiple pooling strategies** — Mean, CLS token, and Max pooling (for embeddings)
+- **Typed decisions** — an ML.NET-independent Laya core plus lazy, cursor-batched ML.NET adapters for choice, score, and noul questions
+
+## Typed decisions
+
+Typed decisions use a versioned local bundle for the English FP32 Laya graph from
+`receptron/laya-onnx` revision `68f27dfe5a27a54fb2b1fefc432f43f972e90868`.
+The core assembly has no `Microsoft.ML` dependency. It uses
+`Microsoft.ML.Tokenizers` for the selected byte-level BPE contract,
+`Microsoft.ML.OnnxRuntime.Managed` for the five-input graph, and C# decoding
+with stable tensor primitives.
+
+No model or tokenizer assets are downloaded during inference. The explicit
+acceptance path is:
+
+```powershell
+.\scripts\typed-decisions\Invoke-LayaAcceptance.ps1 `
+  -BundlePath C:\models\laya-english-fp32.bundle -Mode facade
+.\scripts\typed-decisions\Invoke-LayaAcceptance.ps1 `
+  -BundlePath C:\models\laya-english-fp32.bundle -Mode stages -MLNet
+```
+
+The bundle must contain its manifest, model, external-data sidecars, Laya
+configuration, and tokenizer directory. Ordinary builds and tests use small
+offline fixtures; heavyweight graph parity is only run when this command is
+invoked with a real local bundle.
 
 ## Quick Start
 

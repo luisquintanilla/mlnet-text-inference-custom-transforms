@@ -9,6 +9,54 @@ namespace MLNet.TextInference.Onnx;
 public static class MLContextExtensions
 {
     /// <summary>
+    /// Appends the compiled typed-decision facade to an existing ML.NET estimator chain.
+    /// </summary>
+    public static IEstimator<ITransformer> AppendOnnxTypedDecisions(
+        this IEstimator<ITransformer> pipeline,
+        MLContext mlContext,
+        OnnxTypedDecisionsOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(pipeline);
+        ArgumentNullException.ThrowIfNull(mlContext);
+        return Microsoft.ML.LearningPipelineExtensions.Append(
+            pipeline, new OnnxTypedDecisionsEstimator(mlContext, options));
+    }
+
+    /// <summary>
+    /// Creates a schema-aware, cursor-batched typed-decision transform backed by a local bundle.
+    /// </summary>
+    public static OnnxTypedDecisionsEstimator OnnxTypedDecisions(
+        this TransformsCatalog catalog,
+        OnnxTypedDecisionsOptions options)
+    {
+        return new OnnxTypedDecisionsEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>Creates the preparation stage of a typed-decision pipeline.</summary>
+    public static PrepareDecisionInputsEstimator PrepareDecisionInputs(
+        this TransformsCatalog catalog,
+        PrepareDecisionInputsOptions options)
+    {
+        return new PrepareDecisionInputsEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>Creates the ONNX scoring stage of a typed-decision pipeline.</summary>
+    public static ScoreOnnxDecisionModelEstimator ScoreOnnxDecisionModel(
+        this TransformsCatalog catalog,
+        ScoreOnnxDecisionModelOptions options)
+    {
+        return new ScoreOnnxDecisionModelEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>Creates the typed-decoding stage of a typed-decision pipeline.</summary>
+    public static DecodeDecisionsEstimator DecodeDecisions(
+        this TransformsCatalog catalog,
+        DecodeDecisionsOptions options)
+    {
+        return new DecodeDecisionsEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>
     /// Creates an estimator that generates text embeddings using a local ONNX model.
     /// Encapsulates tokenization, ONNX inference, pooling, and normalization.
     /// </summary>

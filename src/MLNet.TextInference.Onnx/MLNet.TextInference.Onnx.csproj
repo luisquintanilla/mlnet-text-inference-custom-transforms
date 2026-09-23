@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MLNet.TextInference.TypedDecisions.Core\MLNet.TextInference.TypedDecisions.Core.csproj" />
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.3.0" />
     <PackageReference Include="Microsoft.ML" Version="5.0.0" />
     <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.24.2" />

@@ -27,8 +27,12 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
+      - name: Test
+        run: dotnet test --no-build --configuration Release
+
       - name: Pack
         run: |
+          dotnet pack src/MLNet.TextInference.TypedDecisions.Core/ --no-build --configuration Release --output ./artifacts
           dotnet pack src/MLNet.TextInference.Onnx/ --no-build --configuration Release --output ./artifacts
           dotnet pack src/MLNet.TextGeneration.OnnxGenAI/ --no-build --configuration Release --output ./artifacts
 

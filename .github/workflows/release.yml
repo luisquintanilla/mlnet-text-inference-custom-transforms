@@ -31,6 +31,7 @@ jobs:
 
       - name: Pack
         run: |
+          dotnet pack src/MLNet.TextInference.TypedDecisions.Core/ --no-build --configuration Release --output ./artifacts
           dotnet pack src/MLNet.TextInference.Onnx/ --no-build --configuration Release --output ./artifacts
           dotnet pack src/MLNet.TextGeneration.OnnxGenAI/ --no-build --configuration Release --output ./artifacts
 
