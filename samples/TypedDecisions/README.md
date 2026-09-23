@@ -8,8 +8,9 @@ The model scores the alternatives supplied by the caller:
 - **Score** returns the expected zero-based option index. It is not a
   classification confidence; for three levels, a score of `1.1856464` is the
   probability-weighted index between `0`, `1`, and `2`.
-- **Noul** ("no/yes") returns a Boolean value and the probability of the
-  `true` option.
+- **Noul (Boolean)** returns `true` when the `true` probability is greater than
+  or equal to the `false` probability (`pTrue >= pFalse`); it also returns the
+  probability of the `true` option.
 
 The ML.NET sample is the primary user-facing path. The standalone sample is a
 small direct-core example that is useful when ML.NET is not needed and for
@@ -70,6 +71,10 @@ an action is correct.
    `IDataView` row count. For the ML.NET example, two input rows and three
    questions produce six decision rows. `L` is the padded sequence length and
    `K` is the maximum option count in the batch.
+   For a decoded response, `input_tokens` is the aggregate count of
+   nonpadding tokens across that request's question-specific prepared
+   sequences. It includes instructions, options, state, and special tokens;
+   it is not just the original state token count.
 4. The graph returns `logits [B,K]` and already-softmaxed `act_probs [B,2]`.
    The decoder applies the profile temperature policy to logits, masks unused
    options, and computes the typed result. It does not apply a second softmax
@@ -107,6 +112,8 @@ After placing the files, the exact public bundle API can create the manifest
 and its SHA-256 entries:
 
 ```csharp
+using MLNet.TextInference.TypedDecisions;
+
 TypedDecisionBundle.WriteManifest(
     @".\models\laya-english-fp32.bundle",
     new TypedDecisionBundleManifest
@@ -148,12 +155,16 @@ dotnet run --file samples/TypedDecisions/Standalone/Program.cs -- `
 ```
 
 `facade` composes preparation, ONNX scoring, and decoding. `stages` prints
-prepared and scored JSON envelopes before decoded results. The ML.NET facade
+prepared and scored JSON envelopes before decoded results in the standalone
+sample. The ML.NET `stages` mode keeps those intermediate contracts in scalar
+`Text` columns, but the current sample prints only its decoded `DecisionRow`
+fields; it does not print the raw prepared/scored envelopes. The ML.NET facade
 uses a lazy cursor and batches source rows; the staged transforms intentionally
 transport JSON through scalar `Text` columns and score one row at a time so
-their intermediate contracts can be inspected. They are not native tensor
-columns or a replacement for facade batching. `composed` applies the facade
-twice and prints both the original and appended result columns.
+their intermediate contracts can be inspected by downstream consumers. They
+are not native tensor columns or a replacement for facade batching. `composed`
+applies the facade twice and prints both the original and appended result
+columns.
 
 ## Captured expected output
 
@@ -164,12 +175,6 @@ digits. Stable labels, result ordering, finite values, and scalar-to-JSON
 relationships are the important expectations; numerical comparisons use a
 small tolerance.
 
-Standalone facade (one request, three results):
-
-```json
-{"input_tokens":112,"results":[{"id":"priority","type":"choice","confidence":0.4831077,"action_probability":0,"labels":["low","high"],"probabilities":[0.115706585,0.88429344],"choice":"high"},{"id":"quality","type":"score","confidence":0.21570939,"action_probability":0,"labels":["0","1","2"],"probabilities":[0.09035328,0.6336471,0.27599967],"score":1.1856464,"legend":{"0":"weak","1":"moderate","2":"strong"}},{"id":"actionable","type":"noul","confidence":0.39534837,"action_probability":0,"labels":["false","true"],"probabilities":[0.14793624,0.8520637],"noul":true,"probability_true":0.8520637}]}
-```
-
 ML.NET facade rows (the scalar columns select the first matching result for
 choice, score, and `probability_true`; confidence and action probability come
 from the first result overall):
@@ -179,12 +184,14 @@ from the first result overall):
 | Reproducible steps, urgent fix | `high` | `1.1856464` | `0.8520637` | `0.4831077` | `0` |
 | Missing logs, no requested action | `low` | `0.6199823` | `0.10274245` | `0.5969069` | `0` |
 
-The corresponding full result JSON excerpts are:
+The complete three-result standalone response is formatted for readability in
+[Standalone/README.md](Standalone/README.md). The complete ML.NET responses
+are separately labeled and formatted for readability in
+[MLNetPipeline/README.md](MLNetPipeline/README.md).
 
-```json
-{"input_tokens":112,"results":[{"id":"priority","type":"choice","confidence":0.4831077,"action_probability":0,"labels":["low","high"],"probabilities":[0.115706585,0.88429344],"choice":"high"},{"id":"quality","type":"score","confidence":0.21570939,"action_probability":0,"labels":["0","1","2"],"probabilities":[0.09035328,0.6336471,0.27599967],"score":1.1856464,"legend":{"0":"weak","1":"moderate","2":"strong"}},{"id":"actionable","type":"noul","confidence":0.39534837,"action_probability":0,"labels":["false","true"],"probabilities":[0.14793624,0.8520637],"noul":true,"probability_true":0.8520637}]}
-{"input_tokens":115,"results":[{"id":"priority","type":"choice","confidence":0.5969069,"action_probability":0,"labels":["low","high"],"probabilities":[0.91974044,0.08025956],"choice":"low"},{"id":"quality","type":"score","confidence":0.22399896,"action_probability":0,"labels":["0","1","2"],"probabilities":[0.42993295,0.52015173,0.04991528],"score":0.6199823,"legend":{"0":"weak","1":"moderate","2":"strong"}},{"id":"actionable","type":"noul","confidence":0.5223708,"action_probability":0,"labels":["false","true"],"probabilities":[0.89725757,0.10274245],"noul":false,"probability_true":0.10274245}]}
-```
+For the first row's `quality` score, the probabilities make the ordinal
+calculation visible:
+`0 * 0.09035328 + 1 * 0.6336471 + 2 * 0.27599967 ~= 1.1856464`.
 
 The composed mode prints the same first and second rows twice: once from the
 original facade columns and once from the appended facade columns. The

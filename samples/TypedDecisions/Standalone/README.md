@@ -60,10 +60,74 @@ English FP32 Laya bundle. It is an expected shape and representative numeric
 example, not a bit-for-bit promise across runtimes:
 
 ```json
-{"input_tokens":112,"results":[{"id":"priority","type":"choice","confidence":0.4831077,"action_probability":0,"labels":["low","high"],"probabilities":[0.115706585,0.88429344],"choice":"high"},{"id":"quality","type":"score","confidence":0.21570939,"action_probability":0,"labels":["0","1","2"],"probabilities":[0.09035328,0.6336471,0.27599967],"score":1.1856464,"legend":{"0":"weak","1":"moderate","2":"strong"}},{"id":"actionable","type":"noul","confidence":0.39534837,"action_probability":0,"labels":["false","true"],"probabilities":[0.14793624,0.8520637],"noul":true,"probability_true":0.8520637}]}
+{
+  "input_tokens": 112,
+  "results": [
+    {
+      "id": "priority",
+      "type": "choice",
+      "confidence": 0.4831077,
+      "action_probability": 0,
+      "labels": [
+        "low",
+        "high"
+      ],
+      "probabilities": [
+        0.115706585,
+        0.88429344
+      ],
+      "choice": "high"
+    },
+    {
+      "id": "quality",
+      "type": "score",
+      "confidence": 0.21570939,
+      "action_probability": 0,
+      "labels": [
+        "0",
+        "1",
+        "2"
+      ],
+      "probabilities": [
+        0.09035328,
+        0.6336471,
+        0.27599967
+      ],
+      "score": 1.1856464,
+      "legend": {
+        "0": "weak",
+        "1": "moderate",
+        "2": "strong"
+      }
+    },
+    {
+      "id": "actionable",
+      "type": "noul",
+      "confidence": 0.39534837,
+      "action_probability": 0,
+      "labels": [
+        "false",
+        "true"
+      ],
+      "probabilities": [
+        0.14793624,
+        0.8520637
+      ],
+      "noul": true,
+      "probability_true": 0.8520637
+    }
+  ]
+}
 ```
+
+`input_tokens` is the aggregate count of nonpadding tokens across the three
+question-specific prepared sequences for this request. It includes
+instructions, options, state, and special tokens, not only the state text.
+For the `quality` result, the score is the probability-weighted ordinal index:
+`0 * 0.09035328 + 1 * 0.6336471 + 2 * 0.27599967 ~= 1.1856464`.
 
 Notice that the noul `confidence` (`0.39534837`) is not its
 `probability_true` (`0.8520637`). Confidence is entropy-based; the Boolean
-probability is the probability of the `true` option. `action_probability` is a
-separate model output selected from `act_probs`.
+probability is the probability of the `true` option, and the decoder chooses
+the Boolean value using `pTrue >= pFalse`. `action_probability` is a separate
+model output selected from `act_probs`.

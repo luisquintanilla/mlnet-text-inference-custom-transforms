@@ -71,7 +71,9 @@ ml.Transforms.PrepareDecisionInputs(prepared)
 Those stages deliberately transport prepared inputs and scored outputs as
 scalar `Text` JSON columns. They are row-oriented and score one source row at
 a time; they are not native tensor columns and do not provide the facade's
-cursor batching. Use the facade for normal ML.NET use and the stages when
+cursor batching. The sample's `stages` mode materializes and prints only the
+decoded `DecisionRow` fields; the intermediate JSON columns remain internal to
+the transform chain. Use the facade for normal ML.NET use and the stages when
 inspecting or composing the intermediate contracts.
 
 `composed` applies the facade twice:
@@ -111,19 +113,144 @@ and representative values; floating-point digits can vary with runtime,
 provider, or calibration changes. Stable labels/order and relationships are
 the compatibility expectations.
 
-Facade and stages produce the same two rows:
+Facade and stages expose the same decoded scalar values for the two rows:
 
 | State row | `DecisionChoice` | `DecisionScore` | `DecisionProbabilityTrue` | `DecisionConfidence` | `DecisionActionProbability` |
 |---|---|---:|---:|---:|---:|
 | Reproducible steps, urgent fix | `high` | `1.1856464` | `0.8520637` | `0.4831077` | `0` |
 | Missing logs, no requested action | `low` | `0.6199823` | `0.10274245` | `0.5969069` | `0` |
 
-The full result JSON for the two rows is:
+The full result JSON is formatted for readability. Row 1:
 
 ```json
-{"input_tokens":112,"results":[{"id":"priority","type":"choice","confidence":0.4831077,"action_probability":0,"labels":["low","high"],"probabilities":[0.115706585,0.88429344],"choice":"high"},{"id":"quality","type":"score","confidence":0.21570939,"action_probability":0,"labels":["0","1","2"],"probabilities":[0.09035328,0.6336471,0.27599967],"score":1.1856464,"legend":{"0":"weak","1":"moderate","2":"strong"}},{"id":"actionable","type":"noul","confidence":0.39534837,"action_probability":0,"labels":["false","true"],"probabilities":[0.14793624,0.8520637],"noul":true,"probability_true":0.8520637}]}
-{"input_tokens":115,"results":[{"id":"priority","type":"choice","confidence":0.5969069,"action_probability":0,"labels":["low","high"],"probabilities":[0.91974044,0.08025956],"choice":"low"},{"id":"quality","type":"score","confidence":0.22399896,"action_probability":0,"labels":["0","1","2"],"probabilities":[0.42993295,0.52015173,0.04991528],"score":0.6199823,"legend":{"0":"weak","1":"moderate","2":"strong"}},{"id":"actionable","type":"noul","confidence":0.5223708,"action_probability":0,"labels":["false","true"],"probabilities":[0.89725757,0.10274245],"noul":false,"probability_true":0.10274245}]}
+{
+  "input_tokens": 112,
+  "results": [
+    {
+      "id": "priority",
+      "type": "choice",
+      "confidence": 0.4831077,
+      "action_probability": 0,
+      "labels": [
+        "low",
+        "high"
+      ],
+      "probabilities": [
+        0.115706585,
+        0.88429344
+      ],
+      "choice": "high"
+    },
+    {
+      "id": "quality",
+      "type": "score",
+      "confidence": 0.21570939,
+      "action_probability": 0,
+      "labels": [
+        "0",
+        "1",
+        "2"
+      ],
+      "probabilities": [
+        0.09035328,
+        0.6336471,
+        0.27599967
+      ],
+      "score": 1.1856464,
+      "legend": {
+        "0": "weak",
+        "1": "moderate",
+        "2": "strong"
+      }
+    },
+    {
+      "id": "actionable",
+      "type": "noul",
+      "confidence": 0.39534837,
+      "action_probability": 0,
+      "labels": [
+        "false",
+        "true"
+      ],
+      "probabilities": [
+        0.14793624,
+        0.8520637
+      ],
+      "noul": true,
+      "probability_true": 0.8520637
+    }
+  ]
+}
 ```
+
+Row 2:
+
+```json
+{
+  "input_tokens": 115,
+  "results": [
+    {
+      "id": "priority",
+      "type": "choice",
+      "confidence": 0.5969069,
+      "action_probability": 0,
+      "labels": [
+        "low",
+        "high"
+      ],
+      "probabilities": [
+        0.91974044,
+        0.08025956
+      ],
+      "choice": "low"
+    },
+    {
+      "id": "quality",
+      "type": "score",
+      "confidence": 0.22399896,
+      "action_probability": 0,
+      "labels": [
+        "0",
+        "1",
+        "2"
+      ],
+      "probabilities": [
+        0.42993295,
+        0.52015173,
+        0.04991528
+      ],
+      "score": 0.6199823,
+      "legend": {
+        "0": "weak",
+        "1": "moderate",
+        "2": "strong"
+      }
+    },
+    {
+      "id": "actionable",
+      "type": "noul",
+      "confidence": 0.5223708,
+      "action_probability": 0,
+      "labels": [
+        "false",
+        "true"
+      ],
+      "probabilities": [
+        0.89725757,
+        0.10274245
+      ],
+      "noul": false,
+      "probability_true": 0.10274245
+    }
+  ]
+}
+```
+
+For each row, `input_tokens` is the aggregate count of nonpadding tokens
+across that request's three question-specific prepared sequences. It includes
+instructions, options, state, and special tokens, not only the state text.
+For Row 1's `quality` result, the score is
+`0 * 0.09035328 + 1 * 0.6336471 + 2 * 0.27599967 ~= 1.1856464`.
 
 The composed run printed the same values from the appended columns:
 
