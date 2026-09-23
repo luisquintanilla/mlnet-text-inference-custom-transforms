@@ -127,7 +127,7 @@ public sealed record DecisionQuestion
 }
 
 /// <summary>A state and one or more typed questions to evaluate.</summary>
-public sealed record DecisionRequest
+internal sealed record DecisionRequest
 {
     public required string State { get; init; }
     public required IReadOnlyList<DecisionQuestion> Questions { get; init; }
@@ -145,7 +145,7 @@ public sealed record DecisionRequest
 }
 
 /// <summary>Per-question inputs after tokenization and marker placement.</summary>
-public sealed record DecisionInputItem(
+internal sealed record DecisionInputItem(
     int RequestIndex,
     DecisionQuestion Question,
     int[] MarkerPositions,
@@ -156,7 +156,7 @@ public sealed record DecisionInputItem(
 /// Dense, fixed-shape inputs for one ONNX call. Arrays are row-major and match the documented
 /// model shapes: [B,L], [B,L], [B,K], [B,K], and [B].
 /// </summary>
-public sealed class DecisionInputBatch
+internal sealed class DecisionInputBatch
 {
     public required int BatchSize { get; init; }
     public required int SequenceLength { get; init; }
@@ -188,7 +188,7 @@ public sealed class DecisionInputBatch
 }
 
 /// <summary>Outputs from the decision ONNX graph.</summary>
-public sealed class DecisionModelOutputs
+internal sealed class DecisionModelOutputs
 {
     public required int BatchSize { get; init; }
     public required int MarkerWidth { get; init; }
@@ -260,12 +260,12 @@ public sealed class DecisionResponse
     public required int InputTokenCount { get; init; }
 }
 
-public sealed record TypedDecisionDiagnostic(
+internal sealed record TypedDecisionDiagnostic(
     string Code,
     string Message,
     TypedDecisionDiagnosticSeverity Severity = TypedDecisionDiagnosticSeverity.Warning);
 
-public enum TypedDecisionDiagnosticSeverity
+internal enum TypedDecisionDiagnosticSeverity
 {
     Warning,
     Information

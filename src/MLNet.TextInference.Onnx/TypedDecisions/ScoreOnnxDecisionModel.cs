@@ -5,10 +5,11 @@ namespace MLNet.TextInference.TypedDecisions;
 /// <summary>
 /// Runs the Laya decision graph with the exact five-input contract.
 /// </summary>
-public sealed class ScoreOnnxDecisionModel : IDisposable
+internal sealed class ScoreOnnxDecisionModel : IDisposable
 {
     private readonly InferenceSession _session;
     private bool _disposed;
+    internal int PadTokenId { get; }
 
     public ScoreOnnxDecisionModel(string modelPath)
     {
@@ -23,6 +24,7 @@ public sealed class ScoreOnnxDecisionModel : IDisposable
     public ScoreOnnxDecisionModel(TypedDecisionBundle bundle)
         : this(bundle?.ModelPath ?? throw new ArgumentNullException(nameof(bundle)))
     {
+        PadTokenId = bundle.Tokenizer.Metadata.PadTokenId;
     }
 
     public DecisionModelOutputs Score(DecisionInputBatch batch)
@@ -86,6 +88,46 @@ public sealed class ScoreOnnxDecisionModel : IDisposable
             foreach (var input in inputs.Values)
                 input.Dispose();
         }
+    }
+
+    internal DecisionModelOutputs Score(
+        long[] inputIds,
+        long[] attentionMask,
+        long[] markerPositions,
+        bool[] markerMask,
+        long[] questionTypes,
+        int batchSize,
+        int sequenceLength,
+        int markerWidth)
+    {
+        ArgumentNullException.ThrowIfNull(inputIds);
+        ArgumentNullException.ThrowIfNull(attentionMask);
+        ArgumentNullException.ThrowIfNull(markerPositions);
+        ArgumentNullException.ThrowIfNull(markerMask);
+        ArgumentNullException.ThrowIfNull(questionTypes);
+        if (batchSize <= 0 || sequenceLength <= 0 || markerWidth <= 0)
+            throw new ArgumentOutOfRangeException(nameof(batchSize));
+
+        var items = Enumerable.Range(0, batchSize)
+            .Select(static _ => new DecisionInputItem(
+                0,
+                DecisionQuestion.Noul("internal", "internal"),
+                Enumerable.Range(0, 2).ToArray(),
+                Enumerable.Range(0, 2).Select(static value => value.ToString()).ToArray(),
+                (long)DecisionQuestionType.Noul))
+            .ToArray();
+        return Score(new DecisionInputBatch
+        {
+            BatchSize = batchSize,
+            SequenceLength = sequenceLength,
+            MarkerWidth = markerWidth,
+            InputIds = inputIds,
+            AttentionMask = attentionMask,
+            MarkerPositions = markerPositions,
+            MarkerMask = markerMask,
+            QuestionTypes = questionTypes,
+            Items = items
+        });
     }
 
     public void Dispose()

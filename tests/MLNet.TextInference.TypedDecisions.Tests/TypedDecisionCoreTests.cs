@@ -4,7 +4,7 @@ using Microsoft.ML.Tokenizers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MLNet.TextInference.TypedDecisions;
 
-namespace MLNet.TextInference.TypedDecisions.Core.Tests;
+namespace MLNet.TextInference.TypedDecisions.Tests;
 
 [TestClass]
 public sealed class TypedDecisionCoreTests

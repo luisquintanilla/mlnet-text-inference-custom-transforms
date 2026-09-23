@@ -1,15 +1,6 @@
 using Microsoft.ML;
 using Microsoft.ML.Data;
-using CoreDecoder = MLNet.TextInference.TypedDecisions.DecodeDecisions;
-using CoreFacade = MLNet.TextInference.TypedDecisions.OnnxTypedDecisions;
-using CorePreparer = MLNet.TextInference.TypedDecisions.PrepareDecisionInputs;
-using CoreScorer = MLNet.TextInference.TypedDecisions.ScoreOnnxDecisionModel;
-using CoreBundle = MLNet.TextInference.TypedDecisions.TypedDecisionBundle;
-using CoreCodec = MLNet.TextInference.TypedDecisions.DecisionJsonCodec;
-using CoreInputBatch = MLNet.TextInference.TypedDecisions.DecisionInputBatch;
-using CoreModelOutputs = MLNet.TextInference.TypedDecisions.DecisionModelOutputs;
-using CoreRequest = MLNet.TextInference.TypedDecisions.DecisionRequest;
-using CoreResponse = MLNet.TextInference.TypedDecisions.DecisionResponse;
+using MLNet.TextInference.TypedDecisions;
 using static MLNet.TextInference.Onnx.TypedDecisionValidation;
 
 namespace MLNet.TextInference.Onnx;
@@ -60,7 +51,7 @@ public sealed class DecisionInputPreparationEstimator : IEstimator<DecisionInput
     public SchemaShape GetOutputSchema(SchemaShape inputSchema)
     {
         ValidateTextColumn(inputSchema, _options.StateColumnName);
-        return DecisionSchema.AddText(inputSchema, _options.OutputColumnName);
+        return DecisionSchema.AddPreparation(inputSchema, _options);
     }
 }
 
@@ -78,14 +69,14 @@ public sealed class OnnxDecisionModelScorerEstimator : IEstimator<OnnxDecisionMo
 
     public OnnxDecisionModelScorerTransformer Fit(IDataView input)
     {
-        ValidateTextColumn(input.Schema, _options.InputColumnName);
+        DecisionSchema.ValidatePreparationColumns(input.Schema, _options);
         return new OnnxDecisionModelScorerTransformer(_mlContext, _options);
     }
 
     public SchemaShape GetOutputSchema(SchemaShape inputSchema)
     {
-        ValidateTextColumn(inputSchema, _options.InputColumnName);
-        return DecisionSchema.AddText(inputSchema, _options.OutputColumnName);
+        DecisionSchema.ValidatePreparationColumns(inputSchema, _options);
+        return DecisionSchema.AddScoring(inputSchema, _options);
     }
 }
 
@@ -103,13 +94,13 @@ public sealed class DecisionDecodingEstimator : IEstimator<DecisionDecodingTrans
 
     public DecisionDecodingTransformer Fit(IDataView input)
     {
-        ValidateTextColumn(input.Schema, _options.InputColumnName);
+        DecisionSchema.ValidateScoringColumns(input.Schema, _options);
         return new DecisionDecodingTransformer(_mlContext, _options);
     }
 
     public SchemaShape GetOutputSchema(SchemaShape inputSchema)
     {
-        ValidateTextColumn(inputSchema, _options.InputColumnName);
+        DecisionSchema.ValidateScoringColumns(inputSchema, _options);
         return DecisionSchema.AddResults(inputSchema, _options);
     }
 }
@@ -117,20 +108,39 @@ public sealed class DecisionDecodingEstimator : IEstimator<DecisionDecodingTrans
 public sealed class OnnxTypedDecisionsTransformer : ITransformer, IDisposable
 {
     private readonly OnnxTypedDecisionsOptions _options;
-    private readonly CoreFacade _facade;
+    private readonly DecisionInferenceEngine _engine;
+    private bool _disposed;
 
     internal OnnxTypedDecisionsTransformer(MLContext mlContext, OnnxTypedDecisionsOptions options)
     {
         _options = options;
-        _facade = new CoreFacade(options.BundlePath);
+        _engine = new DecisionInferenceEngine(options.ModelAssetsPath);
     }
 
-    public bool IsRowToRowMapper => true;
+    /// <summary>
+    /// Direct convenience inference using the same prepared/scored/decoded kernel as the IDataView path.
+    /// </summary>
+    public DecisionResponse Infer(string state)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return _engine.Infer([state], _options.Questions)[0];
+    }
+
+    /// <summary>Runs configured questions over multiple states in one flattened ONNX batch.</summary>
+    public IReadOnlyList<DecisionResponse> Infer(IReadOnlyList<string> states)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(states);
+        return _engine.Infer(states, _options.Questions, _options.BatchSize);
+    }
+
+    public bool IsRowToRowMapper => false;
 
     public IDataView Transform(IDataView input)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         ValidateTextColumn(input.Schema, _options.StateColumnName);
-        return new TypedDecisionDataView(input, _facade, _options);
+        return new TypedDecisionDataView(input, _engine, _options);
     }
 
     public DataViewSchema GetOutputSchema(DataViewSchema inputSchema)
@@ -140,104 +150,118 @@ public sealed class OnnxTypedDecisionsTransformer : ITransformer, IDisposable
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException("Typed decisions use a lazy cursor-batched IDataView.");
+        => throw new NotSupportedException(
+            "Typed decisions use the lazy cursor-batched IDataView or direct Infer API; " +
+            "single-row PredictionEngine mapping is not supported.");
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
-        => throw new NotSupportedException("Typed decision bundles are referenced by path and are not embedded in ML.NET models.");
+        => throw new NotSupportedException(
+            "Typed decision model assets are referenced by path and are not embedded in ML.NET models.");
 
-    public void Dispose() => _facade.Dispose();
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+        _engine.Dispose();
+    }
 }
 
 public sealed class DecisionInputPreparationTransformer : ITransformer, IDisposable
 {
     private readonly DecisionInputPreparationOptions _options;
-    private readonly CoreBundle _bundle;
-    private readonly CorePreparer _preparer;
+    private readonly TypedDecisionBundle _bundle;
+    private readonly PrepareDecisionInputs _preparer;
+    private bool _disposed;
 
     internal DecisionInputPreparationTransformer(MLContext mlContext, DecisionInputPreparationOptions options)
     {
         _options = options;
-        _bundle = CoreBundle.Open(options.BundlePath);
-        _preparer = new CorePreparer(
+        _bundle = TypedDecisionBundle.Open(options.ModelAssetsPath);
+        _preparer = new PrepareDecisionInputs(
             _bundle.Profile,
             _bundle.Tokenizer.Tokenizer,
             _bundle.Tokenizer.Metadata);
     }
 
-    public bool IsRowToRowMapper => true;
+    public bool IsRowToRowMapper => false;
 
     public IDataView Transform(IDataView input)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         ValidateTextColumn(input.Schema, _options.StateColumnName);
-        return new JsonProjectionDataView(
-            input, _options.StateColumnName, _options.OutputColumnName,
-            state => CoreCodec.SerializeInputs(_preparer.Prepare(
-                [CoreRequest.Create(state, _options.Questions)])));
+        return new DecisionPreparationDataView(input, _preparer, _options);
     }
 
     public DataViewSchema GetOutputSchema(DataViewSchema inputSchema)
     {
         ValidateTextColumn(inputSchema, _options.StateColumnName);
-        return DecisionSchema.AddText(inputSchema, _options.OutputColumnName);
+        return DecisionSchema.AddPreparation(inputSchema, _options);
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException();
+        => throw new NotSupportedException("Typed decision stages expose a lazy IDataView, not a row mapper.");
 
-    void ICanSaveModel.Save(ModelSaveContext ctx) => throw new NotSupportedException();
+    void ICanSaveModel.Save(ModelSaveContext ctx)
+        => throw new NotSupportedException("Typed decision assets are referenced by path.");
 
-    public void Dispose() => _bundle.Dispose();
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+        _bundle.Dispose();
+    }
 }
 
 public sealed class OnnxDecisionModelScorerTransformer : ITransformer, IDisposable
 {
     private readonly OnnxDecisionModelScorerOptions _options;
-    private readonly CoreBundle _bundle;
-    private readonly CoreScorer _scorer;
+    private readonly TypedDecisionBundle _bundle;
+    private readonly ScoreOnnxDecisionModel _scorer;
+    private bool _disposed;
 
     internal OnnxDecisionModelScorerTransformer(MLContext mlContext, OnnxDecisionModelScorerOptions options)
     {
         _options = options;
-        var bundle = CoreBundle.Open(options.BundlePath);
+        _bundle = TypedDecisionBundle.Open(options.ModelAssetsPath);
         try
         {
-            _bundle = bundle;
-            _scorer = new CoreScorer(bundle);
+            _scorer = new ScoreOnnxDecisionModel(_bundle);
         }
         catch
         {
-            bundle.Dispose();
+            _bundle.Dispose();
             throw;
         }
     }
 
-    public bool IsRowToRowMapper => true;
+    public bool IsRowToRowMapper => false;
 
     public IDataView Transform(IDataView input)
     {
-        ValidateTextColumn(input.Schema, _options.InputColumnName);
-        return new JsonProjectionDataView(
-            input, _options.InputColumnName, _options.OutputColumnName,
-            json =>
-            {
-                var inputs = CoreCodec.DeserializeInputs(json);
-                return CoreCodec.SerializeScored(inputs, _scorer.Score(inputs));
-            });
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        DecisionSchema.ValidatePreparationColumns(input.Schema, _options);
+        return new DecisionScoringDataView(input, _scorer, _options);
     }
 
     public DataViewSchema GetOutputSchema(DataViewSchema inputSchema)
     {
-        ValidateTextColumn(inputSchema, _options.InputColumnName);
-        return DecisionSchema.AddText(inputSchema, _options.OutputColumnName);
+        DecisionSchema.ValidatePreparationColumns(inputSchema, _options);
+        return DecisionSchema.AddScoring(inputSchema, _options);
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException();
+        => throw new NotSupportedException("Typed decision stages expose a lazy IDataView, not a row mapper.");
 
-    void ICanSaveModel.Save(ModelSaveContext ctx) => throw new NotSupportedException();
+    void ICanSaveModel.Save(ModelSaveContext ctx)
+        => throw new NotSupportedException("Typed decision assets are referenced by path.");
 
     public void Dispose()
     {
+        if (_disposed)
+            return;
+        _disposed = true;
         _scorer.Dispose();
         _bundle.Dispose();
     }
@@ -246,123 +270,462 @@ public sealed class OnnxDecisionModelScorerTransformer : ITransformer, IDisposab
 public sealed class DecisionDecodingTransformer : ITransformer, IDisposable
 {
     private readonly DecisionDecodingOptions _options;
-    private readonly CoreBundle _bundle;
-    private readonly CoreDecoder _decoder;
+    private readonly TypedDecisionBundle _bundle;
+    private readonly DecodeDecisions _decoder;
+    private bool _disposed;
 
     internal DecisionDecodingTransformer(MLContext mlContext, DecisionDecodingOptions options)
     {
         _options = options;
-        _bundle = CoreBundle.Open(options.BundlePath);
-        _decoder = new CoreDecoder(_bundle.Profile.TemperaturePolicy, _bundle.Manifest.Decoder);
+        _bundle = TypedDecisionBundle.Open(options.ModelAssetsPath);
+        _decoder = new DecodeDecisions(_bundle.Profile.TemperaturePolicy, _bundle.Manifest.Decoder);
     }
 
-    public bool IsRowToRowMapper => true;
+    public bool IsRowToRowMapper => false;
 
     public IDataView Transform(IDataView input)
     {
-        ValidateTextColumn(input.Schema, _options.InputColumnName);
-        return new DecodeDecisionDataView(input, _options, _decoder);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        DecisionSchema.ValidateScoringColumns(input.Schema, _options);
+        return new DecisionDecodingDataView(input, _decoder, _options);
     }
 
     public DataViewSchema GetOutputSchema(DataViewSchema inputSchema)
     {
-        ValidateTextColumn(inputSchema, _options.InputColumnName);
+        DecisionSchema.ValidateScoringColumns(inputSchema, _options);
         return DecisionSchema.AddResults(inputSchema, _options);
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException();
+        => throw new NotSupportedException("Typed decision stages expose a lazy IDataView, not a row mapper.");
 
-    void ICanSaveModel.Save(ModelSaveContext ctx) => throw new NotSupportedException();
+    void ICanSaveModel.Save(ModelSaveContext ctx)
+        => throw new NotSupportedException("Typed decision assets are referenced by path.");
 
-    public void Dispose() => _bundle.Dispose();
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+        _bundle.Dispose();
+    }
+}
+
+internal sealed class DecisionInferenceEngine : IDisposable
+{
+    private readonly TypedDecisionBundle _bundle;
+    private readonly PrepareDecisionInputs _preparer;
+    private readonly ScoreOnnxDecisionModel _scorer;
+    private readonly DecodeDecisions _decoder;
+    private bool _disposed;
+
+    internal DecisionInferenceEngine(string bundlePath)
+    {
+        _bundle = TypedDecisionBundle.Open(bundlePath);
+        try
+        {
+            _preparer = new PrepareDecisionInputs(
+                _bundle.Profile,
+                _bundle.Tokenizer.Tokenizer,
+                _bundle.Tokenizer.Metadata);
+            _scorer = new ScoreOnnxDecisionModel(_bundle);
+            _decoder = new DecodeDecisions(_bundle.Profile.TemperaturePolicy, _bundle.Manifest.Decoder);
+        }
+        catch
+        {
+            _bundle.Dispose();
+            throw;
+        }
+    }
+
+    internal IReadOnlyList<DecisionResponse> Infer(
+        IReadOnlyList<string> states,
+        IReadOnlyList<DecisionQuestion> questions,
+        int batchSize = int.MaxValue)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(states);
+        if (states.Count == 0)
+            return [];
+        if (batchSize <= 0)
+            throw new ArgumentOutOfRangeException(nameof(batchSize));
+
+        var responses = new List<DecisionResponse>(states.Count);
+        for (var offset = 0; offset < states.Count; offset += batchSize)
+        {
+            var count = Math.Min(batchSize, states.Count - offset);
+            var requests = new DecisionRequest[count];
+            for (var index = 0; index < count; index++)
+                requests[index] = DecisionRequest.Create(states[offset + index], questions);
+            responses.AddRange(InferBatch(requests));
+        }
+
+        return responses;
+    }
+
+    private IReadOnlyList<DecisionResponse> InferBatch(
+        IReadOnlyList<DecisionRequest> requests)
+    {
+        var inputs = _preparer.Prepare(requests);
+        var outputs = _scorer.Score(inputs);
+        var decoded = _decoder.Decode(inputs, outputs);
+        var builders = Enumerable.Range(0, requests.Count)
+            .Select(static _ => new ResponseBuilder())
+            .ToArray();
+        for (var row = 0; row < inputs.Items.Count; row++)
+        {
+            var requestIndex = inputs.Items[row].RequestIndex;
+            builders[requestIndex].Results.Add(decoded.Results[row]);
+            var attention = inputs.AttentionMask.AsSpan(row * inputs.SequenceLength, inputs.SequenceLength);
+            for (var token = 0; token < attention.Length; token++)
+            {
+                if (attention[token] != 0)
+                    builders[requestIndex].InputTokenCount++;
+            }
+        }
+
+        return builders.Select(static builder => builder.Build()).ToArray();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+        _scorer.Dispose();
+        _bundle.Dispose();
+    }
+
+    private sealed class ResponseBuilder
+    {
+        internal List<DecisionResult> Results { get; } = [];
+        internal int InputTokenCount { get; set; }
+
+        internal DecisionResponse Build() => new()
+        {
+            Results = Results,
+            InputTokenCount = InputTokenCount
+        };
+    }
 }
 
 internal static class DecisionSchema
 {
-    internal static DataViewSchema AddText(DataViewSchema input, string name)
+    internal static DataViewSchema AddPreparation(
+        DataViewSchema input,
+        DecisionInputPreparationOptions options)
     {
         var builder = new DataViewSchema.Builder();
         builder.AddColumns(input);
-        builder.AddColumn(name, TextDataViewType.Instance);
+        AddPreparationColumns(builder, options);
         return builder.ToSchema();
     }
 
-    internal static SchemaShape AddResults(SchemaShape input, OnnxTypedDecisionsOptions options)
-    {
-        return AddColumns(
-            input,
-            (options.ResultsColumnName, (DataViewType)TextDataViewType.Instance),
-            (options.ChoiceColumnName, (DataViewType)TextDataViewType.Instance),
-            (options.ScoreColumnName, (DataViewType)NumberDataViewType.Single),
-            (options.ProbabilityTrueColumnName, (DataViewType)NumberDataViewType.Single),
-            (options.ConfidenceColumnName, (DataViewType)NumberDataViewType.Single),
-            (options.ActionProbabilityColumnName, (DataViewType)NumberDataViewType.Single));
-    }
-
-    internal static SchemaShape AddResults(SchemaShape input, DecisionDecodingOptions options)
-    {
-        return AddColumns(
-            input,
-            (options.ResultsColumnName, (DataViewType)TextDataViewType.Instance),
-            (options.ChoiceColumnName, (DataViewType)TextDataViewType.Instance),
-            (options.ScoreColumnName, (DataViewType)NumberDataViewType.Single),
-            (options.ProbabilityTrueColumnName, (DataViewType)NumberDataViewType.Single),
-            (options.ConfidenceColumnName, (DataViewType)NumberDataViewType.Single),
-            (options.ActionProbabilityColumnName, (DataViewType)NumberDataViewType.Single));
-    }
-
-    internal static DataViewSchema AddResults(DataViewSchema input, OnnxTypedDecisionsOptions options)
-    {
-        var builder = new DataViewSchema.Builder();
-        builder.AddColumns(input);
-        AddResultColumns(builder, options.ResultsColumnName, options.ChoiceColumnName,
-            options.ScoreColumnName, options.ProbabilityTrueColumnName,
-            options.ConfidenceColumnName, options.ActionProbabilityColumnName);
-        return builder.ToSchema();
-    }
-
-    internal static DataViewSchema AddResults(DataViewSchema input, DecisionDecodingOptions options)
-    {
-        var builder = new DataViewSchema.Builder();
-        builder.AddColumns(input);
-        AddResultColumns(builder, options.ResultsColumnName, options.ChoiceColumnName,
-            options.ScoreColumnName, options.ProbabilityTrueColumnName,
-            options.ConfidenceColumnName, options.ActionProbabilityColumnName);
-        return builder.ToSchema();
-    }
-
-    private static void AddResultColumns(DataViewSchema.Builder builder, params string[] names)
-    {
-        builder.AddColumn(names[0], TextDataViewType.Instance);
-        builder.AddColumn(names[1], TextDataViewType.Instance);
-        for (var i = 2; i < names.Length; i++)
-            builder.AddColumn(names[i], NumberDataViewType.Single);
-    }
-
-    internal static SchemaShape AddText(SchemaShape input, string name)
-        => AddColumns(input, (name, (DataViewType)TextDataViewType.Instance));
-
-    private static SchemaShape AddColumns(
+    internal static SchemaShape AddPreparation(
         SchemaShape input,
-        params (string Name, DataViewType Type)[] columns)
+        DecisionInputPreparationOptions options)
     {
         var result = input.ToDictionary(column => column.Name, StringComparer.Ordinal);
-        var columnConstructor = typeof(SchemaShape.Column).GetConstructors(
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)[0];
+        AddShapeColumn(result, options.InputIdsColumnName, SchemaShape.Column.VectorKind.VariableVector, NumberDataViewType.Int64);
+        AddShapeColumn(result, options.AttentionMaskColumnName, SchemaShape.Column.VectorKind.VariableVector, NumberDataViewType.Int64);
+        AddShapeColumn(result, options.MarkerPositionsColumnName, SchemaShape.Column.VectorKind.VariableVector, NumberDataViewType.Int64);
+        AddShapeColumn(result, options.MarkerMaskColumnName, SchemaShape.Column.VectorKind.VariableVector, BooleanDataViewType.Instance);
+        AddShapeColumn(result, options.QuestionTypesColumnName, SchemaShape.Column.VectorKind.VariableVector, NumberDataViewType.Int64);
+        AddShapeColumn(result, options.BatchSizeColumnName, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Int32);
+        AddShapeColumn(result, options.SequenceLengthColumnName, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Int32);
+        AddShapeColumn(result, options.MarkerWidthColumnName, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Int32);
+        return new SchemaShape(result.Values);
+    }
 
-        foreach (var (name, type) in columns)
+    internal static DataViewSchema AddScoring(
+        DataViewSchema input,
+        OnnxDecisionModelScorerOptions options)
+    {
+        var builder = new DataViewSchema.Builder();
+        builder.AddColumns(input);
+        builder.AddColumn(options.LogitsColumnName, new VectorDataViewType(NumberDataViewType.Single));
+        builder.AddColumn(options.ActionProbabilitiesColumnName, new VectorDataViewType(NumberDataViewType.Single));
+        return builder.ToSchema();
+    }
+
+    internal static SchemaShape AddScoring(
+        SchemaShape input,
+        OnnxDecisionModelScorerOptions options)
+    {
+        var result = input.ToDictionary(column => column.Name, StringComparer.Ordinal);
+        AddShapeColumn(result, options.LogitsColumnName, SchemaShape.Column.VectorKind.VariableVector, NumberDataViewType.Single);
+        AddShapeColumn(result, options.ActionProbabilitiesColumnName, SchemaShape.Column.VectorKind.VariableVector, NumberDataViewType.Single);
+        return new SchemaShape(result.Values);
+    }
+
+    internal static DataViewSchema AddResults(
+        DataViewSchema input,
+        OnnxTypedDecisionsOptions options)
+        => AddResults(input, options.OutputNames, options.ResultsColumnName, options.Questions);
+
+    internal static DataViewSchema AddResults(
+        DataViewSchema input,
+        DecisionDecodingOptions options)
+        => AddResults(input, options.OutputNames, options.ResultsColumnName, options.Questions);
+
+    internal static SchemaShape AddResults(
+        SchemaShape input,
+        OnnxTypedDecisionsOptions options)
+        => AddResults(input, options.OutputNames, options.ResultsColumnName, options.Questions);
+
+    internal static SchemaShape AddResults(
+        SchemaShape input,
+        DecisionDecodingOptions options)
+        => AddResults(input, options.OutputNames, options.ResultsColumnName, options.Questions);
+
+    internal static void ValidatePreparationColumns(
+        DataViewSchema schema,
+        OnnxDecisionModelScorerOptions options)
+    {
+        foreach (var name in new[]
         {
-            result[name] = (SchemaShape.Column)columnConstructor.Invoke([
-                name,
-                SchemaShape.Column.VectorKind.Scalar,
-                type,
-                false,
-                (SchemaShape?)null
-            ]);
+            options.InputIdsColumnName, options.AttentionMaskColumnName,
+            options.MarkerPositionsColumnName, options.QuestionTypesColumnName
+        })
+        {
+            ValidateVectorColumn(schema, name, NumberDataViewType.Int64);
+        }
+        ValidateVectorColumn(schema, options.MarkerMaskColumnName, BooleanDataViewType.Instance);
+
+        ValidateIntColumn(schema, options.BatchSizeColumnName);
+        ValidateIntColumn(schema, options.SequenceLengthColumnName);
+        ValidateIntColumn(schema, options.MarkerWidthColumnName);
+    }
+
+    internal static void ValidatePreparationColumns(
+        SchemaShape schema,
+        OnnxDecisionModelScorerOptions options)
+    {
+        foreach (var name in new[]
+        {
+            options.InputIdsColumnName, options.AttentionMaskColumnName,
+            options.MarkerPositionsColumnName, options.QuestionTypesColumnName
+        })
+        {
+            var column = schema.FirstOrDefault(c => c.Name == name);
+            ValidateShapeVector(column, name, NumberDataViewType.Int64);
+        }
+        ValidateShapeVector(
+            schema.FirstOrDefault(c => c.Name == options.MarkerMaskColumnName),
+            options.MarkerMaskColumnName,
+            BooleanDataViewType.Instance);
+    }
+
+    internal static void ValidateScoringColumns(
+        DataViewSchema schema,
+        DecisionDecodingOptions options)
+    {
+        var scorerOptions = new OnnxDecisionModelScorerOptions
+        {
+            ModelAssetsPath = options.ModelAssetsPath,
+            InputIdsColumnName = options.InputIdsColumnName,
+            AttentionMaskColumnName = options.AttentionMaskColumnName,
+            MarkerPositionsColumnName = options.MarkerPositionsColumnName,
+            MarkerMaskColumnName = options.MarkerMaskColumnName,
+            QuestionTypesColumnName = options.QuestionTypesColumnName,
+            BatchSizeColumnName = options.BatchSizeColumnName,
+            SequenceLengthColumnName = options.SequenceLengthColumnName,
+            MarkerWidthColumnName = options.MarkerWidthColumnName,
+            LogitsColumnName = options.LogitsColumnName,
+            ActionProbabilitiesColumnName = options.ActionProbabilitiesColumnName
+        };
+        ValidatePreparationColumns(schema, scorerOptions);
+        ValidateVectorColumn(schema, options.LogitsColumnName, NumberDataViewType.Single);
+        ValidateVectorColumn(schema, options.ActionProbabilitiesColumnName, NumberDataViewType.Single);
+    }
+
+    internal static void ValidateScoringColumns(
+        SchemaShape schema,
+        DecisionDecodingOptions options)
+    {
+        var scorerOptions = new OnnxDecisionModelScorerOptions
+        {
+            ModelAssetsPath = options.ModelAssetsPath,
+            InputIdsColumnName = options.InputIdsColumnName,
+            AttentionMaskColumnName = options.AttentionMaskColumnName,
+            MarkerPositionsColumnName = options.MarkerPositionsColumnName,
+            MarkerMaskColumnName = options.MarkerMaskColumnName,
+            QuestionTypesColumnName = options.QuestionTypesColumnName,
+            BatchSizeColumnName = options.BatchSizeColumnName,
+            SequenceLengthColumnName = options.SequenceLengthColumnName,
+            MarkerWidthColumnName = options.MarkerWidthColumnName,
+            LogitsColumnName = options.LogitsColumnName,
+            ActionProbabilitiesColumnName = options.ActionProbabilitiesColumnName
+        };
+        ValidatePreparationColumns(schema, scorerOptions);
+        ValidateShapeVector(
+            schema.FirstOrDefault(c => c.Name == options.LogitsColumnName),
+            options.LogitsColumnName,
+            NumberDataViewType.Single);
+        ValidateShapeVector(
+            schema.FirstOrDefault(c => c.Name == options.ActionProbabilitiesColumnName),
+            options.ActionProbabilitiesColumnName,
+            NumberDataViewType.Single);
+    }
+
+    private static DataViewSchema AddResults(
+        DataViewSchema input,
+        DecisionOutputNames names,
+        string resultsColumn,
+        IReadOnlyList<DecisionQuestion> questions)
+    {
+        var builder = new DataViewSchema.Builder();
+        builder.AddColumns(input);
+        builder.AddColumn(resultsColumn, TextDataViewType.Instance);
+        foreach (var question in questions)
+            AddQuestionColumns(builder, names.ById[question.Id], question);
+        return builder.ToSchema();
+    }
+
+    private static SchemaShape AddResults(
+        SchemaShape input,
+        DecisionOutputNames names,
+        string resultsColumn,
+        IReadOnlyList<DecisionQuestion> questions)
+    {
+        var result = input.ToDictionary(column => column.Name, StringComparer.Ordinal);
+        AddShapeColumn(result, resultsColumn, SchemaShape.Column.VectorKind.Scalar, TextDataViewType.Instance);
+        foreach (var question in questions)
+        {
+            var output = names.ById[question.Id];
+            AddShapeColumnIfPresent(result, output.PredictedLabel, SchemaShape.Column.VectorKind.Scalar,
+                question.Type == DecisionQuestionType.Noul ? BooleanDataViewType.Instance : TextDataViewType.Instance);
+            AddShapeColumnIfPresent(result, output.Score, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Single);
+            AddShapeColumnIfPresent(result, output.Probability, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Single);
+            AddShapeColumnIfPresent(result, output.Probabilities, SchemaShape.Column.VectorKind.Vector, NumberDataViewType.Single);
+            AddShapeColumn(result, output.Confidence, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Single);
+            AddShapeColumn(result, output.ActionProbability, SchemaShape.Column.VectorKind.Scalar, NumberDataViewType.Single);
         }
 
         return new SchemaShape(result.Values);
+    }
+
+    private static void AddPreparationColumns(
+        DataViewSchema.Builder builder,
+        DecisionInputPreparationOptions options)
+    {
+        builder.AddColumn(options.InputIdsColumnName, new VectorDataViewType(NumberDataViewType.Int64));
+        builder.AddColumn(options.AttentionMaskColumnName, new VectorDataViewType(NumberDataViewType.Int64));
+        builder.AddColumn(options.MarkerPositionsColumnName, new VectorDataViewType(NumberDataViewType.Int64));
+        builder.AddColumn(options.MarkerMaskColumnName, new VectorDataViewType(BooleanDataViewType.Instance));
+        builder.AddColumn(options.QuestionTypesColumnName, new VectorDataViewType(NumberDataViewType.Int64));
+        builder.AddColumn(options.BatchSizeColumnName, NumberDataViewType.Int32);
+        builder.AddColumn(options.SequenceLengthColumnName, NumberDataViewType.Int32);
+        builder.AddColumn(options.MarkerWidthColumnName, NumberDataViewType.Int32);
+    }
+
+    private static void AddQuestionColumns(
+        DataViewSchema.Builder builder,
+        QuestionOutputNames output,
+        DecisionQuestion question)
+    {
+        if (output.PredictedLabel is not null)
+        {
+            builder.AddColumn(
+                output.PredictedLabel,
+                question.Type == DecisionQuestionType.Noul
+                    ? BooleanDataViewType.Instance
+                    : TextDataViewType.Instance);
+        }
+
+        if (output.Score is not null)
+            builder.AddColumn(output.Score, NumberDataViewType.Single);
+        if (output.Probability is not null)
+            builder.AddColumn(output.Probability, NumberDataViewType.Single);
+        if (output.Probabilities is not null)
+        {
+            builder.AddColumn(
+                output.Probabilities,
+                new VectorDataViewType(NumberDataViewType.Single, question.OptionLabels().Count),
+                CreateSlotMetadata(question.OptionLabels()));
+        }
+        builder.AddColumn(output.Confidence, NumberDataViewType.Single);
+        builder.AddColumn(output.ActionProbability, NumberDataViewType.Single);
+    }
+
+    private static void AddShapeColumnIfPresent(
+        IDictionary<string, SchemaShape.Column> columns,
+        string? name,
+        SchemaShape.Column.VectorKind kind,
+        DataViewType type)
+    {
+        if (name is not null)
+            AddShapeColumn(columns, name, kind, type);
+    }
+
+    private static DataViewSchema.Annotations CreateSlotMetadata(
+        IReadOnlyList<string> optionLabels)
+    {
+        var builder = new DataViewSchema.Annotations.Builder();
+        var values = optionLabels.Select(static label => label.AsMemory()).ToArray();
+        builder.Add(
+            "SlotNames",
+            new VectorDataViewType(TextDataViewType.Instance, values.Length),
+            (ref VBuffer<ReadOnlyMemory<char>> destination) =>
+            {
+                var editor = VBufferEditor.Create(ref destination, values.Length);
+                values.AsSpan().CopyTo(editor.Values);
+                destination = editor.Commit();
+            });
+        return builder.ToAnnotations();
+    }
+
+    private static void ValidateIntColumn(DataViewSchema schema, string name)
+    {
+        var column = schema.GetColumnOrNull(name)
+            ?? throw new ArgumentException($"Input schema does not contain column '{name}'.");
+        if (column.Type != NumberDataViewType.Int32)
+            throw new ArgumentException($"Column '{name}' must be Int32.");
+    }
+
+    private static void ValidateVectorColumn(
+        DataViewSchema schema,
+        string name,
+        DataViewType itemType)
+    {
+        var column = schema.GetColumnOrNull(name)
+            ?? throw new ArgumentException($"Input schema does not contain column '{name}'.");
+        if (column.Type is not VectorDataViewType vector ||
+            vector.ItemType != itemType)
+            throw new ArgumentException(
+                $"Column '{name}' must be a vector of {itemType}.");
+    }
+
+    private static void ValidateShapeVector(
+        SchemaShape.Column column,
+        string name,
+        DataViewType itemType)
+    {
+        if (column.Name == null ||
+            column.Kind is not SchemaShape.Column.VectorKind.Vector and
+                not SchemaShape.Column.VectorKind.VariableVector ||
+            column.ItemType != itemType)
+            throw new ArgumentException(
+                $"Column '{name}' must be a vector of {itemType}.");
+    }
+
+    private static void AddShapeColumn(
+        IDictionary<string, SchemaShape.Column> columns,
+        string name,
+        SchemaShape.Column.VectorKind kind,
+        DataViewType type)
+        => AddShapeColumn(columns, name, kind, type, null);
+
+    private static void AddShapeColumn(
+        IDictionary<string, SchemaShape.Column> columns,
+        string name,
+        SchemaShape.Column.VectorKind kind,
+        DataViewType type,
+        SchemaShape? metadata)
+    {
+        var constructor = typeof(SchemaShape.Column).GetConstructors(
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)[0];
+        columns[name] = (SchemaShape.Column)constructor.Invoke([name, kind, type, false, metadata]);
     }
 }
 
@@ -373,420 +736,15 @@ internal static class TypedDecisionValidation
         var column = schema.GetColumnOrNull(name)
             ?? throw new ArgumentException($"Input schema does not contain column '{name}'.");
         if (column.Type != TextDataViewType.Instance)
-            throw new ArgumentException($"Column '{name}' must be of type Text.");
+            throw new ArgumentException($"Column '{name}' must be a scalar Text column.");
     }
 
     internal static void ValidateTextColumn(SchemaShape schema, string name)
     {
         var column = schema.FirstOrDefault(c => c.Name == name);
-        if (column.Name == null)
-            throw new ArgumentException($"Input schema does not contain column '{name}'.");
-        if (column.ItemType != TextDataViewType.Instance ||
+        if (column.Name == null ||
+            column.ItemType != TextDataViewType.Instance ||
             column.Kind != SchemaShape.Column.VectorKind.Scalar)
             throw new ArgumentException($"Column '{name}' must be a scalar Text column.");
     }
-}
-
-internal sealed class JsonProjectionDataView : IDataView
-{
-    private readonly IDataView _input;
-    private readonly string _inputName;
-    private readonly string _outputName;
-    private readonly Func<string, string> _project;
-
-    public JsonProjectionDataView(IDataView input, string inputName, string outputName, Func<string, string> project)
-    {
-        _input = input;
-        _inputName = inputName;
-        _outputName = outputName;
-        _project = project;
-        Schema = DecisionSchema.AddText(input.Schema, outputName);
-    }
-
-    public DataViewSchema Schema { get; }
-    public bool CanShuffle => false;
-    public long? GetRowCount() => _input.GetRowCount();
-
-    public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random? rand = null)
-    {
-        var upstream = columnsNeeded
-            .Where(c => _input.Schema.GetColumnOrNull(c.Name) != null)
-            .Select(c => _input.Schema[c.Name])
-            .Append(_input.Schema[_inputName])
-            .Distinct();
-        return new JsonProjectionCursor(this, _input.GetRowCursor(upstream, rand));
-    }
-
-    public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random? rand = null)
-        => [GetRowCursor(columnsNeeded, rand)];
-
-    private sealed class JsonProjectionCursor : DataViewRowCursor
-    {
-        private readonly JsonProjectionDataView _parent;
-        private readonly DataViewRowCursor _inputCursor;
-        private readonly ValueGetter<ReadOnlyMemory<char>> _inputGetter;
-        private readonly ValueGetter<DataViewRowId> _idGetter;
-        private string _output = string.Empty;
-
-        internal JsonProjectionCursor(JsonProjectionDataView parent, DataViewRowCursor inputCursor)
-        {
-            _parent = parent;
-            _inputCursor = inputCursor;
-            _inputGetter = inputCursor.GetGetter<ReadOnlyMemory<char>>(
-                inputCursor.Schema[parent._inputName]);
-            _idGetter = inputCursor.GetIdGetter();
-        }
-
-        public override DataViewSchema Schema => _parent.Schema;
-        public override long Position => _inputCursor.Position;
-        public override long Batch => _inputCursor.Batch;
-
-        public override bool MoveNext()
-        {
-            if (!_inputCursor.MoveNext())
-                return false;
-            ReadOnlyMemory<char> input = default;
-            _inputGetter(ref input);
-            _output = _parent._project(input.ToString());
-            return true;
-        }
-
-        public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
-        {
-            if (column.Name == _parent._outputName)
-            {
-                ValueGetter<ReadOnlyMemory<char>> getter = (ref ReadOnlyMemory<char> value) =>
-                    value = _output.AsMemory();
-                return (ValueGetter<TValue>)(object)getter;
-            }
-
-            var upstream = _inputCursor.Schema.GetColumnOrNull(column.Name);
-            if (upstream != null)
-                return _inputCursor.GetGetter<TValue>(upstream.Value);
-            throw new InvalidOperationException($"Unknown column '{column.Name}'.");
-        }
-
-        public override ValueGetter<DataViewRowId> GetIdGetter() => _idGetter;
-        public override bool IsColumnActive(DataViewSchema.Column column) => true;
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-                _inputCursor.Dispose();
-            base.Dispose(disposing);
-        }
-    }
-}
-
-internal sealed class DecodeDecisionDataView : IDataView
-    {
-        private readonly IDataView _input;
-        private readonly DecisionDecodingOptions _options;
-        private readonly CoreDecoder _decoder;
-
-        internal DecodeDecisionDataView(
-            IDataView input,
-            DecisionDecodingOptions options,
-            CoreDecoder decoder)
-        {
-            _input = input;
-            _options = options;
-            _decoder = decoder;
-            Schema = DecisionSchema.AddResults(input.Schema, options);
-        }
-
-        public DataViewSchema Schema { get; }
-        public bool CanShuffle => false;
-        public long? GetRowCount() => _input.GetRowCount();
-
-        public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random? rand = null)
-        {
-            var upstream = columnsNeeded
-                .Where(c => _input.Schema.GetColumnOrNull(c.Name) != null)
-                .Select(c => _input.Schema[c.Name])
-                .Append(_input.Schema[_options.InputColumnName])
-                .Distinct();
-            return new DecodeCursor(this, _input.GetRowCursor(upstream, rand));
-        }
-
-        public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random? rand = null)
-            => [GetRowCursor(columnsNeeded, rand)];
-
-        private sealed class DecodeCursor : DataViewRowCursor
-        {
-            private readonly DecodeDecisionDataView _parent;
-            private readonly DataViewRowCursor _inputCursor;
-            private readonly ValueGetter<ReadOnlyMemory<char>> _inputGetter;
-            private readonly ValueGetter<DataViewRowId> _idGetter;
-            private CoreResponse _response = null!;
-
-            internal DecodeCursor(DecodeDecisionDataView parent, DataViewRowCursor inputCursor)
-            {
-                _parent = parent;
-                _inputCursor = inputCursor;
-                _inputGetter = inputCursor.GetGetter<ReadOnlyMemory<char>>(
-                    inputCursor.Schema[parent._options.InputColumnName]);
-                _idGetter = inputCursor.GetIdGetter();
-            }
-
-            public override DataViewSchema Schema => _parent.Schema;
-            public override long Position => _inputCursor.Position;
-            public override long Batch => _inputCursor.Batch;
-
-            public override bool MoveNext()
-            {
-                if (!_inputCursor.MoveNext())
-                    return false;
-                ReadOnlyMemory<char> json = default;
-                _inputGetter(ref json);
-                var (inputs, outputs) = CoreCodec.DeserializeScored(json.ToString());
-                var decoded = _parent._decoder.Decode(inputs, outputs);
-                _response = new CoreResponse
-                {
-                    InputTokenCount = decoded.InputTokenCount,
-                    Results = decoded.Results
-                };
-                return true;
-            }
-
-            public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
-            {
-                if (column.Name == _parent._options.ResultsColumnName)
-                    return TextGetter<TValue>(() => CoreCodec.SerializeResponse(_response));
-                if (column.Name == _parent._options.ChoiceColumnName)
-                    return TextGetter<TValue>(() => _response.Results.OfType<MLNet.TextInference.TypedDecisions.ChoiceDecisionResult>().FirstOrDefault() is { } choice
-                        ? choice.Choice : string.Empty);
-                if (column.Name == _parent._options.ScoreColumnName)
-                    return FloatGetter<TValue>(() => _response.Results.OfType<MLNet.TextInference.TypedDecisions.ScoreDecisionResult>().FirstOrDefault() is { } score
-                        ? score.Score : float.NaN);
-                if (column.Name == _parent._options.ProbabilityTrueColumnName)
-                    return FloatGetter<TValue>(() => _response.Results.OfType<MLNet.TextInference.TypedDecisions.NoulDecisionResult>().FirstOrDefault() is { } noul
-                        ? noul.ProbabilityTrue : float.NaN);
-                if (column.Name == _parent._options.ConfidenceColumnName)
-                    return FloatGetter<TValue>(() => _response.Results.FirstOrDefault()?.Confidence ?? float.NaN);
-                if (column.Name == _parent._options.ActionProbabilityColumnName)
-                    return FloatGetter<TValue>(() => _response.Results.FirstOrDefault()?.ActionProbability ?? float.NaN);
-
-                var upstream = _inputCursor.Schema.GetColumnOrNull(column.Name);
-                if (upstream != null)
-                    return _inputCursor.GetGetter<TValue>(upstream.Value);
-                throw new InvalidOperationException($"Unknown column '{column.Name}'.");
-            }
-
-            public override ValueGetter<DataViewRowId> GetIdGetter() => _idGetter;
-            public override bool IsColumnActive(DataViewSchema.Column column) => true;
-
-            protected override void Dispose(bool disposing)
-            {
-                if (disposing)
-                    _inputCursor.Dispose();
-                base.Dispose(disposing);
-            }
-
-        private static ValueGetter<TValue> TextGetter<TValue>(Func<string> valueFactory)
-        {
-            ValueGetter<ReadOnlyMemory<char>> getter = (ref ReadOnlyMemory<char> value) =>
-                value = valueFactory().AsMemory();
-            return (ValueGetter<TValue>)(object)getter;
-        }
-
-        private static ValueGetter<TValue> FloatGetter<TValue>(Func<float> valueFactory)
-        {
-            ValueGetter<float> getter = (ref float value) => value = valueFactory();
-            return (ValueGetter<TValue>)(object)getter;
-        }
-    }
-}
-
-internal sealed class TypedDecisionDataView : IDataView
-    {
-        private readonly IDataView _input;
-        private readonly CoreFacade _facade;
-        private readonly OnnxTypedDecisionsOptions _options;
-
-        internal TypedDecisionDataView(
-            IDataView input,
-            CoreFacade facade,
-            OnnxTypedDecisionsOptions options)
-        {
-            _input = input;
-            _facade = facade;
-            _options = options;
-            Schema = DecisionSchema.AddResults(input.Schema, options);
-        }
-
-        public DataViewSchema Schema { get; }
-        public bool CanShuffle => false;
-        public long? GetRowCount() => _input.GetRowCount();
-
-        public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random? rand = null)
-        {
-            var upstream = columnsNeeded
-                .Where(c => _input.Schema.GetColumnOrNull(c.Name) != null)
-                .Select(c => _input.Schema[c.Name])
-                .Append(_input.Schema[_options.StateColumnName])
-                .Distinct();
-            return new TypedDecisionCursor(
-                this, _input.GetRowCursor(upstream, rand), _options.BatchSize);
-        }
-
-        public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random? rand = null)
-            => [GetRowCursor(columnsNeeded, rand)];
-
-        private sealed class TypedDecisionCursor : DataViewRowCursor
-        {
-            private readonly TypedDecisionDataView _parent;
-            private readonly DataViewRowCursor _inputCursor;
-            private readonly int _batchSize;
-            private readonly ValueGetter<ReadOnlyMemory<char>> _stateGetter;
-            private readonly ValueGetter<DataViewRowId> _inputIdGetter;
-            private readonly List<Action<int>> _cacheReaders = [];
-            private readonly Dictionary<string, object> _cachedColumns = new(StringComparer.Ordinal);
-            private readonly DataViewRowId[] _cachedIds;
-            private string[] _states;
-            private CoreResponse[] _responses = [];
-            private int _batchCount;
-            private int _currentIndex = -1;
-            private long _position = -1;
-
-            internal TypedDecisionCursor(
-                TypedDecisionDataView parent,
-                DataViewRowCursor inputCursor,
-                int batchSize)
-            {
-                _parent = parent;
-                _inputCursor = inputCursor;
-                _batchSize = batchSize;
-                _states = new string[batchSize];
-                _cachedIds = new DataViewRowId[batchSize];
-                _stateGetter = inputCursor.GetGetter<ReadOnlyMemory<char>>(
-                    inputCursor.Schema[parent._options.StateColumnName]);
-                _inputIdGetter = inputCursor.GetIdGetter();
-            }
-
-            public override DataViewSchema Schema => _parent.Schema;
-            public override long Position => _position;
-            public override long Batch => _inputCursor.Batch;
-
-            public override bool MoveNext()
-            {
-                if (_currentIndex + 1 < _batchCount)
-                {
-                    _currentIndex++;
-                    _position++;
-                    return true;
-                }
-
-                _batchCount = 0;
-                _currentIndex = -1;
-                while (_batchCount < _batchSize && _inputCursor.MoveNext())
-                {
-                    ReadOnlyMemory<char> state = default;
-                    _stateGetter(ref state);
-                    _states[_batchCount] = state.ToString();
-                    var id = default(DataViewRowId);
-                    _inputIdGetter(ref id);
-                    _cachedIds[_batchCount] = id;
-                    foreach (var reader in _cacheReaders)
-                        reader(_batchCount);
-                    _batchCount++;
-                }
-
-                if (_batchCount == 0)
-                    return false;
-
-                var requests = new CoreRequest[_batchCount];
-                for (var i = 0; i < _batchCount; i++)
-                    requests[i] = CoreRequest.Create(_states[i], _parent._options.Questions);
-                _responses = _parent._facade.Infer(requests).ToArray();
-                _currentIndex = 0;
-                _position++;
-                return true;
-            }
-
-            public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
-            {
-                if (column.Name == _parent._options.ResultsColumnName)
-                    return TextGetter<TValue>(() => CoreCodec.SerializeResponse(_responses[_currentIndex]));
-                if (column.Name == _parent._options.ChoiceColumnName)
-                    return TextGetter<TValue>(() => FirstChoice(_responses[_currentIndex]));
-                if (column.Name == _parent._options.ScoreColumnName)
-                    return FloatGetter<TValue>(() => FirstScore(_responses[_currentIndex]));
-                if (column.Name == _parent._options.ProbabilityTrueColumnName)
-                    return FloatGetter<TValue>(() => FirstNoulProbability(_responses[_currentIndex]));
-                if (column.Name == _parent._options.ConfidenceColumnName)
-                    return FloatGetter<TValue>(() => FirstConfidence(_responses[_currentIndex]));
-                if (column.Name == _parent._options.ActionProbabilityColumnName)
-                    return FloatGetter<TValue>(() => FirstActionProbability(_responses[_currentIndex]));
-
-                var upstream = _inputCursor.Schema.GetColumnOrNull(column.Name);
-                if (upstream == null)
-                    throw new InvalidOperationException($"Unknown column '{column.Name}'.");
-
-                if (!_cachedColumns.TryGetValue(column.Name, out var cached))
-                {
-                    var values = new TValue[_batchSize];
-                    var getter = _inputCursor.GetGetter<TValue>(upstream.Value);
-                    _cacheReaders.Add(row =>
-                    {
-                        TValue value = default!;
-                        getter(ref value);
-                        values[row] = value;
-                    });
-                    cached = values;
-                    _cachedColumns[column.Name] = cached;
-                }
-
-                var typedValues = (TValue[])cached;
-                ValueGetter<TValue> result = (ref TValue value) => value = typedValues[_currentIndex];
-                return result;
-            }
-
-            public override ValueGetter<DataViewRowId> GetIdGetter()
-            {
-                ValueGetter<DataViewRowId> getter = (ref DataViewRowId value) =>
-                    value = _cachedIds[_currentIndex];
-                return getter;
-            }
-
-            public override bool IsColumnActive(DataViewSchema.Column column) => true;
-
-            protected override void Dispose(bool disposing)
-            {
-                if (disposing)
-                    _inputCursor.Dispose();
-                base.Dispose(disposing);
-            }
-
-            private static string FirstChoice(CoreResponse response) =>
-                response.Results.OfType<MLNet.TextInference.TypedDecisions.ChoiceDecisionResult>().FirstOrDefault() is { } choice
-                    ? choice.Choice : string.Empty;
-
-            private static float FirstScore(CoreResponse response) =>
-                response.Results.OfType<MLNet.TextInference.TypedDecisions.ScoreDecisionResult>().FirstOrDefault() is { } score
-                    ? score.Score : float.NaN;
-
-            private static float FirstNoulProbability(CoreResponse response) =>
-                response.Results.OfType<MLNet.TextInference.TypedDecisions.NoulDecisionResult>().FirstOrDefault() is { } noul
-                    ? noul.ProbabilityTrue : float.NaN;
-
-            private static float FirstConfidence(CoreResponse response) =>
-                response.Results.FirstOrDefault()?.Confidence ?? float.NaN;
-
-            private static float FirstActionProbability(CoreResponse response) =>
-                response.Results.FirstOrDefault()?.ActionProbability ?? float.NaN;
-        }
-
-        private static ValueGetter<TValue> TextGetter<TValue>(Func<string> valueFactory)
-        {
-            ValueGetter<ReadOnlyMemory<char>> getter = (ref ReadOnlyMemory<char> value) =>
-                value = valueFactory().AsMemory();
-            return (ValueGetter<TValue>)(object)getter;
-        }
-
-        private static ValueGetter<TValue> FloatGetter<TValue>(Func<float> valueFactory)
-        {
-            ValueGetter<float> getter = (ref float value) => value = valueFactory();
-            return (ValueGetter<TValue>)(object)getter;
-        }
 }

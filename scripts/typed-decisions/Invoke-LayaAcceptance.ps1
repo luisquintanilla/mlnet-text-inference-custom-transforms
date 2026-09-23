@@ -1,42 +1,20 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
-    [string] $BundlePath,
+    [string] $ModelAssetsPath,
 
-    [ValidateSet("facade", "stages", "composed")]
-    [string] $Mode = "facade",
-
-    [switch] $MLNet
+    [ValidateSet("direct", "facade", "stages", "composed")]
+    [string] $Mode = "facade"
 )
 
-$resolvedBundle = Resolve-Path -LiteralPath $BundlePath -ErrorAction Stop
-if (-not (Test-Path -LiteralPath $resolvedBundle -PathType Container) -and
-    -not ($resolvedBundle.Path.EndsWith(".zip", [StringComparison]::OrdinalIgnoreCase))) {
-    throw "BundlePath must be a typed-decision bundle directory or .zip archive."
+$resolvedAssets = Resolve-Path -LiteralPath $ModelAssetsPath -ErrorAction Stop
+if (-not (Test-Path -LiteralPath $resolvedAssets -PathType Container) -and
+    -not ($resolvedAssets.Path.EndsWith(".zip", [StringComparison]::OrdinalIgnoreCase))) {
+    throw "ModelAssetsPath must be a model-assets directory or .zip archive."
 }
 
-$required = @(
-    "typed-decision-bundle.json"
-)
-if (Test-Path -LiteralPath $resolvedBundle -PathType Container) {
-    foreach ($file in $required) {
-        if (-not (Test-Path -LiteralPath (Join-Path $resolvedBundle $file) -PathType Leaf)) {
-            throw "Bundle is missing '$file'. No model assets are downloaded by this script."
-        }
-    }
-}
-
-if ($MLNet) {
-    & dotnet run --file (Join-Path $PSScriptRoot "..\..\samples\TypedDecisions\MLNetPipeline\Program.cs") `
-        -- --mode $Mode --bundle $resolvedBundle.Path
-}
-else {
-    if ($Mode -eq "composed") {
-        throw "The composed acceptance mode is available only with -MLNet."
-    }
-    & dotnet run --file (Join-Path $PSScriptRoot "..\..\samples\TypedDecisions\Standalone\Program.cs") `
-        -- --mode $Mode --bundle $resolvedBundle.Path
-}
+& dotnet run --file (Join-Path $PSScriptRoot "..\..\samples\TypedDecisions\MLNetPipeline\Program.cs") `
+    -- --mode $Mode --model-assets $resolvedAssets.Path
 
 if ($LASTEXITCODE -ne 0) {
     throw "Typed-decision acceptance execution failed with exit code $LASTEXITCODE."

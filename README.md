@@ -29,7 +29,7 @@ A **multi-task text inference platform** for ML.NET that runs local HuggingFace 
 | QA | ✅ Implemented | `QaSpanExtractionTransformer` | `OnnxQaEstimator` |
 | Text Generation | ✅ Implemented | `ChatClientTransformer` | N/A (provider-agnostic) |
 | Text Generation (local) | ✅ Implemented | `OnnxTextGenerationTransformer` | `OnnxTextGenerationEstimator` |
-| Typed decisions (Laya English FP32) | ✅ Implemented | Core: `PrepareDecisionInputs`, `ScoreOnnxDecisionModel`, `DecodeDecisions` | ML.NET: `OnnxTypedDecisionsEstimator` |
+| Typed decisions (Laya English FP32) | ✅ Implemented | ML.NET stages: `PrepareDecisionInputs`, `ScoreOnnxDecisionModel`, `DecodeDecisions` | `OnnxTypedDecisionsEstimator` |
 
 ## Why This Exists
 
@@ -53,12 +53,12 @@ This project implements custom transforms using direct `IEstimator<T>` / `ITrans
 - **SIMD-accelerated post-processing** — pooling and normalization use `TensorPrimitives` for hardware-vectorized math
 - **Configurable batching** — process rows in configurable batch sizes to bound memory usage
 - **Multiple pooling strategies** — Mean, CLS token, and Max pooling (for embeddings)
-- **Typed decisions** — an ML.NET-first facade and composable stages backed by a shared, ML.NET-independent Laya core for choice, score, and noul questions
+- **Typed decisions** — an ML.NET-first facade and composable stages backed by shared task-specific Laya kernels for choice, score, and Boolean questions
 
-Typed-decision naming follows the same split as the other transforms. The core
-keeps the approved `OnnxTypedDecisions`, `PrepareDecisionInputs`,
-`ScoreOnnxDecisionModel`, and `DecodeDecisions` names. The ML.NET surface keeps
-the user-facing `TransformsCatalog` verbs, while role types use the repository's
+Typed-decision naming follows the same conventions as the other transforms. The
+ML.NET surface keeps the user-facing `TransformsCatalog` verbs and the approved
+`OnnxTypedDecisions`, `PrepareDecisionInputs`, `ScoreOnnxDecisionModel`, and
+`DecodeDecisions` names, while role types use the repository's
 `*Options`, `*Estimator`, and `*Transformer` conventions:
 `DecisionInputPreparation*`, `OnnxDecisionModelScorer*`, and
 `DecisionDecoding*`. The compiled ML.NET facade can be appended with
@@ -69,45 +69,43 @@ the user-facing `TransformsCatalog` verbs, while role types use the repository's
 Typed decisions use a versioned local bundle for the English FP32 Laya graph
 from `receptron/laya-onnx` revision
 `68f27dfe5a27a54fb2b1fefc432f43f972e90868`. The ML.NET facade is the primary
-entry point; the standalone facade and inspectable stages use the same
-implementation. The feature scores caller-supplied alternatives rather than
-generating prose: `Choice` selects a label, `Score` returns an expected
+entry point; the direct transformer API and inspectable native stages use the
+same implementation. The feature scores caller-supplied alternatives rather
+than generating prose: `Choice` selects a label, `Score` returns an expected
 zero-based option index, and `Noul` returns a Boolean plus the probability of
 the `true` option. `Fit` validates an ML.NET schema and does not train the
 ONNX model.
 
-The core assembly has no `Microsoft.ML` dependency. It uses
+The typed-decision implementation is part of the ML.NET package. It uses
 `Microsoft.ML.Tokenizers` for the selected byte-level BPE contract,
-`Microsoft.ML.OnnxRuntime.Managed` for the five-input graph, and C# decoding
-with stable tensor primitives. State is text (including caller-serialized
-JSON); there is no implicit Python-compatible object serializer. Inference
-never downloads model assets.
+the managed/native ONNX Runtime packages for the five-input graph, and C#
+decoding with stable tensor primitives. State is text (including
+caller-serialized JSON); there is no implicit Python-compatible object
+serializer. Inference never downloads model assets.
 
-The bundle must contain its manifest, model, external-data sidecars, Laya
-configuration, and tokenizer directory. The explicit acceptance launcher
-requires a bundle prepared locally:
+The normal model-assets directory contains the model, external-data sidecar,
+Laya configuration, and tokenizer directory. An optional manifest-backed
+archive is also supported. The explicit acceptance launcher requires model
+assets prepared locally:
 
 ```powershell
 .\scripts\typed-decisions\Invoke-LayaAcceptance.ps1 `
-  -BundlePath .\models\laya-english-fp32.bundle -Mode facade
+  -ModelAssetsPath .\models\laya-english-fp32.bundle -Mode facade
 .\scripts\typed-decisions\Invoke-LayaAcceptance.ps1 `
-  -BundlePath .\models\laya-english-fp32.bundle -Mode stages -MLNet
+  -ModelAssetsPath .\models\laya-english-fp32.bundle -Mode stages
 ```
 
-The samples document the exact questions, both example input rows, five
-file-based run commands, captured output, tensor shapes, decoder semantics,
-and the tradeoff between the cursor-batched facade and row-oriented JSON
-stages: [samples/TypedDecisions/README.md](samples/TypedDecisions/README.md).
-The direct-core example is in
-[Standalone/README.md](samples/TypedDecisions/Standalone/README.md), and the
-ML.NET pipeline details are in
+The samples document the exact questions, both example input rows, file-based
+run commands, captured output, tensor shapes, decoder semantics, and native
+stage columns:
+[samples/TypedDecisions/README.md](samples/TypedDecisions/README.md) and
 [MLNetPipeline/README.md](samples/TypedDecisions/MLNetPipeline/README.md).
 
-`LayaTokenizer` loads and configures the existing Microsoft.ML.Tokenizers BPE
-engine and exposes that `Tokenizer` directly to preparation. The separate
-`LayaTokenizerMetadata` record carries only the profile-specific special-token
-IDs and mask token. This keeps Microsoft.ML.Tokenizers as the encoding boundary
-without introducing a second tokenizer interface or reimplementing BPE.
+The internal Laya preparation kernel loads and configures the existing
+Microsoft.ML.Tokenizers BPE engine, while separate profile metadata carries the
+special-token IDs and mask token. This keeps Microsoft.ML.Tokenizers as the
+encoding boundary without introducing a second tokenizer interface or
+reimplementing BPE.
 
 ## Quick Start
 
@@ -432,19 +430,20 @@ mlnet-text-inference-custom-transforms/
 
 | Surface | Types and extensions | Role |
 |---------|----------------------|------|
-| Core facade | `OnnxTypedDecisions` | Standalone bundle-backed inference |
-| Core stages | `PrepareDecisionInputs`, `ScoreOnnxDecisionModel`, `DecodeDecisions` | Inspectable preparation, ORT scoring, and C# decoding |
 | ML.NET facade | `OnnxTypedDecisionsOptions`, `OnnxTypedDecisionsEstimator`, `OnnxTypedDecisionsTransformer` | Schema-aware lazy end-to-end transform |
 | ML.NET stages | `DecisionInputPreparation*`, `OnnxDecisionModelScorer*`, `DecisionDecoding*` | `Options` / `Estimator` / `Transformer` stage types |
 | ML.NET composition | `TransformsCatalog` extensions and `AppendOnnxTypedDecisions` | Standard ML.NET pipeline composition |
 
-The ML.NET facade adds typed scalar columns (`DecisionChoice`,
-`DecisionScore`, `DecisionProbabilityTrue`, `DecisionConfidence`, and
-`DecisionActionProbability`) while `DecisionResults` retains every question
-and distribution. Stages expose JSON through scalar `Text` columns for
-inspection; use the facade for normal cursor-batched inference. ML.NET bundle
-save/load is intentionally unsupported because the bundle remains an explicit
-runtime dependency.
+The ML.NET facade adds question-specific typed columns. Choice exposes
+`PredictedLabel` and a calibrated `Probabilities` vector; Score exposes the
+expected zero-based `Score` and its probability vector; Noul exposes Boolean
+`PredictedLabel` and `Probability` (`P(true)`). Each question also gets its
+own entropy `Confidence` and `ActionProbability`. `DecisionResults` remains
+an optional full diagnostic JSON column. Preparation and scoring stages use
+native ML.NET numeric/vector/Boolean columns, and the facade is the normal
+cursor-batched path. External model assets remain explicit runtime
+dependencies, so native ML.NET bundle save/load and single-row
+`PredictionEngine` mapping are not advertised.
 
 ### Text Generation
 

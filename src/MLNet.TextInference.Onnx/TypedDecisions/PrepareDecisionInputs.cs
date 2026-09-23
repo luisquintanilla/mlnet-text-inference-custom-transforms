@@ -5,7 +5,7 @@ namespace MLNet.TextInference.TypedDecisions;
 /// <summary>
 /// Builds the exact Laya request sequence and the five dense graph inputs.
 /// </summary>
-public sealed class PrepareDecisionInputs
+internal sealed class PrepareDecisionInputs
 {
     private readonly LayaDecisionProfile _profile;
     private readonly Tokenizer _tokenizer;

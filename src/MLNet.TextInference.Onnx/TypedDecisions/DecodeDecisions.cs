@@ -5,7 +5,7 @@ namespace MLNet.TextInference.TypedDecisions;
 /// <summary>
 /// Decodes Laya logits and action probabilities in C# using stable tensor primitives.
 /// </summary>
-public sealed class DecodeDecisions
+internal sealed class DecodeDecisions
 {
     private readonly DecisionTemperaturePolicy _temperaturePolicy;
     private readonly TypedDecisionDecoderMetadata _metadata;

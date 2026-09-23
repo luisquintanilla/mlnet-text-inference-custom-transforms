@@ -20,12 +20,10 @@
     <Project Path="samples/QA/MiniLMSquad2/MiniLMSquad2.csproj" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/MLNet.TextInference.TypedDecisions.Core/MLNet.TextInference.TypedDecisions.Core.csproj" />
     <Project Path="src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj" />
     <Project Path="src/MLNet.TextGeneration.OnnxGenAI/MLNet.TextGeneration.OnnxGenAI.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/MLNet.TextInference.TypedDecisions.Core.Tests/MLNet.TextInference.TypedDecisions.Core.Tests.csproj" />
     <Project Path="tests/MLNet.TextInference.TypedDecisions.Tests/MLNet.TextInference.TypedDecisions.Tests.csproj" />
   </Folder>
 </Solution>

@@ -1,27 +1,33 @@
-# Typed decisions samples
+# Typed decisions with ML.NET
 
 Typed decisions answer a fixed set of questions about supplied text. They do
-not generate prose and they do not train the ONNX model when `Fit` is called.
-The model scores the alternatives supplied by the caller:
+not generate prose, and `Fit` does not train or fine-tune the ONNX model. The
+model scores the alternatives supplied by the caller:
 
-- **Choice** selects one label, such as `low` or `high`.
-- **Score** returns the expected zero-based option index. It is not a
-  classification confidence; for three levels, a score of `1.1856464` is the
-  probability-weighted index between `0`, `1`, and `2`.
-- **Noul (Boolean)** returns `true` when the `true` probability is greater than
-  or equal to the `false` probability (`pTrue >= pFalse`); it also returns the
-  probability of the `true` option.
+- **Choice** selects one caller-provided label.
+- **Score** returns the expected zero-based option index, not a classification
+  confidence. For three options, `1.1856464` means the probability-weighted
+  index is between options `1` and `2`.
+- **Noul (Boolean)** returns `true` when `pTrue >= pFalse` and exposes `pTrue`.
 
-The ML.NET sample is the primary user-facing path. The standalone sample is a
-small direct-core example that is useful when ML.NET is not needed and for
-inspecting each intermediate contract.
+The primary and only file-based sample is
+[MLNetPipeline](MLNetPipeline/README.md). It uses the same ML.NET package for
+the direct convenience API, the schema-aware facade, the native preparation /
+scoring / decoding stages, and an append-composable second facade.
 
-## Inputs used by both samples
+## Inputs
 
-The examples configure these questions with the static factory methods exposed
-by the core:
+The sample creates two text rows:
+
+```text
+The customer supplied reproducible steps and requested an urgent fix.
+The report is missing logs and has no clear requested action.
+```
+
+Both rows use these static question factories:
 
 ```csharp
+using MLNet.TextInference.TypedDecisions;
 using static MLNet.TextInference.TypedDecisions.DecisionQuestion;
 
 var questions = new[]
@@ -33,31 +39,19 @@ var questions = new[]
 };
 ```
 
-State is always a string. It can be ordinary text or JSON that the caller
-serialized explicitly; the library does not include a Python-compatible object
-serializer. The ML.NET sample evaluates these two rows:
+State is always text. A caller may serialize JSON into that text column, but
+the library does not provide a Python-compatible object serializer. The
+question instructions, option labels, state text, and profile-specific
+preprocessing are model inputs; they are not business rules or guarantees.
 
-```text
-The customer supplied reproducible steps and requested an urgent fix.
-The report is missing logs and has no clear requested action.
-```
+## What happens
 
-The standalone sample evaluates the first state. The state, question
-instructions, option labels, and profile-specific preprocessing are model
-inputs. They are not business rules and the predictions do not guarantee that
-an action is correct.
-
-## What happens inside
-
-1. The pinned profile loads the Hugging Face tokenizer assets through
-   `Microsoft.ML.Tokenizers`. The configured BPE engine is kept as the
-   tokenizer boundary; Laya special-token IDs and the mask token are separate
-   profile metadata.
-2. Each question is rendered with its options, combined with the instructions
-   and state, then bounded to the profile limits. Options receive marker
-   positions. Sequences are padded with the profile pad ID and attention masks
-   distinguish real tokens from padding.
-3. One ONNX call uses five dense inputs:
+1. The configured Microsoft.ML.Tokenizers BPE tokenizer applies the selected
+   profile's byte-level and normalization behavior. Special-token IDs are
+   separate profile metadata.
+2. Each question's instructions, options, and state are combined, truncated,
+   marked, and padded. The marker positions identify option tokens.
+3. A flattened ONNX batch uses five native tensors:
 
    | Input | Shape | Element type |
    |---|---|---|
@@ -68,146 +62,115 @@ an action is correct.
    | `qtype` | `[B]` | `Int64` |
 
    `B` is the flattened request-question count, not necessarily the
-   `IDataView` row count. For the ML.NET example, two input rows and three
-   questions produce six decision rows. `L` is the padded sequence length and
-   `K` is the maximum option count in the batch.
-   For a decoded response, `input_tokens` is the aggregate count of
-   nonpadding tokens across that request's question-specific prepared
-   sequences. It includes instructions, options, state, and special tokens;
-   it is not just the original state token count.
+   `IDataView` row count. `L` is the padded sequence length and `K` is the
+   maximum option width in the batch.
 4. The graph returns `logits [B,K]` and already-softmaxed `act_probs [B,2]`.
-   The decoder applies the profile temperature policy to logits, masks unused
-   options, and computes the typed result. It does not apply a second softmax
-   to `act_probs`.
-5. `confidence` is `1 - normalized entropy` of the option distribution. It is
-   intentionally distinct from `probability_true` and `action_probability`.
-   The profile's decoder metadata selects the `act_probs` index for
-   `action_probability` (the default is index `1`). Temperature values are
-   clamped to `[0.5, 5.0]` with diagnostics when a bundle requests values
-   outside that policy.
+   C# decoding applies the bundle temperature policy, masks unused options,
+   computes stable option probabilities, and does not softmax `act_probs`
+   again. Confidence is entropy-based. `action_probability` is the configured
+   action column from `act_probs`, not an option probability.
 
-## Bundle and public assets
+For a decoded response, `input_tokens` is the aggregate count of nonpadding
+tokens across that request's question-specific prepared sequences. It
+includes instructions, options, state, and special tokens.
 
-Inference never downloads assets. Prepare a directory or ZIP containing:
+## Model assets
+
+Inference never downloads model files. The normal setup is a local model
+directory containing the graph, its external-data sidecar, the Laya
+configuration, and the tokenizer directory:
 
 ```text
-typed-decision-bundle.json
-laya.onnx
-laya.onnx.data                 # kept beside laya.onnx
-laya_config.json
-tokenizer/tokenizer.json
-tokenizer/tokenizer_config.json
+models/laya-english-fp32/
+  laya.onnx
+  laya.onnx.data
+  laya_config.json
+  tokenizer/tokenizer.json
+  tokenizer/tokenizer_config.json
 ```
 
-The initial profile is the English FP32 export from the public
-[`receptron/laya-onnx`](https://huggingface.co/receptron/laya-onnx) repository
+An optional versioned ZIP archive with `typed-decision-bundle.json` is also
+accepted for deployment. The directory form does not require a generated
+manifest. Paths are validated as relative bundle entries, external data stays
+adjacent to the graph, and hashes are checked when a manifest supplies them.
+
+The initial profile is the English FP32 export from public Hugging Face
+repository [`receptron/laya-onnx`](https://huggingface.co/receptron/laya-onnx)
 at revision
-`68f27dfe5a27a54fb2b1fefc432f43f972e90868`. The model file, external-data
-sidecar, Laya configuration, and tokenizer files must be acquired separately
-with normal certificate-verified downloads. `TypedDecisionBundle.Open` validates
-the manifest, relative paths, required sidecars, and hashes; ZIP extraction is
-confined to a temporary directory.
+`68f27dfe5a27a54fb2b1fefc432f43f972e90868`. The heavyweight model is not
+committed; ordinary tests use a small offline ONNX fixture.
 
-After placing the files, the exact public bundle API can create the manifest
-and its SHA-256 entries:
+## Run the sample
 
-```csharp
-using MLNet.TextInference.TypedDecisions;
-
-TypedDecisionBundle.WriteManifest(
-    @".\models\laya-english-fp32.bundle",
-    new TypedDecisionBundleManifest
-    {
-        Profile = new TypedDecisionBundleProfile(
-            LayaDecisionProfile.EnglishFp32.Name,
-            LayaDecisionProfile.EnglishFp32Revision)
-    });
-```
-
-The heavyweight bundle is intentionally not committed. Ordinary tests use
-small offline fixtures; real-model parity is an explicit opt-in acceptance
-run.
-
-## Run the samples
-
-These are .NET 10 file-based apps with portable JIT execution
-(`PublishAot=false`). The bundle path below is a safe repository-relative
-placeholder; replace it with the directory or ZIP you prepared.
+These are .NET 10 file-based commands with `PublishAot=false`. The path below
+is a safe repository-relative placeholder; replace it with a prepared local
+directory or optional archive:
 
 ```powershell
-# ML.NET facade (recommended)
+# Direct API on the fitted transformer
 dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode facade --bundle .\models\laya-english-fp32.bundle
+  --mode direct --model-assets .\models\laya-english-fp32
 
-# ML.NET inspectable stages
+# Recommended lazy, cursor-batched facade
 dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode stages --bundle .\models\laya-english-fp32.bundle
+  --mode facade --model-assets .\models\laya-english-fp32
 
-# ML.NET facade appended to another estimator
+# Native inspectable stages
 dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode composed --bundle .\models\laya-english-fp32.bundle
+  --mode stages --model-assets .\models\laya-english-fp32
 
-# Direct core facade and stages
-dotnet run --file samples/TypedDecisions/Standalone/Program.cs -- `
-  --mode facade --bundle .\models\laya-english-fp32.bundle
-dotnet run --file samples/TypedDecisions/Standalone/Program.cs -- `
-  --mode stages --bundle .\models\laya-english-fp32.bundle
+# Append a second facade to an existing ML.NET estimator
+dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
+  --mode composed --model-assets .\models\laya-english-fp32
 ```
 
-`facade` composes preparation, ONNX scoring, and decoding. `stages` prints
-prepared and scored JSON envelopes before decoded results in the standalone
-sample. The ML.NET `stages` mode keeps those intermediate contracts in scalar
-`Text` columns, but the current sample prints only its decoded `DecisionRow`
-fields; it does not print the raw prepared/scored envelopes. The ML.NET facade
-uses a lazy cursor and batches source rows; the staged transforms intentionally
-transport JSON through scalar `Text` columns and score one row at a time so
-their intermediate contracts can be inspected by downstream consumers. They
-are not native tensor columns or a replacement for facade batching. `composed`
-applies the facade twice and prints both the original and appended result
-columns.
+The facade batches source rows up to `BatchSize`, flattens their questions,
+performs one model call, and caches pass-through columns. The stage chain
+exposes native numeric/vector/Boolean columns for the same five tensors and
+the two model outputs; the sample prints their dimensions and the decoded
+fields, not an intermediate JSON transport. All paths use the same
+preparation, scoring, and decoding kernels.
 
-## Captured expected output
+## Captured output
 
-The following excerpts were captured from the pinned real-bundle runs of the
-five commands above. They are representative outputs, not universal snapshots:
-provider, runtime, package, or calibration changes can alter floating-point
-digits. Stable labels, result ordering, finite values, and scalar-to-JSON
-relationships are the important expectations; numerical comparisons use a
-small tolerance.
+These representative values were captured from the pinned real-model
+facade, stages, and composed runs. Providers and runtime versions can change
+floating-point digits; labels, ordering, finite values, probability
+normalization, and the typed relationships are the stable expectations.
 
-ML.NET facade rows (the scalar columns select the first matching result for
-choice, score, and `probability_true`; confidence and action probability come
-from the first result overall):
+| State row | Choice (`priority`) | Score (`quality`) | `P(true)` (`actionable`) | Confidence | Action probability |
+|---|---|---:|---:|---:|---:|
+| Reproducible steps, urgent fix | `high` | `1.1856463` | `0.85206354` | `0.48310703` | `0` |
+| Missing logs, no requested action | `low` | `0.61998177` | `0.102742165` | `0.5969056` | `0` |
 
-| State row | Choice | Score | `probability_true` | Confidence | Action probability |
-|---|---:|---:|---:|---:|---:|
-| Reproducible steps, urgent fix | `high` | `1.1856464` | `0.8520637` | `0.4831077` | `0` |
-| Missing logs, no requested action | `low` | `0.6199823` | `0.10274245` | `0.5969069` | `0` |
+For Row 1's ordinal score, the arithmetic is
+`0 * 0.0903531 + 1 * 0.63364744 + 2 * 0.27599943 ~= 1.1856463`.
 
-The complete three-result standalone response is formatted for readability in
-[Standalone/README.md](Standalone/README.md). The complete ML.NET responses
-are separately labeled and formatted for readability in
+The full readable JSON responses, native stage output details, and the actual
+per-question column names are in
 [MLNetPipeline/README.md](MLNetPipeline/README.md).
 
-For the first row's `quality` score, the probabilities make the ordinal
-calculation visible:
-`0 * 0.09035328 + 1 * 0.6336471 + 2 * 0.27599967 ~= 1.1856464`.
+## Output columns and limitations
 
-The composed mode prints the same first and second rows twice: once from the
-original facade columns and once from the appended facade columns. The
-captured appended scalar excerpts were:
+The facade and decoding stage add question-specific columns known from the
+configured questions:
 
-```text
-appended_choice=high; appended_score=1.1856464; appended_true_probability=0.8520637; appended_confidence=0.4831077; appended_action_probability=0
-appended_choice=low; appended_score=0.6199823; appended_true_probability=0.10274245; appended_confidence=0.5969069; appended_action_probability=0
-```
+| Question type | Columns |
+|---|---|
+| Choice | `PredictedLabel` text, `Probabilities` vector, `Confidence`, `ActionProbability` |
+| Score | `Score`, `Probabilities` vector, `Confidence`, `ActionProbability` |
+| Noul | `PredictedLabel` Boolean, `Probability` (`P(true)`), `Confidence`, `ActionProbability` |
 
-Each appended JSON result retained the same three typed results and
-distributions as the corresponding original row. The acceptance comparison
-checked both rows, original versus appended columns, and probability
-normalization within `1e-6`.
+Columns are prefixed with the configured question ID, for example
+`Decision_priority_PredictedLabel` and
+`Decision_actionable_Probability`. Probability vectors are calibrated option
+probabilities, not logits, and carry `SlotNames` metadata with the option
+labels. Each confidence and action-probability column belongs to the same
+question. `DecisionResults` remains an optional full diagnostic JSON column
+with every question and distribution.
 
-For the complete API/type mapping and the direct-core sample, see
-[Standalone/README.md](Standalone/README.md). For schema-aware ML.NET
-composition and column details, see
-[MLNetPipeline/README.md](MLNetPipeline/README.md).
+The direct API and lazy `IDataView` paths are supported. Native ML.NET
+`Save`/`Load` and single-row `PredictionEngine` mapping are not advertised:
+the transformers reference local external assets and report that row-mapper
+support is unavailable. The direct method is
+`transformer.Infer(state)` or `transformer.Infer(states)`.

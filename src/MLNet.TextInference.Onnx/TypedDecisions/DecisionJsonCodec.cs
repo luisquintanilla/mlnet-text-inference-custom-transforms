@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace MLNet.TextInference.TypedDecisions;
 
 /// <summary>Stable JSON envelopes used by the ML.NET stage adapters.</summary>
-public static class DecisionJsonCodec
+internal static class DecisionJsonCodec
 {
     public static string SerializeInputs(DecisionInputBatch batch)
     {
@@ -119,6 +119,17 @@ public static class DecisionJsonCodec
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
+        WriteIndented = true,
         Converters = { new JsonStringEnumConverter() }
     };
+}
+
+/// <summary>Serializes complete typed-decision responses for diagnostics.</summary>
+public static class DecisionResponseJson
+{
+    /// <summary>
+    /// Serializes all typed result fields, including distributions and type-specific values.
+    /// </summary>
+    public static string Serialize(DecisionResponse response)
+        => DecisionJsonCodec.SerializeResponse(response);
 }

@@ -8,7 +8,7 @@ namespace MLNet.TextInference.TypedDecisions;
 /// <summary>
 /// A local, versioned typed-decision bundle. Opening a bundle never downloads anything.
 /// </summary>
-public sealed class TypedDecisionBundle : IDisposable
+internal sealed class TypedDecisionBundle : IDisposable
 {
     public const string ManifestFileName = "typed-decision-bundle.json";
 
@@ -64,16 +64,29 @@ public sealed class TypedDecisionBundle : IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
         directory = Path.GetFullPath(directory);
         var manifestPath = Path.Combine(directory, ManifestFileName);
-        if (!File.Exists(manifestPath))
-            throw new FileNotFoundException(
-                $"Typed-decision bundle is missing {ManifestFileName}.", manifestPath);
-
-        var manifest = JsonSerializer.Deserialize<TypedDecisionBundleManifest>(
-            File.ReadAllText(manifestPath), JsonOptions)
-            ?? throw new InvalidDataException($"Could not parse {ManifestFileName}.");
+        var manifest = File.Exists(manifestPath)
+            ? JsonSerializer.Deserialize<TypedDecisionBundleManifest>(
+                File.ReadAllText(manifestPath), JsonOptions)
+            : CreateDirectoryManifest(directory);
+        if (manifest is null)
+            throw new InvalidDataException($"Could not parse {ManifestFileName}.");
         manifest.Validate();
         ValidateFiles(directory, manifest);
         return new TypedDecisionBundle(directory, ownsRoot, manifest);
+    }
+
+    private static TypedDecisionBundleManifest CreateDirectoryManifest(string directory)
+    {
+        var externalData = File.Exists(Path.Combine(directory, "laya.onnx.data"))
+            ? new[] { "laya.onnx.data" }
+            : Array.Empty<string>();
+        return new TypedDecisionBundleManifest
+        {
+            ExternalDataFiles = externalData,
+            Profile = new TypedDecisionBundleProfile(
+                LayaDecisionProfile.EnglishFp32.Name,
+                LayaDecisionProfile.EnglishFp32.Revision)
+        };
     }
 
     public static void WriteManifest(

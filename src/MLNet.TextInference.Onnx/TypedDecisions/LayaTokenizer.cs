@@ -13,7 +13,7 @@ namespace MLNet.TextInference.TypedDecisions;
 /// loader only adapts the profile's Hugging Face asset files and keeps the separate
 /// special-token metadata required to build the Laya sequence.
 /// </remarks>
-public sealed class LayaTokenizer
+internal sealed class LayaTokenizer
 {
     private LayaTokenizer(Tokenizer tokenizer, IReadOnlyDictionary<string, int> specialTokens)
     {
@@ -216,7 +216,7 @@ public sealed class LayaTokenizer
 /// <summary>
 /// Profile-specific IDs that accompany the Microsoft tokenizer engine.
 /// </summary>
-public sealed record LayaTokenizerMetadata(
+internal sealed record LayaTokenizerMetadata(
     int ClsTokenId,
     int SepTokenId,
     int MaskTokenId,

@@ -6,7 +6,7 @@ namespace MLNet.TextInference.TypedDecisions;
 /// <summary>
 /// Versioned profile metadata for the English FP32 Laya export.
 /// </summary>
-public sealed class LayaDecisionProfile
+internal sealed class LayaDecisionProfile
 {
     public const string EnglishFp32Revision = "68f27dfe5a27a54fb2b1fefc432f43f972e90868";
     public const string EnglishFp32ModelRepository = "receptron/laya-onnx";
@@ -93,7 +93,7 @@ public sealed class LayaDecisionProfile
     }
 }
 
-public sealed class DecisionTemperaturePolicy
+internal sealed class DecisionTemperaturePolicy
 {
     public const float DefaultMinimum = 0.5f;
     public const float DefaultMaximum = 5f;
@@ -187,18 +187,18 @@ public sealed class DecisionTemperaturePolicy
     }
 }
 
-public sealed record TypedDecisionBundleProfile(
+internal sealed record TypedDecisionBundleProfile(
     string? Name = null,
     string? Revision = null);
 
-public sealed record TypedDecisionDecoderMetadata(
+internal sealed record TypedDecisionDecoderMetadata(
     float TemperatureMinimum = DecisionTemperaturePolicy.DefaultMinimum,
     float TemperatureMaximum = DecisionTemperaturePolicy.DefaultMaximum,
     int ActionProbabilityIndex = 1,
     bool RoundResultsToFourDecimals = false);
 
 /// <summary>Manifest stored at the root of a typed-decision bundle.</summary>
-public sealed class TypedDecisionBundleManifest
+internal sealed class TypedDecisionBundleManifest
 {
     public int FormatVersion { get; init; } = 1;
     public string ModelFile { get; init; } = "laya.onnx";

@@ -1,22 +1,23 @@
 # ML.NET typed decisions
 
-This is the primary sample for the feature. It exposes the shared
-ML.NET-independent Laya core through schema-aware, lazy ML.NET transforms.
-`Fit` validates the input schema and constructs a transformer; it does not
-train or fine-tune the ONNX model.
+This file-based .NET 10 sample is the primary entry point for typed-decision
+inference. It uses `MLNet.TextInference.Onnx`; there is no separate standalone
+core package. `Fit` validates the `IDataView` schema and opens local model
+assets, but does not train the ONNX model.
 
-## Input rows and questions
+## Inputs
 
-The sample creates an in-memory `IDataView` with two scalar `State` rows:
+The two `State` rows are:
 
 ```text
 The customer supplied reproducible steps and requested an urgent fix.
 The report is missing logs and has no clear requested action.
 ```
 
-Both rows use the same three questions:
+The configured questions are:
 
 ```csharp
+using MLNet.TextInference.TypedDecisions;
 using static MLNet.TextInference.TypedDecisions.DecisionQuestion;
 
 var questions = new[]
@@ -28,99 +29,141 @@ var questions = new[]
 };
 ```
 
-The state column is text. Applications may put serialized JSON in that text
-column, but serialization is the caller's responsibility. The model scores
-the supplied alternatives; it does not generate a response or enforce a
-business rule.
+State is text. If the caller needs JSON state, it serializes that JSON before
+putting it in the `State` column. The model scores the supplied alternatives;
+it does not generate prose or apply business rules.
 
-## Facade, stages, and composition
+## Local model-directory setup
+
+Inference has no implicit network access. Point `ModelAssetsPath` (or the
+sample's `--model-assets` option) at a directory such as:
+
+```text
+models/laya-english-fp32/
+  laya.onnx
+  laya.onnx.data
+  laya_config.json
+  tokenizer/tokenizer.json
+  tokenizer/tokenizer_config.json
+```
+
+An optional versioned ZIP archive with a manifest is also accepted. A
+directory does not require a generated manifest. The graph's external data
+must remain adjacent to the graph. The sample targets the public
+`receptron/laya-onnx` English FP32 revision
+`68f27dfe5a27a54fb2b1fefc432f43f972e90868`; assets are deliberately not
+committed.
+
+## Four modes
+
+All commands use portable JIT execution (`PublishAot=false`):
 
 ```powershell
-# Recommended: one lazy, cursor-batched facade
+# Direct convenience API on the fitted transformer
 dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode facade --bundle .\models\laya-english-fp32.bundle
+  --mode direct --model-assets .\models\laya-english-fp32
 
-# Inspect preparation, scoring, and decoding contracts
+# Recommended: lazy IDataView facade with cursor batching
 dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode stages --bundle .\models\laya-english-fp32.bundle
+  --mode facade --model-assets .\models\laya-english-fp32
 
-# Append a second facade and inspect the appended columns
+# Preparation -> scoring -> decoding stages
 dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode composed --bundle .\models\laya-english-fp32.bundle
+  --mode stages --model-assets .\models\laya-english-fp32
 
-dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- --help
+# Two append-composed facade applications
+dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
+  --mode composed --model-assets .\models\laya-english-fp32
 ```
 
-The file app sets `PublishAot=false`, so these commands use portable JIT
-execution rather than .NET 10's native-AOT default. The app never downloads
-the model.
+The program accepts `--bundle` as a compatibility alias for
+`--model-assets`, but the value can be an ordinary model directory and need
+not be a bundle archive.
 
-The facade is `ml.Transforms.OnnxTypedDecisions(options)`. Its lazy cursor
-collects source rows up to `BatchSize`, flattens each request's questions into
-the core batch, performs one ONNX call, and caches pass-through columns so
-downstream enumeration does not re-enumerate the source.
-
-The inspectable chain is:
+The direct API uses the same resources and kernels as the facade:
 
 ```csharp
-ml.Transforms.PrepareDecisionInputs(prepared)
-    .Append(ml.Transforms.ScoreOnnxDecisionModel(scored))
-    .Append(ml.Transforms.DecodeDecisions(decoded));
+using MLNet.TextInference.Onnx;
+using MLNet.TextInference.TypedDecisions;
+
+using var transformer = ml.Transforms.OnnxTypedDecisions(options).Fit(data);
+DecisionResponse one = transformer.Infer(state);
+IReadOnlyList<DecisionResponse> many = transformer.Infer(states);
 ```
 
-Those stages deliberately transport prepared inputs and scored outputs as
-scalar `Text` JSON columns. They are row-oriented and score one source row at
-a time; they are not native tensor columns and do not provide the facade's
-cursor batching. The sample's `stages` mode materializes and prints only the
-decoded `DecisionRow` fields; the intermediate JSON columns remain internal to
-the transform chain. Use the facade for normal ML.NET use and the stages when
-inspecting or composing the intermediate contracts.
+## Processing and native stage schema
 
-`composed` applies the facade twice:
+The pipeline is:
 
-```csharp
-IEstimator<ITransformer> pipeline = ml.Transforms.OnnxTypedDecisions(options);
-output = pipeline.AppendOnnxTypedDecisions(ml, appendedOptions)
-    .Fit(data)
-    .Transform(data);
-```
+1. Microsoft.ML.Tokenizers BPE tokenizes each question-specific sequence,
+   while profile metadata supplies special-token IDs and byte-level behavior.
+2. Instructions, options, and state are combined, truncated, marker positions
+   are recorded, and sequences are padded.
+3. The preparation stage emits `Int64` vectors for `input_ids`,
+   `attention_mask`, and `marker_pos`, a `Bool` vector for `marker_mask`, an
+   `Int64` vector for `qtype`, and `Int32` scalar dimensions:
+   `DecisionBatchSize`, `DecisionSequenceLength`, and `DecisionMarkerWidth`.
+4. The task-specific scorer batches prepared rows across cursor boundaries and
+   emits `Single` vectors for `logits` and already-softmaxed `act_probs`.
+5. The decoder applies the profile temperature policy (valid values are
+   clamped to `[0.5, 5.0]` with diagnostics), masks unused options, computes
+   stable option probabilities, expected ordinal scores, Boolean decisions,
+   entropy confidence, and per-question action probability.
 
-The sample materializes both the original columns and the appended columns:
-`AppendedDecisionResults`, `AppendedDecisionChoice`,
-`AppendedDecisionScore`, `AppendedDecisionProbabilityTrue`,
-`AppendedDecisionConfidence`, and `AppendedDecisionActionProbability`.
-They are expected to match because both transforms use the same request and
-bundle, not because the two applications share a cached model result.
+For two source rows and three questions, each prepared row has `B=3`; the
+direct/facade batch contains six flattened question rows when both source
+rows are processed together. `L` and `K` are dynamic per prepared batch.
+`input_tokens` is the aggregate nonpadding-token count over all
+question-specific sequences for one request, including instructions, options,
+state, and special tokens.
 
-The scalar projection is intentionally compact for ML.NET schemas:
+The stage transport is native ML.NET numeric/vector/Boolean data, not a JSON
+envelope. In `stages` mode the sample prints the prepared/scored vector
+lengths and decoded result fields; it does not print every token or vector
+element. The `DecisionResults` text column is the optional full diagnostic
+JSON output, not stage transport.
 
-- choice, score, and `probability_true` select the first result of the
-  corresponding question type;
-- confidence and action probability select the first result overall;
-- `DecisionResults` retains every question, all distributions, legends, and
-  derived fields.
+## Output mapping
 
-With multiple questions of one type, inspect `DecisionResults` when the
-first-match scalar is not sufficient. Typed-decision transformers reference
-the explicit bundle path and do not currently implement ML.NET model
-Save/Load or embed the bundle.
+Each configured question receives an unambiguous prefix:
 
-## Captured expected output
+| Question | Columns in this sample |
+|---|---|
+| `priority` Choice | `Decision_priority_PredictedLabel`, `Decision_priority_Probabilities`, `Decision_priority_Confidence`, `Decision_priority_ActionProbability` |
+| `quality` Score | `Decision_quality_Score`, `Decision_quality_Probabilities`, `Decision_quality_Confidence`, `Decision_quality_ActionProbability` |
+| `actionable` Noul | `Decision_actionable_PredictedLabel`, `Decision_actionable_Probability`, `Decision_actionable_Confidence`, `Decision_actionable_ActionProbability` |
 
-These excerpts were captured by running the facade, stages, and composed modes
-against the pinned English FP32 Laya bundle. They document the output shape
-and representative values; floating-point digits can vary with runtime,
-provider, or calibration changes. Stable labels/order and relationships are
-the compatibility expectations.
+Choice labels are text. Score is the expected zero-based option index, not a
+confidence. Noul selects true when `P(true) >= P(false)`. Probability vectors
+are calibrated option probabilities (not logits) and carry `SlotNames`
+metadata with option labels. Every confidence and action-probability scalar
+is associated with its own question. `DecisionResults` retains all questions,
+distributions, legends, and derived values.
 
-Facade and stages expose the same decoded scalar values for the two rows:
+The composed mode uses `OutputPrefix = "AppendedDecision_"` and
+`ResultsColumnName = "AppendedDecisionResults"`, so it adds the corresponding
+`AppendedDecision_*` columns without overwriting the first facade's columns.
+Both applications use the same request and assets, so the values should match
+within floating-point tolerance. Accessing multiple output getters does not
+repeat inference for the same cursor row.
 
-| State row | `DecisionChoice` | `DecisionScore` | `DecisionProbabilityTrue` | `DecisionConfidence` | `DecisionActionProbability` |
-|---|---|---:|---:|---:|---:|
-| Reproducible steps, urgent fix | `high` | `1.1856464` | `0.8520637` | `0.4831077` | `0` |
-| Missing logs, no requested action | `low` | `0.6199823` | `0.10274245` | `0.5969069` | `0` |
+Native ML.NET model `Save`/`Load` and single-row `PredictionEngine` mapping are
+not supported because these transforms reference external local assets. Use
+the direct `Infer` method or lazy `IDataView` materialization.
 
-The full result JSON is formatted for readability. Row 1:
+## Captured outputs
+
+The following values were captured from the pinned real-model direct/facade,
+stages, and composed runs. They are formatted for readability. Provider,
+runtime, and calibration differences can change float digits; labels,
+ordering, finite values, and typed relationships are the stable expectations.
+
+| Source row | Choice | Score | `P(true)` | Confidence | Action probability |
+|---|---:|---:|---:|---:|---:|
+| Row 1, reproducible steps | `high` | `1.1856463` | `0.85206354` | `0.48310703` | `0` |
+| Row 2, missing logs | `low` | `0.61998177` | `0.102742165` | `0.5969056` | `0` |
+
+### Row 1 full `DecisionResults`
 
 ```json
 {
@@ -129,22 +172,22 @@ The full result JSON is formatted for readability. Row 1:
     {
       "id": "priority",
       "type": "choice",
-      "confidence": 0.4831077,
+      "confidence": 0.48310703,
       "action_probability": 0,
       "labels": [
         "low",
         "high"
       ],
       "probabilities": [
-        0.115706585,
-        0.88429344
+        0.1157068,
+        0.8842932
       ],
       "choice": "high"
     },
     {
       "id": "quality",
       "type": "score",
-      "confidence": 0.21570939,
+      "confidence": 0.2157098,
       "action_probability": 0,
       "labels": [
         "0",
@@ -152,11 +195,11 @@ The full result JSON is formatted for readability. Row 1:
         "2"
       ],
       "probabilities": [
-        0.09035328,
-        0.6336471,
-        0.27599967
+        0.0903531,
+        0.63364744,
+        0.27599943
       ],
-      "score": 1.1856464,
+      "score": 1.1856463,
       "legend": {
         "0": "weak",
         "1": "moderate",
@@ -166,24 +209,24 @@ The full result JSON is formatted for readability. Row 1:
     {
       "id": "actionable",
       "type": "noul",
-      "confidence": 0.39534837,
+      "confidence": 0.3953479,
       "action_probability": 0,
       "labels": [
         "false",
         "true"
       ],
       "probabilities": [
-        0.14793624,
-        0.8520637
+        0.14793645,
+        0.85206354
       ],
       "noul": true,
-      "probability_true": 0.8520637
+      "probability_true": 0.85206354
     }
   ]
 }
 ```
 
-Row 2:
+### Row 2 full `DecisionResults`
 
 ```json
 {
@@ -192,22 +235,22 @@ Row 2:
     {
       "id": "priority",
       "type": "choice",
-      "confidence": 0.5969069,
+      "confidence": 0.5969056,
       "action_probability": 0,
       "labels": [
         "low",
         "high"
       ],
       "probabilities": [
-        0.91974044,
-        0.08025956
+        0.9197401,
+        0.080259964
       ],
       "choice": "low"
     },
     {
       "id": "quality",
       "type": "score",
-      "confidence": 0.22399896,
+      "confidence": 0.2239992,
       "action_probability": 0,
       "labels": [
         "0",
@@ -215,11 +258,11 @@ Row 2:
         "2"
       ],
       "probabilities": [
-        0.42993295,
-        0.52015173,
-        0.04991528
+        0.42993343,
+        0.52015144,
+        0.04991516
       ],
-      "score": 0.6199823,
+      "score": 0.61998177,
       "legend": {
         "0": "weak",
         "1": "moderate",
@@ -229,40 +272,24 @@ Row 2:
     {
       "id": "actionable",
       "type": "noul",
-      "confidence": 0.5223708,
+      "confidence": 0.52237165,
       "action_probability": 0,
       "labels": [
         "false",
         "true"
       ],
       "probabilities": [
-        0.89725757,
-        0.10274245
+        0.8972578,
+        0.102742165
       ],
       "noul": false,
-      "probability_true": 0.10274245
+      "probability_true": 0.102742165
     }
   ]
 }
 ```
 
-For each row, `input_tokens` is the aggregate count of nonpadding tokens
-across that request's three question-specific prepared sequences. It includes
-instructions, options, state, and special tokens, not only the state text.
-For Row 1's `quality` result, the score is
-`0 * 0.09035328 + 1 * 0.6336471 + 2 * 0.27599967 ~= 1.1856464`.
-
-The composed run printed the same values from the appended columns:
-
-```text
-appended_choice=high; appended_score=1.1856464; appended_true_probability=0.8520637; appended_confidence=0.4831077; appended_action_probability=0
-appended_choice=low; appended_score=0.6199823; appended_true_probability=0.10274245; appended_confidence=0.5969069; appended_action_probability=0
-```
-
-The appended JSON column retained all three results for each row. The
-acceptance comparison checked both rows, original versus appended labels,
-Booleans, distributions, scores, probabilities, confidence, and action
-probabilities within `1e-6`.
-
-For the tensor contract, bundle requirements, decoder policy, and direct-core
-sample, see the [shared typed-decision README](../README.md).
+Row 1's ordinal score is visible as
+`0 * 0.0903531 + 1 * 0.63364744 + 2 * 0.27599943 ~= 1.1856463`.
+The composed run printed the same two rows under the `AppendedDecision_*`
+columns and the `AppendedDecisionResults` JSON column.
