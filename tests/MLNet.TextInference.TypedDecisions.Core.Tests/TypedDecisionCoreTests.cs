@@ -23,13 +23,26 @@ public sealed class TypedDecisionCoreTests
             TokenizerDirectory = "tokenizer",
             TemperaturePolicy = DecisionTemperaturePolicy.Default
         };
-        var prepare = new PrepareDecisionInputs(profile, fixture.Tokenizer);
+        var prepare = new PrepareDecisionInputs(
+            profile,
+            fixture.Tokenizer.Tokenizer,
+            fixture.Tokenizer.Metadata);
         var input = prepare.Prepare(
-            "{\"subject\":\"Refund not received\"}",
             [
-                DecisionQuestion.Choice("team", "Which team?", ["billing", "support"]),
-                DecisionQuestion.Score("urgency", "How urgent?", ["low", "high"]),
-                DecisionQuestion.Noul("risk", "Will the customer churn?")
+                DecisionRequest.Create(
+                    "{\"subject\":\"Refund not received\"}",
+                    [DecisionQuestion.Choice("team", "Which team?", ["billing", "support"])]),
+                DecisionRequest.Create(
+                    new string('a', 96),
+                    [
+                        DecisionQuestion.Score(
+                            "urgency",
+                            "How urgent?",
+                            ["low", "high"])
+                    ]),
+                DecisionRequest.Create(
+                    "short",
+                    [DecisionQuestion.Noul("risk", "Will the customer churn?")])
             ]);
 
         Assert.AreEqual(3, input.BatchSize);
@@ -41,30 +54,101 @@ public sealed class TypedDecisionCoreTests
         Assert.IsTrue(input.Items.All(static item =>
             item.MarkerPositions.Length == item.OptionLabels.Length));
         Assert.IsTrue(input.MarkerMask.Any(static value => value));
+        var paddingCount = 0;
+        for (var index = 0; index < input.InputIds.Length; index++)
+        {
+            if (input.AttentionMask[index] == 0)
+            {
+                paddingCount++;
+                Assert.AreEqual(fixture.Tokenizer.PadTokenId, input.InputIds[index]);
+            }
+        }
+        Assert.IsTrue(paddingCount > 0, "The fixture should exercise nonzero padding.");
+        for (var index = 0; index < input.MarkerMask.Length; index++)
+        {
+            if (input.MarkerMask[index])
+            {
+                var row = index / input.MarkerWidth;
+                var token = (int)input.MarkerPositions[index];
+                Assert.AreEqual(1L, input.AttentionMask[row * input.SequenceLength + token]);
+            }
+        }
     }
 
     [TestMethod]
-    public void PrepareDecisionInputs_UsesDecisionTokenizerAbstraction()
+    public void PrepareDecisionInputs_UsesMicrosoftTokenizerAndProfileMetadata()
     {
+        using var fixture = TinyTokenizerFixture.Create();
         var profile = new LayaDecisionProfile
         {
             Name = "fixture",
             Revision = "fixture",
-            MaxLength = 32,
+            MaxLength = 64,
             HeadMaxLength = 16,
             ModelFile = "model.onnx",
             TokenizerDirectory = "tokenizer",
             TemperaturePolicy = DecisionTemperaturePolicy.Default
         };
-        var tokenizer = new RecordingTokenizer();
-        var input = new PrepareDecisionInputs(profile, tokenizer).Prepare(
+        var input = new PrepareDecisionInputs(
+            profile,
+            fixture.Tokenizer.Tokenizer,
+            fixture.Tokenizer.Metadata).Prepare(
             "state",
             [DecisionQuestion.Choice("team", "Which team?", ["billing", "support"])]);
 
         Assert.AreEqual(1, input.BatchSize);
-        Assert.IsTrue(tokenizer.EncodedTexts.Any(static text => text.Contains("choice question", StringComparison.Ordinal)));
-        Assert.IsTrue(tokenizer.EncodedTexts.Any(static text => text.Contains("state", StringComparison.Ordinal)));
-        Assert.AreEqual(tokenizer.ClsTokenId, input.InputIds[0]);
+        Assert.AreEqual(fixture.Tokenizer.ClsTokenId, input.InputIds[0]);
+        Assert.IsTrue(input.MarkerMask[0]);
+        Assert.AreEqual(
+            fixture.Tokenizer.MaskTokenId,
+            input.InputIds[(int)input.MarkerPositions[0]]);
+    }
+
+    [TestMethod]
+    public void PrepareDecisionInputs_HandlesZeroStateRoomAndMicrosoftBoundedEncoding()
+    {
+        using var fixture = TinyTokenizerFixture.Create();
+        var profile = new LayaDecisionProfile
+        {
+            Name = "fixture",
+            Revision = "fixture",
+            MaxLength = 64,
+            HeadMaxLength = 16,
+            ModelFile = "model.onnx",
+            TokenizerDirectory = "tokenizer",
+            TemperaturePolicy = DecisionTemperaturePolicy.Default
+        };
+        var full = new PrepareDecisionInputs(
+            profile,
+            fixture.Tokenizer.Tokenizer,
+            fixture.Tokenizer.Metadata).Prepare(
+            string.Empty,
+            [DecisionQuestion.Choice("team", "Which team?", ["billing", "support"])]);
+        Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
+            fixture.Tokenizer.Tokenizer.EncodeToIds(
+                "state", 0, out _, out _,
+                considerPreTokenization: true,
+                considerNormalization: true));
+
+        var exactProfile = new LayaDecisionProfile
+        {
+            Name = profile.Name,
+            Revision = profile.Revision,
+            MaxLength = full.SequenceLength,
+            HeadMaxLength = profile.HeadMaxLength,
+            ModelFile = profile.ModelFile,
+            TokenizerDirectory = profile.TokenizerDirectory,
+            TemperaturePolicy = profile.TemperaturePolicy
+        };
+        var input = new PrepareDecisionInputs(
+            exactProfile,
+            fixture.Tokenizer.Tokenizer,
+            fixture.Tokenizer.Metadata).Prepare(
+            "a long state that has no room",
+            [DecisionQuestion.Choice("team", "Which team?", ["billing", "support"])]);
+
+        Assert.AreEqual(full.SequenceLength, input.SequenceLength);
+        Assert.AreEqual(fixture.Tokenizer.SepTokenId, input.InputIds[^1]);
         Assert.IsTrue(input.MarkerMask[0]);
     }
 
@@ -73,7 +157,8 @@ public sealed class TypedDecisionCoreTests
     {
         using var fixture = ArrayMergeTokenizerFixture.Create();
 
-        var encoded = fixture.Tokenizer.Encode("ab");
+        var encoded = fixture.Tokenizer.Tokenizer.EncodeToIds(
+            "ab", considerPreTokenization: true, considerNormalization: true);
 
         CollectionAssert.AreEqual(new[] { 3 }, encoded.ToArray());
         Assert.AreEqual(7, fixture.Tokenizer.MaskTokenId);
@@ -172,6 +257,20 @@ public sealed class TypedDecisionCoreTests
         };
 
         var json = DecisionJsonCodec.SerializeScored(inputs, outputs);
+        using (var document = JsonDocument.Parse(json))
+        {
+            var inputEnvelope = document.RootElement.GetProperty("inputs");
+            Assert.IsTrue(inputEnvelope.TryGetProperty("inputIds", out _));
+            Assert.IsTrue(inputEnvelope.TryGetProperty("attentionMask", out _));
+            Assert.AreEqual(
+                "Choice",
+                inputEnvelope.GetProperty("items")[0]
+                    .GetProperty("question")
+                    .GetProperty("type")
+                    .GetString());
+            Assert.IsTrue(document.RootElement.GetProperty("outputs")
+                .TryGetProperty("actionProbabilities", out _));
+        }
         var roundTrip = DecisionJsonCodec.DeserializeScored(json);
 
         CollectionAssert.AreEqual(inputs.InputIds, roundTrip.Inputs.InputIds);
@@ -302,28 +401,6 @@ public sealed class TypedDecisionCoreTests
         {
             if (Directory.Exists(Root))
                 Directory.Delete(Root, recursive: true);
-        }
-    }
-
-    private sealed class RecordingTokenizer : IDecisionTokenizer
-    {
-        public List<string> EncodedTexts { get; } = [];
-        public int ClsTokenId => 101;
-        public int SepTokenId => 102;
-        public int MaskTokenId => 103;
-        public int PadTokenId => 0;
-        public string MaskToken => "[MASK]";
-
-        public IReadOnlyList<int> Encode(string text)
-        {
-            EncodedTexts.Add(text);
-            return [201];
-        }
-
-        public IReadOnlyList<int> Encode(string text, int maxTokenCount)
-        {
-            EncodedTexts.Add(text);
-            return maxTokenCount == 0 ? [] : [201];
         }
     }
 

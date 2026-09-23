@@ -33,27 +33,27 @@ public static class MLContextExtensions
     }
 
     /// <summary>Creates the preparation stage of a typed-decision pipeline.</summary>
-    public static PrepareDecisionInputsEstimator PrepareDecisionInputs(
+    public static DecisionInputPreparationEstimator PrepareDecisionInputs(
         this TransformsCatalog catalog,
-        PrepareDecisionInputsOptions options)
+        DecisionInputPreparationOptions options)
     {
-        return new PrepareDecisionInputsEstimator(catalog.GetMLContext(), options);
+        return new DecisionInputPreparationEstimator(catalog.GetMLContext(), options);
     }
 
     /// <summary>Creates the ONNX scoring stage of a typed-decision pipeline.</summary>
-    public static ScoreOnnxDecisionModelEstimator ScoreOnnxDecisionModel(
+    public static OnnxDecisionModelScorerEstimator ScoreOnnxDecisionModel(
         this TransformsCatalog catalog,
-        ScoreOnnxDecisionModelOptions options)
+        OnnxDecisionModelScorerOptions options)
     {
-        return new ScoreOnnxDecisionModelEstimator(catalog.GetMLContext(), options);
+        return new OnnxDecisionModelScorerEstimator(catalog.GetMLContext(), options);
     }
 
     /// <summary>Creates the typed-decoding stage of a typed-decision pipeline.</summary>
-    public static DecodeDecisionsEstimator DecodeDecisions(
+    public static DecisionDecodingEstimator DecodeDecisions(
         this TransformsCatalog catalog,
-        DecodeDecisionsOptions options)
+        DecisionDecodingOptions options)
     {
-        return new DecodeDecisionsEstimator(catalog.GetMLContext(), options);
+        return new DecisionDecodingEstimator(catalog.GetMLContext(), options);
     }
 
     /// <summary>

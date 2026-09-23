@@ -35,7 +35,7 @@ public class OnnxTypedDecisionsOptions
     }
 }
 
-public sealed class PrepareDecisionInputsOptions
+public sealed class DecisionInputPreparationOptions
 {
     public required string BundlePath { get; init; }
     public required IReadOnlyList<DecisionQuestion> Questions { get; init; }
@@ -58,7 +58,7 @@ public sealed class PrepareDecisionInputsOptions
     }
 }
 
-public sealed class ScoreOnnxDecisionModelOptions
+public sealed class OnnxDecisionModelScorerOptions
 {
     public required string BundlePath { get; init; }
     public string InputColumnName { get; init; } = "PreparedDecisionInputs";
@@ -75,7 +75,7 @@ public sealed class ScoreOnnxDecisionModelOptions
     }
 }
 
-public sealed class DecodeDecisionsOptions
+public sealed class DecisionDecodingOptions
 {
     public required string BundlePath { get; init; }
     public string InputColumnName { get; init; } = "ScoredDecisionOutputs";

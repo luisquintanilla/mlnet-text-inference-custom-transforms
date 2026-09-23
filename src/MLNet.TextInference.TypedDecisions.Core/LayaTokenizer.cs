@@ -9,28 +9,32 @@ namespace MLNet.TextInference.TypedDecisions;
 /// The loader intentionally does not fall back to another tokenizer runtime.
 /// </summary>
 /// <remarks>
-/// This type composes the framework tokenizer rather than subclassing its abstract
-/// <see cref="Tokenizer"/> base. The base is an encoding primitive and does not carry
-/// the Laya profile's added-token IDs or bundle loading rules; those belong in this
-/// adapter. The concrete <see cref="BpeTokenizer"/> is sealed, so subclassing would
-/// also require duplicating or delegating the BPE implementation.
+/// The configured <see cref="Tokenizer"/> is exposed directly to preparation. This
+/// loader only adapts the profile's Hugging Face asset files and keeps the separate
+/// special-token metadata required to build the Laya sequence.
 /// </remarks>
-public sealed class LayaTokenizer : IDecisionTokenizer
+public sealed class LayaTokenizer
 {
-    private readonly Tokenizer _tokenizer;
-
     private LayaTokenizer(Tokenizer tokenizer, IReadOnlyDictionary<string, int> specialTokens)
     {
-        _tokenizer = tokenizer;
+        Tokenizer = tokenizer;
         SpecialTokens = specialTokens;
+        Metadata = new LayaTokenizerMetadata(
+            RequiredSpecial(specialTokens, "[CLS]"),
+            RequiredSpecial(specialTokens, "[SEP]"),
+            RequiredSpecial(specialTokens, "[MASK]"),
+            RequiredSpecial(specialTokens, "[PAD]"),
+            "[MASK]");
     }
 
+    public Tokenizer Tokenizer { get; }
+    public LayaTokenizerMetadata Metadata { get; }
     public IReadOnlyDictionary<string, int> SpecialTokens { get; }
-    public int ClsTokenId => RequiredSpecial("[CLS]");
-    public int SepTokenId => RequiredSpecial("[SEP]");
-    public int MaskTokenId => RequiredSpecial("[MASK]");
-    public int PadTokenId => RequiredSpecial("[PAD]");
-    public string MaskToken => "[MASK]";
+    public int ClsTokenId => Metadata.ClsTokenId;
+    public int SepTokenId => Metadata.SepTokenId;
+    public int MaskTokenId => Metadata.MaskTokenId;
+    public int PadTokenId => Metadata.PadTokenId;
+    public string MaskToken => Metadata.MaskToken;
 
     public static LayaTokenizer Load(string tokenizerDirectory)
     {
@@ -102,30 +106,11 @@ public sealed class LayaTokenizer : IDecisionTokenizer
             "Tokenizer merges must be strings or two-item string arrays.");
     }
 
-    public IReadOnlyList<int> Encode(string text)
+    private static int RequiredSpecial(
+        IReadOnlyDictionary<string, int> specialTokens,
+        string token)
     {
-        ArgumentNullException.ThrowIfNull(text);
-        return _tokenizer.EncodeToIds(text, considerPreTokenization: true, considerNormalization: true);
-    }
-
-    public IReadOnlyList<int> Encode(string text, int maxTokenCount)
-    {
-        ArgumentNullException.ThrowIfNull(text);
-        if (maxTokenCount < 0)
-            throw new ArgumentOutOfRangeException(nameof(maxTokenCount));
-
-        return _tokenizer.EncodeToIds(
-            text,
-            maxTokenCount,
-            out _,
-            out _,
-            considerPreTokenization: true,
-            considerNormalization: true);
-    }
-
-    private int RequiredSpecial(string token)
-    {
-        if (!SpecialTokens.TryGetValue(token, out var id))
+        if (!specialTokens.TryGetValue(token, out var id))
             throw new InvalidDataException($"Tokenizer is missing required special token '{token}'.");
         return id;
     }
@@ -227,3 +212,13 @@ public sealed class LayaTokenizer : IDecisionTokenizer
             => original.ToString().Normalize(NormalizationForm.FormC);
     }
 }
+
+/// <summary>
+/// Profile-specific IDs that accompany the Microsoft tokenizer engine.
+/// </summary>
+public sealed record LayaTokenizerMetadata(
+    int ClsTokenId,
+    int SepTokenId,
+    int MaskTokenId,
+    int PadTokenId,
+    string MaskToken);

@@ -10,7 +10,44 @@ public static class DecisionJsonCodec
     {
         ArgumentNullException.ThrowIfNull(batch);
         batch.Validate();
-        return JsonSerializer.Serialize(new InputEnvelope
+        return JsonSerializer.Serialize(CreateInputEnvelope(batch), JsonOptions);
+    }
+
+    public static DecisionInputBatch DeserializeInputs(string json)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
+        var envelope = JsonSerializer.Deserialize<InputEnvelope>(json, JsonOptions)
+            ?? throw new InvalidDataException("Prepared decision inputs are not valid JSON.");
+        return CreateInputBatch(envelope);
+    }
+
+    public static string SerializeScored(
+        DecisionInputBatch inputs,
+        DecisionModelOutputs outputs)
+    {
+        ArgumentNullException.ThrowIfNull(outputs);
+        outputs.Validate();
+        return JsonSerializer.Serialize(new ScoredEnvelope
+        {
+            Inputs = CreateInputEnvelope(inputs),
+            Outputs = outputs
+        }, JsonOptions);
+    }
+
+    public static (DecisionInputBatch Inputs, DecisionModelOutputs Outputs) DeserializeScored(string json)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(json);
+        var envelope = JsonSerializer.Deserialize<ScoredEnvelope>(json, JsonOptions)
+            ?? throw new InvalidDataException("Scored decision inputs are not valid JSON.");
+        var inputs = CreateInputBatch(envelope.Inputs);
+        envelope.Outputs.Validate();
+        return (inputs, envelope.Outputs);
+    }
+
+    private static InputEnvelope CreateInputEnvelope(DecisionInputBatch batch)
+    {
+        batch.Validate();
+        return new InputEnvelope
         {
             BatchSize = batch.BatchSize,
             SequenceLength = batch.SequenceLength,
@@ -28,14 +65,12 @@ public static class DecisionJsonCodec
                 OptionLabels = item.OptionLabels,
                 QuestionType = item.QuestionType
             }).ToArray()
-        }, JsonOptions);
+        };
     }
 
-    public static DecisionInputBatch DeserializeInputs(string json)
+    private static DecisionInputBatch CreateInputBatch(InputEnvelope envelope)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(json);
-        var envelope = JsonSerializer.Deserialize<InputEnvelope>(json, JsonOptions)
-            ?? throw new InvalidDataException("Prepared decision inputs are not valid JSON.");
+        ArgumentNullException.ThrowIfNull(envelope);
         var items = envelope.Items.Select(static item => new DecisionInputItem(
             item.RequestIndex,
             item.Question,
@@ -56,30 +91,6 @@ public static class DecisionJsonCodec
         };
         batch.Validate();
         return batch;
-    }
-
-    public static string SerializeScored(
-        DecisionInputBatch inputs,
-        DecisionModelOutputs outputs)
-    {
-        ArgumentNullException.ThrowIfNull(outputs);
-        outputs.Validate();
-        return JsonSerializer.Serialize(new ScoredEnvelope
-        {
-            Inputs = JsonSerializer.Deserialize<InputEnvelope>(
-                SerializeInputs(inputs), JsonOptions)!,
-            Outputs = outputs
-        }, JsonOptions);
-    }
-
-    public static (DecisionInputBatch Inputs, DecisionModelOutputs Outputs) DeserializeScored(string json)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(json);
-        var envelope = JsonSerializer.Deserialize<ScoredEnvelope>(json, JsonOptions)
-            ?? throw new InvalidDataException("Scored decision inputs are not valid JSON.");
-        var inputs = DeserializeInputs(JsonSerializer.Serialize(envelope.Inputs, JsonOptions));
-        envelope.Outputs.Validate();
-        return (inputs, envelope.Outputs);
     }
 
     public static string SerializeResponse(DecisionResponse response)

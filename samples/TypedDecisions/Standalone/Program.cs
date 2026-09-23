@@ -1,7 +1,7 @@
 ﻿// This is a .NET 10 file-based app. The project directive keeps the sample on the
 // same source and package surface as the solution without a sample-only project file.
 #:project ../../../src/MLNet.TextInference.TypedDecisions.Core/MLNet.TextInference.TypedDecisions.Core.csproj
-#:property RestoreSources=https://api.nuget.org/v3/index.json
+#:property PublishAot=false
 
 using System.Text.Json;
 using MLNet.TextInference.TypedDecisions;
@@ -47,7 +47,10 @@ switch (mode.ToLowerInvariant())
         break;
 
     case "stages":
-        var preparer = new PrepareDecisionInputs(bundle.Profile, bundle.Tokenizer);
+        var preparer = new PrepareDecisionInputs(
+            bundle.Profile,
+            bundle.Tokenizer.Tokenizer,
+            bundle.Tokenizer.Metadata);
         var inputs = preparer.Prepare([request]);
         PrintLabeledJson("prepared", DecisionJsonCodec.SerializeInputs(inputs));
 

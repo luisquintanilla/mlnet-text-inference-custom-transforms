@@ -53,14 +53,16 @@ This project implements custom transforms using direct `IEstimator<T>` / `ITrans
 - **SIMD-accelerated post-processing** — pooling and normalization use `TensorPrimitives` for hardware-vectorized math
 - **Configurable batching** — process rows in configurable batch sizes to bound memory usage
 - **Multiple pooling strategies** — Mean, CLS token, and Max pooling (for embeddings)
-- **Typed decisions** — an ML.NET-independent Laya core plus lazy, cursor-batched ML.NET adapters for choice, score, and noul questions
+- **Typed decisions** — an ML.NET-first facade and composable stages backed by a shared, ML.NET-independent Laya core for choice, score, and noul questions
 
-Typed-decision naming follows the same split as the other transforms: the core
+Typed-decision naming follows the same split as the other transforms. The core
 keeps the approved `OnnxTypedDecisions`, `PrepareDecisionInputs`,
-`ScoreOnnxDecisionModel`, and `DecodeDecisions` names; the ML.NET surface exposes
-`*Options`, `*Estimator`, and `*Transformer` types plus `TransformsCatalog`
-extensions with the corresponding verb names. The compiled ML.NET facade can be
-appended with `AppendOnnxTypedDecisions`.
+`ScoreOnnxDecisionModel`, and `DecodeDecisions` names. The ML.NET surface keeps
+the user-facing `TransformsCatalog` verbs, while role types use the repository's
+`*Options`, `*Estimator`, and `*Transformer` conventions:
+`DecisionInputPreparation*`, `OnnxDecisionModelScorer*`, and
+`DecisionDecoding*`. The compiled ML.NET facade can be appended with
+`AppendOnnxTypedDecisions`.
 
 ## Typed decisions
 
@@ -86,11 +88,11 @@ configuration, and tokenizer directory. Ordinary builds and tests use small
 offline fixtures; heavyweight graph parity is only run when this command is
 invoked with a real local bundle.
 
-`LayaTokenizer` intentionally wraps the Microsoft.ML.Tokenizers BPE engine. The
-framework `Tokenizer` abstraction provides encoding primitives, but it does not
-own the profile-specific special-token IDs or Hugging Face bundle loading rules
-needed by Laya. `IDecisionTokenizer` is the small preparation boundary, allowing
-those profile details to remain in the adapter without reimplementing BPE.
+`LayaTokenizer` loads and configures the existing Microsoft.ML.Tokenizers BPE
+engine and exposes that `Tokenizer` directly to preparation. The separate
+`LayaTokenizerMetadata` record carries only the profile-specific special-token
+IDs and mask token. This keeps Microsoft.ML.Tokenizers as the encoding boundary
+without introducing a second tokenizer interface or reimplementing BPE.
 
 ## Quick Start
 
@@ -418,7 +420,7 @@ mlnet-text-inference-custom-transforms/
 | Core facade | `OnnxTypedDecisions` | Standalone bundle-backed inference |
 | Core stages | `PrepareDecisionInputs`, `ScoreOnnxDecisionModel`, `DecodeDecisions` | Inspectable preparation, ORT scoring, and C# decoding |
 | ML.NET facade | `OnnxTypedDecisionsOptions`, `OnnxTypedDecisionsEstimator`, `OnnxTypedDecisionsTransformer` | Schema-aware lazy end-to-end transform |
-| ML.NET stages | `PrepareDecisionInputs*`, `ScoreOnnxDecisionModel*`, `DecodeDecisions*` | `Options` / `Estimator` / `Transformer` stage types |
+| ML.NET stages | `DecisionInputPreparation*`, `OnnxDecisionModelScorer*`, `DecisionDecoding*` | `Options` / `Estimator` / `Transformer` stage types |
 | ML.NET composition | `TransformsCatalog` extensions and `AppendOnnxTypedDecisions` | Standard ML.NET pipeline composition |
 
 ### Text Generation

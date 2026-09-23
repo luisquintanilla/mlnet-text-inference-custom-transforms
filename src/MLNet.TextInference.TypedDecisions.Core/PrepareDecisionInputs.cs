@@ -1,3 +1,5 @@
+using Microsoft.ML.Tokenizers;
+
 namespace MLNet.TextInference.TypedDecisions;
 
 /// <summary>
@@ -6,19 +8,23 @@ namespace MLNet.TextInference.TypedDecisions;
 public sealed class PrepareDecisionInputs
 {
     private readonly LayaDecisionProfile _profile;
-    private readonly IDecisionTokenizer _tokenizer;
+    private readonly Tokenizer _tokenizer;
+    private readonly LayaTokenizerMetadata _tokenizerMetadata;
 
     /// <summary>
     /// Creates a preparation stage with the selected profile and tokenizer contract.
     /// </summary>
     /// <param name="profile">The profile limits and model-specific preparation policy.</param>
-    /// <param name="tokenizer">
-    /// The tokenizer engine and special-token metadata required by the profile.
-    /// </param>
-    public PrepareDecisionInputs(LayaDecisionProfile profile, IDecisionTokenizer tokenizer)
+    /// <param name="tokenizer">The Microsoft tokenizer engine used by the profile.</param>
+    /// <param name="tokenizerMetadata">The profile-specific special-token metadata.</param>
+    public PrepareDecisionInputs(
+        LayaDecisionProfile profile,
+        Tokenizer tokenizer,
+        LayaTokenizerMetadata tokenizerMetadata)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
         _tokenizer = tokenizer ?? throw new ArgumentNullException(nameof(tokenizer));
+        _tokenizerMetadata = tokenizerMetadata ?? throw new ArgumentNullException(nameof(tokenizerMetadata));
         if (_profile.MaxLength <= 0 || _profile.HeadMaxLength <= 0)
             throw new ArgumentException("The profile dimensions must be positive.", nameof(profile));
     }
@@ -53,6 +59,7 @@ public sealed class PrepareDecisionInputs
         sequenceLength = Math.Min(sequenceLength, _profile.MaxLength);
         markerWidth = Math.Min(markerWidth, _profile.HeadMaxLength);
         var inputIds = new long[rows.Count * sequenceLength];
+        Array.Fill(inputIds, (long)_tokenizerMetadata.PadTokenId);
         var attention = new long[inputIds.Length];
         var markerPositions = new long[rows.Count * markerWidth];
         var markerMask = new bool[markerPositions.Length];
@@ -117,9 +124,9 @@ public sealed class PrepareDecisionInputs
         var options = question.RenderOptions();
         var optionIds = options.Select(option =>
         {
-            var scrubbed = option.Replace(_tokenizer.MaskToken, " ", StringComparison.Ordinal);
-            var encoded = _tokenizer.Encode(" " + scrubbed, 49);
-            return new[] { _tokenizer.MaskTokenId }.Concat(encoded).ToArray();
+            var scrubbed = option.Replace(_tokenizerMetadata.MaskToken, " ", StringComparison.Ordinal);
+            var encoded = Encode(" " + scrubbed, 49);
+            return new[] { _tokenizerMetadata.MaskTokenId }.Concat(encoded).ToArray();
         }).ToArray();
 
         int optionTokenCount = optionIds.Sum(static ids => ids.Length);
@@ -133,16 +140,16 @@ public sealed class PrepareDecisionInputs
             optionBudget = _profile.HeadMaxLength - optionIds.Sum(static ids => ids.Length);
         }
 
-        var instructions = question.Instructions.Replace(_tokenizer.MaskToken, " ", StringComparison.Ordinal);
-        var head = _tokenizer.Encode(
+        var instructions = question.Instructions.Replace(_tokenizerMetadata.MaskToken, " ", StringComparison.Ordinal);
+        var head = Encode(
             $"{QuestionTypeName(question.Type)} question: {instructions}",
-            Math.Max(8, optionBudget));
+            Math.Max(0, optionBudget));
         var ids = new List<int>(_profile.MaxLength)
         {
-            _tokenizer.ClsTokenId
+            _tokenizerMetadata.ClsTokenId
         };
         ids.AddRange(head);
-        ids.Add(_tokenizer.SepTokenId);
+        ids.Add(_tokenizerMetadata.SepTokenId);
 
         var markers = new List<int>(optionIds.Length);
         foreach (var option in optionIds)
@@ -151,13 +158,13 @@ public sealed class PrepareDecisionInputs
             ids.AddRange(option);
         }
 
-        ids.Add(_tokenizer.SepTokenId);
+        ids.Add(_tokenizerMetadata.SepTokenId);
         int stateRoom = Math.Max(0, _profile.MaxLength - ids.Count - 1);
-        var stateIds = _tokenizer.Encode(
-            state.Replace(_tokenizer.MaskToken, " ", StringComparison.Ordinal),
+        var stateIds = Encode(
+            state.Replace(_tokenizerMetadata.MaskToken, " ", StringComparison.Ordinal),
             stateRoom);
         ids.AddRange(stateIds);
-        ids.Add(_tokenizer.SepTokenId);
+        ids.Add(_tokenizerMetadata.SepTokenId);
 
         if (ids.Count > _profile.MaxLength)
             ids.RemoveRange(_profile.MaxLength, ids.Count - _profile.MaxLength);
@@ -169,6 +176,23 @@ public sealed class PrepareDecisionInputs
             markers.Where(marker => marker < _profile.MaxLength).ToArray(),
             question.OptionLabels().ToArray(),
             (long)question.Type);
+    }
+
+    private IReadOnlyList<int> Encode(string text, int maxTokenCount)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        if (maxTokenCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(maxTokenCount));
+        if (maxTokenCount == 0)
+            return [];
+
+        return _tokenizer.EncodeToIds(
+            text,
+            maxTokenCount,
+            out _,
+            out _,
+            considerPreTokenization: true,
+            considerNormalization: true);
     }
 
     private static string QuestionTypeName(DecisionQuestionType type)

@@ -66,16 +66,16 @@ public sealed class TypedDecisionAdapterTests
     public void StagedEstimators_PropagateIntermediateTextColumns()
     {
         var ml = new MLContext();
-        var prepare = new PrepareDecisionInputsEstimator(
+        var prepare = new DecisionInputPreparationEstimator(
             ml,
-            new PrepareDecisionInputsOptions
+            new DecisionInputPreparationOptions
             {
                 BundlePath = "not-opened-by-schema-validation",
                 Questions = [DecisionQuestion.Noul("risk", "Will the customer churn?")]
             });
-        var score = new ScoreOnnxDecisionModelEstimator(
+        var score = new OnnxDecisionModelScorerEstimator(
             ml,
-            new ScoreOnnxDecisionModelOptions
+            new OnnxDecisionModelScorerOptions
             {
                 BundlePath = "not-opened-by-schema-validation"
             });
@@ -100,9 +100,9 @@ public sealed class TypedDecisionAdapterTests
         var data = ml.Data.LoadFromEnumerable(
             new[] { new ScoredRow { ScoredDecisionOutputs = scoredJson } });
 
-        var transformer = new DecodeDecisionsEstimator(
+        var transformer = new DecisionDecodingEstimator(
             ml,
-            new DecodeDecisionsOptions { BundlePath = fixture.BundlePath })
+            new DecisionDecodingOptions { BundlePath = fixture.BundlePath })
             .Fit(data);
         var row = ml.Data.CreateEnumerable<DecodedRow>(
             transformer.Transform(data),

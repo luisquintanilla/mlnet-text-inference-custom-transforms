@@ -13,7 +13,10 @@ public sealed class OnnxTypedDecisions : IDisposable
     {
         ArgumentNullException.ThrowIfNull(bundle);
         Profile = bundle.Profile;
-        PrepareStage = new PrepareDecisionInputs(bundle.Profile, bundle.Tokenizer);
+        PrepareStage = new PrepareDecisionInputs(
+            bundle.Profile,
+            bundle.Tokenizer.Tokenizer,
+            bundle.Tokenizer.Metadata);
         _scorer = new ScoreOnnxDecisionModel(bundle);
         DecodeStage = new DecodeDecisions(
             bundle.Profile.TemperaturePolicy,
@@ -27,7 +30,10 @@ public sealed class OnnxTypedDecisions : IDisposable
         {
             _ownedBundle = bundle;
             Profile = bundle.Profile;
-            PrepareStage = new PrepareDecisionInputs(bundle.Profile, bundle.Tokenizer);
+            PrepareStage = new PrepareDecisionInputs(
+                bundle.Profile,
+                bundle.Tokenizer.Tokenizer,
+                bundle.Tokenizer.Metadata);
             _scorer = new ScoreOnnxDecisionModel(bundle);
             DecodeStage = new DecodeDecisions(
                 bundle.Profile.TemperaturePolicy,

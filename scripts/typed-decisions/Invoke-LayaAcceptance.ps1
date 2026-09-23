@@ -3,7 +3,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $BundlePath,
 
-    [ValidateSet("facade", "stages")]
+    [ValidateSet("facade", "stages", "composed")]
     [string] $Mode = "facade",
 
     [switch] $MLNet
@@ -31,6 +31,9 @@ if ($MLNet) {
         -- --mode $Mode --bundle $resolvedBundle.Path
 }
 else {
+    if ($Mode -eq "composed") {
+        throw "The composed acceptance mode is available only with -MLNet."
+    }
     & dotnet run --file (Join-Path $PSScriptRoot "..\..\samples\TypedDecisions\Standalone\Program.cs") `
         -- --mode $Mode --bundle $resolvedBundle.Path
 }

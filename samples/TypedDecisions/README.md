@@ -1,19 +1,24 @@
 # Typed decisions samples
 
 These samples demonstrate the same local typed-decision bundle through the
-standalone core and the ML.NET adapters. The selected initial profile is the
+ML.NET adapters first, with a small standalone core example for direct use and
+acceptance diagnostics. The selected initial profile is the
 English FP32 Laya graph exported from `receptron/laya-onnx` revision
 `68f27dfe5a27a54fb2b1fefc432f43f972e90868`.
 
-The samples are .NET 10 file-based apps and do not download model weights or
-tokenizer files. Prepare a versioned bundle separately, then pass its directory
-or ZIP path with `--bundle`. A missing or incomplete bundle is an explicit error.
+The samples are .NET 10 file-based apps with portable JIT execution
+(`PublishAot=false`) and do not download model weights or tokenizer files.
+Prepare a versioned bundle separately, then pass its directory or ZIP path with
+`--bundle`. A missing or incomplete bundle is an explicit error.
 
 Both samples accept `--mode facade` (the compiled end-to-end API) or
 `--mode stages` (inspect prepared inputs, scored tensors, and decoded results).
 The ML.NET sample also accepts `--mode composed`, which is the same facade in a
-pipeline. JSON output is intentionally exposed so intermediate contracts can
-be inspected without enumerating the input more than once.
+pipeline. JSON output is intentionally exposed so intermediate contracts can be inspected.
+The facade is the normal ML.NET path and batches rows in its cursor. The
+inspectable stages currently pass prepared/scored envelopes through scalar Text
+columns and therefore score/decode one row at a time; they are for composition
+and diagnostics, not a native tensor-column or batched-scoring replacement.
 
 ## Bundle layout
 

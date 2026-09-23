@@ -2,11 +2,12 @@
 // same source and package surface as the solution without a sample-only project file.
 #:project ../../../src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj
 #:package Microsoft.ML@5.0.0
-#:property RestoreSources=https://api.nuget.org/v3/index.json
+#:property PublishAot=false
 
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using MLNet.TextInference.Onnx;
+using static MLNet.TextInference.TypedDecisions.DecisionQuestion;
 
 if (args is ["--help"] or ["-h"])
 {
@@ -24,11 +25,11 @@ if (string.IsNullOrWhiteSpace(bundlePath))
 
 var questions = new[]
 {
-    MLNet.TextInference.TypedDecisions.DecisionQuestion.Choice(
+    Choice(
         "priority", "How urgent is the request?", new[] { "low", "high" }),
-    MLNet.TextInference.TypedDecisions.DecisionQuestion.Score(
+    Score(
         "quality", "How strong is the evidence?", new[] { "weak", "moderate", "strong" }),
-    MLNet.TextInference.TypedDecisions.DecisionQuestion.Noul(
+    Noul(
         "actionable", "Can the request be acted on now?")
 };
 var options = new OnnxTypedDecisionsOptions
@@ -59,13 +60,13 @@ switch (mode.ToLowerInvariant())
         break;
 
     case "stages":
-        var prepared = new PrepareDecisionInputsOptions
+        var prepared = new DecisionInputPreparationOptions
         {
             BundlePath = bundlePath,
             Questions = questions
         };
-        var scored = new ScoreOnnxDecisionModelOptions { BundlePath = bundlePath };
-        var decoded = new DecodeDecisionsOptions { BundlePath = bundlePath };
+        var scored = new OnnxDecisionModelScorerOptions { BundlePath = bundlePath };
+        var decoded = new DecisionDecodingOptions { BundlePath = bundlePath };
         var stages = ml.Transforms.PrepareDecisionInputs(prepared)
             .Append(ml.Transforms.ScoreOnnxDecisionModel(scored))
             .Append(ml.Transforms.DecodeDecisions(decoded));

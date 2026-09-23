@@ -12,8 +12,10 @@ dotnet run --file samples/TypedDecisions/Standalone/Program.cs -- --help
 `PrepareDecisionInputs`, `ScoreOnnxDecisionModel`, and `DecodeDecisions`
 separately and prints the JSON envelope after preparation and scoring. State is
 always text; callers that use structured state must serialize it explicitly.
+The ML.NET sample is the primary pipeline integration; this app is a small
+direct-core example and a useful intermediate-contract diagnostic.
 
 Because file-based apps materialize a temporary project outside the repository,
-their first run needs NuGet access to resolve project/package dependencies and
-the platform runtime packs. `--help` still performs the same restore/build
-path; a missing feed or unavailable runtime pack fails visibly before execution.
+their first run needs the configured NuGet feeds to resolve project/package
+dependencies. `--help` still performs the same restore/build path; a missing
+feed fails visibly before execution.

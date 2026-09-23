@@ -39,22 +39,22 @@ public sealed class OnnxTypedDecisionsEstimator : IEstimator<OnnxTypedDecisionsT
     }
 }
 
-public sealed class PrepareDecisionInputsEstimator : IEstimator<PrepareDecisionInputsTransformer>
+public sealed class DecisionInputPreparationEstimator : IEstimator<DecisionInputPreparationTransformer>
 {
     private readonly MLContext _mlContext;
-    private readonly PrepareDecisionInputsOptions _options;
+    private readonly DecisionInputPreparationOptions _options;
 
-    public PrepareDecisionInputsEstimator(MLContext mlContext, PrepareDecisionInputsOptions options)
+    public DecisionInputPreparationEstimator(MLContext mlContext, DecisionInputPreparationOptions options)
     {
         _mlContext = mlContext ?? throw new ArgumentNullException(nameof(mlContext));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _options.Validate();
     }
 
-    public PrepareDecisionInputsTransformer Fit(IDataView input)
+    public DecisionInputPreparationTransformer Fit(IDataView input)
     {
         ValidateTextColumn(input.Schema, _options.StateColumnName);
-        return new PrepareDecisionInputsTransformer(_mlContext, _options);
+        return new DecisionInputPreparationTransformer(_mlContext, _options);
     }
 
     public SchemaShape GetOutputSchema(SchemaShape inputSchema)
@@ -64,22 +64,22 @@ public sealed class PrepareDecisionInputsEstimator : IEstimator<PrepareDecisionI
     }
 }
 
-public sealed class ScoreOnnxDecisionModelEstimator : IEstimator<ScoreOnnxDecisionModelTransformer>
+public sealed class OnnxDecisionModelScorerEstimator : IEstimator<OnnxDecisionModelScorerTransformer>
 {
     private readonly MLContext _mlContext;
-    private readonly ScoreOnnxDecisionModelOptions _options;
+    private readonly OnnxDecisionModelScorerOptions _options;
 
-    public ScoreOnnxDecisionModelEstimator(MLContext mlContext, ScoreOnnxDecisionModelOptions options)
+    public OnnxDecisionModelScorerEstimator(MLContext mlContext, OnnxDecisionModelScorerOptions options)
     {
         _mlContext = mlContext ?? throw new ArgumentNullException(nameof(mlContext));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _options.Validate();
     }
 
-    public ScoreOnnxDecisionModelTransformer Fit(IDataView input)
+    public OnnxDecisionModelScorerTransformer Fit(IDataView input)
     {
         ValidateTextColumn(input.Schema, _options.InputColumnName);
-        return new ScoreOnnxDecisionModelTransformer(_mlContext, _options);
+        return new OnnxDecisionModelScorerTransformer(_mlContext, _options);
     }
 
     public SchemaShape GetOutputSchema(SchemaShape inputSchema)
@@ -89,22 +89,22 @@ public sealed class ScoreOnnxDecisionModelEstimator : IEstimator<ScoreOnnxDecisi
     }
 }
 
-public sealed class DecodeDecisionsEstimator : IEstimator<DecodeDecisionsTransformer>
+public sealed class DecisionDecodingEstimator : IEstimator<DecisionDecodingTransformer>
 {
     private readonly MLContext _mlContext;
-    private readonly DecodeDecisionsOptions _options;
+    private readonly DecisionDecodingOptions _options;
 
-    public DecodeDecisionsEstimator(MLContext mlContext, DecodeDecisionsOptions options)
+    public DecisionDecodingEstimator(MLContext mlContext, DecisionDecodingOptions options)
     {
         _mlContext = mlContext ?? throw new ArgumentNullException(nameof(mlContext));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _options.Validate();
     }
 
-    public DecodeDecisionsTransformer Fit(IDataView input)
+    public DecisionDecodingTransformer Fit(IDataView input)
     {
         ValidateTextColumn(input.Schema, _options.InputColumnName);
-        return new DecodeDecisionsTransformer(_mlContext, _options);
+        return new DecisionDecodingTransformer(_mlContext, _options);
     }
 
     public SchemaShape GetOutputSchema(SchemaShape inputSchema)
@@ -148,17 +148,20 @@ public sealed class OnnxTypedDecisionsTransformer : ITransformer, IDisposable
     public void Dispose() => _facade.Dispose();
 }
 
-public sealed class PrepareDecisionInputsTransformer : ITransformer, IDisposable
+public sealed class DecisionInputPreparationTransformer : ITransformer, IDisposable
 {
-    private readonly PrepareDecisionInputsOptions _options;
+    private readonly DecisionInputPreparationOptions _options;
     private readonly CoreBundle _bundle;
     private readonly CorePreparer _preparer;
 
-    internal PrepareDecisionInputsTransformer(MLContext mlContext, PrepareDecisionInputsOptions options)
+    internal DecisionInputPreparationTransformer(MLContext mlContext, DecisionInputPreparationOptions options)
     {
         _options = options;
         _bundle = CoreBundle.Open(options.BundlePath);
-        _preparer = new CorePreparer(_bundle.Profile, _bundle.Tokenizer);
+        _preparer = new CorePreparer(
+            _bundle.Profile,
+            _bundle.Tokenizer.Tokenizer,
+            _bundle.Tokenizer.Metadata);
     }
 
     public bool IsRowToRowMapper => true;
@@ -186,13 +189,13 @@ public sealed class PrepareDecisionInputsTransformer : ITransformer, IDisposable
     public void Dispose() => _bundle.Dispose();
 }
 
-public sealed class ScoreOnnxDecisionModelTransformer : ITransformer, IDisposable
+public sealed class OnnxDecisionModelScorerTransformer : ITransformer, IDisposable
 {
-    private readonly ScoreOnnxDecisionModelOptions _options;
+    private readonly OnnxDecisionModelScorerOptions _options;
     private readonly CoreBundle _bundle;
     private readonly CoreScorer _scorer;
 
-    internal ScoreOnnxDecisionModelTransformer(MLContext mlContext, ScoreOnnxDecisionModelOptions options)
+    internal OnnxDecisionModelScorerTransformer(MLContext mlContext, OnnxDecisionModelScorerOptions options)
     {
         _options = options;
         var bundle = CoreBundle.Open(options.BundlePath);
@@ -240,13 +243,13 @@ public sealed class ScoreOnnxDecisionModelTransformer : ITransformer, IDisposabl
     }
 }
 
-public sealed class DecodeDecisionsTransformer : ITransformer, IDisposable
+public sealed class DecisionDecodingTransformer : ITransformer, IDisposable
 {
-    private readonly DecodeDecisionsOptions _options;
+    private readonly DecisionDecodingOptions _options;
     private readonly CoreBundle _bundle;
     private readonly CoreDecoder _decoder;
 
-    internal DecodeDecisionsTransformer(MLContext mlContext, DecodeDecisionsOptions options)
+    internal DecisionDecodingTransformer(MLContext mlContext, DecisionDecodingOptions options)
     {
         _options = options;
         _bundle = CoreBundle.Open(options.BundlePath);
@@ -297,7 +300,7 @@ internal static class DecisionSchema
             (options.ActionProbabilityColumnName, (DataViewType)NumberDataViewType.Single));
     }
 
-    internal static SchemaShape AddResults(SchemaShape input, DecodeDecisionsOptions options)
+    internal static SchemaShape AddResults(SchemaShape input, DecisionDecodingOptions options)
     {
         return AddColumns(
             input,
@@ -319,7 +322,7 @@ internal static class DecisionSchema
         return builder.ToSchema();
     }
 
-    internal static DataViewSchema AddResults(DataViewSchema input, DecodeDecisionsOptions options)
+    internal static DataViewSchema AddResults(DataViewSchema input, DecisionDecodingOptions options)
     {
         var builder = new DataViewSchema.Builder();
         builder.AddColumns(input);
@@ -478,12 +481,12 @@ internal sealed class JsonProjectionDataView : IDataView
 internal sealed class DecodeDecisionDataView : IDataView
     {
         private readonly IDataView _input;
-        private readonly DecodeDecisionsOptions _options;
+        private readonly DecisionDecodingOptions _options;
         private readonly CoreDecoder _decoder;
 
         internal DecodeDecisionDataView(
             IDataView input,
-            DecodeDecisionsOptions options,
+            DecisionDecodingOptions options,
             CoreDecoder decoder)
         {
             _input = input;
