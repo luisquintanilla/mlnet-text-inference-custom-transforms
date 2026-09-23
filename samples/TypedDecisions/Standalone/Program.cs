@@ -1,5 +1,16 @@
+﻿// This is a .NET 10 file-based app. The project directive keeps the sample on the
+// same source and package surface as the solution without a sample-only project file.
+#:project ../../../src/MLNet.TextInference.TypedDecisions.Core/MLNet.TextInference.TypedDecisions.Core.csproj
+#:property RestoreSources=https://api.nuget.org/v3/index.json
+
 using System.Text.Json;
 using MLNet.TextInference.TypedDecisions;
+
+if (args is ["--help"] or ["-h"])
+{
+    PrintUsage();
+    return 0;
+}
 
 var mode = GetOption(args, "--mode") ?? "facade";
 var bundlePath = GetOption(args, "--bundle");
@@ -74,4 +85,11 @@ static void PrintLabeledJson(string label, string json)
     {
         WriteIndented = true
     }));
+}
+
+static void PrintUsage()
+{
+    Console.WriteLine("""
+        Usage: dotnet run --file samples/TypedDecisions/Standalone/Program.cs -- --mode <facade|stages> --bundle <path>
+        """);
 }

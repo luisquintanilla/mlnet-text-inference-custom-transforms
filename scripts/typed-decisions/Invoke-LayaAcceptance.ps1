@@ -27,11 +27,11 @@ if (Test-Path -LiteralPath $resolvedBundle -PathType Container) {
 }
 
 if ($MLNet) {
-    & dotnet run --project (Join-Path $PSScriptRoot "..\..\samples\TypedDecisions\MLNetPipeline\MLNetPipeline.csproj") `
+    & dotnet run --file (Join-Path $PSScriptRoot "..\..\samples\TypedDecisions\MLNetPipeline\Program.cs") `
         -- --mode $Mode --bundle $resolvedBundle.Path
 }
 else {
-    & dotnet run --project (Join-Path $PSScriptRoot "..\..\samples\TypedDecisions\Standalone\Standalone.csproj") `
+    & dotnet run --file (Join-Path $PSScriptRoot "..\..\samples\TypedDecisions\Standalone\Program.cs") `
         -- --mode $Mode --bundle $resolvedBundle.Path
 }
 

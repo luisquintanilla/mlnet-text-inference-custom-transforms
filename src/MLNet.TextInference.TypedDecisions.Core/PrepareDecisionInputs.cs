@@ -6,9 +6,16 @@ namespace MLNet.TextInference.TypedDecisions;
 public sealed class PrepareDecisionInputs
 {
     private readonly LayaDecisionProfile _profile;
-    private readonly LayaTokenizer _tokenizer;
+    private readonly IDecisionTokenizer _tokenizer;
 
-    public PrepareDecisionInputs(LayaDecisionProfile profile, LayaTokenizer tokenizer)
+    /// <summary>
+    /// Creates a preparation stage with the selected profile and tokenizer contract.
+    /// </summary>
+    /// <param name="profile">The profile limits and model-specific preparation policy.</param>
+    /// <param name="tokenizer">
+    /// The tokenizer engine and special-token metadata required by the profile.
+    /// </param>
+    public PrepareDecisionInputs(LayaDecisionProfile profile, IDecisionTokenizer tokenizer)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
         _tokenizer = tokenizer ?? throw new ArgumentNullException(nameof(tokenizer));

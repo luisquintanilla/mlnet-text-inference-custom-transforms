@@ -5,9 +5,9 @@ standalone core and the ML.NET adapters. The selected initial profile is the
 English FP32 Laya graph exported from `receptron/laya-onnx` revision
 `68f27dfe5a27a54fb2b1fefc432f43f972e90868`.
 
-The samples do not download model weights or tokenizer files. Prepare a
-versioned bundle separately, then pass its directory or ZIP path with
-`--bundle`. A missing or incomplete bundle is an explicit error.
+The samples are .NET 10 file-based apps and do not download model weights or
+tokenizer files. Prepare a versioned bundle separately, then pass its directory
+or ZIP path with `--bundle`. A missing or incomplete bundle is an explicit error.
 
 Both samples accept `--mode facade` (the compiled end-to-end API) or
 `--mode stages` (inspect prepared inputs, scored tensors, and decoded results).

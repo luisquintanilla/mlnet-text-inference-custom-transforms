@@ -1,6 +1,18 @@
+﻿// This is a .NET 10 file-based app. The project directive keeps the sample on the
+// same source and package surface as the solution without a sample-only project file.
+#:project ../../../src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj
+#:package Microsoft.ML@5.0.0
+#:property RestoreSources=https://api.nuget.org/v3/index.json
+
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using MLNet.TextInference.Onnx;
+
+if (args is ["--help"] or ["-h"])
+{
+    PrintUsage();
+    return 0;
+}
 
 var mode = GetOption(args, "--mode") ?? "facade";
 var bundlePath = GetOption(args, "--bundle");
@@ -96,6 +108,13 @@ static string? GetOption(string[] args, string name)
 {
     var index = Array.IndexOf(args, name);
     return index >= 0 && index + 1 < args.Length ? args[index + 1] : null;
+}
+
+static void PrintUsage()
+{
+    Console.WriteLine("""
+        Usage: dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- --mode <facade|stages|composed> --bundle <path>
+        """);
 }
 
 public sealed class StateRow

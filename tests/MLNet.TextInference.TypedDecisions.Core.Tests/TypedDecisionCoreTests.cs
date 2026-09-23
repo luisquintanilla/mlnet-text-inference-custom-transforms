@@ -44,6 +44,31 @@ public sealed class TypedDecisionCoreTests
     }
 
     [TestMethod]
+    public void PrepareDecisionInputs_UsesDecisionTokenizerAbstraction()
+    {
+        var profile = new LayaDecisionProfile
+        {
+            Name = "fixture",
+            Revision = "fixture",
+            MaxLength = 32,
+            HeadMaxLength = 16,
+            ModelFile = "model.onnx",
+            TokenizerDirectory = "tokenizer",
+            TemperaturePolicy = DecisionTemperaturePolicy.Default
+        };
+        var tokenizer = new RecordingTokenizer();
+        var input = new PrepareDecisionInputs(profile, tokenizer).Prepare(
+            "state",
+            [DecisionQuestion.Choice("team", "Which team?", ["billing", "support"])]);
+
+        Assert.AreEqual(1, input.BatchSize);
+        Assert.IsTrue(tokenizer.EncodedTexts.Any(static text => text.Contains("choice question", StringComparison.Ordinal)));
+        Assert.IsTrue(tokenizer.EncodedTexts.Any(static text => text.Contains("state", StringComparison.Ordinal)));
+        Assert.AreEqual(tokenizer.ClsTokenId, input.InputIds[0]);
+        Assert.IsTrue(input.MarkerMask[0]);
+    }
+
+    [TestMethod]
     public void LayaTokenizer_LoadsCurrentArrayFormBpeMerges()
     {
         using var fixture = ArrayMergeTokenizerFixture.Create();
@@ -277,6 +302,28 @@ public sealed class TypedDecisionCoreTests
         {
             if (Directory.Exists(Root))
                 Directory.Delete(Root, recursive: true);
+        }
+    }
+
+    private sealed class RecordingTokenizer : IDecisionTokenizer
+    {
+        public List<string> EncodedTexts { get; } = [];
+        public int ClsTokenId => 101;
+        public int SepTokenId => 102;
+        public int MaskTokenId => 103;
+        public int PadTokenId => 0;
+        public string MaskToken => "[MASK]";
+
+        public IReadOnlyList<int> Encode(string text)
+        {
+            EncodedTexts.Add(text);
+            return [201];
+        }
+
+        public IReadOnlyList<int> Encode(string text, int maxTokenCount)
+        {
+            EncodedTexts.Add(text);
+            return maxTokenCount == 0 ? [] : [201];
         }
     }
 

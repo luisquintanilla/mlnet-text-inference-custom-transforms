@@ -8,7 +8,14 @@ namespace MLNet.TextInference.TypedDecisions;
 /// Loads the selected profile's Hugging Face BPE tokenizer through Microsoft.ML.Tokenizers.
 /// The loader intentionally does not fall back to another tokenizer runtime.
 /// </summary>
-public sealed class LayaTokenizer
+/// <remarks>
+/// This type composes the framework tokenizer rather than subclassing its abstract
+/// <see cref="Tokenizer"/> base. The base is an encoding primitive and does not carry
+/// the Laya profile's added-token IDs or bundle loading rules; those belong in this
+/// adapter. The concrete <see cref="BpeTokenizer"/> is sealed, so subclassing would
+/// also require duplicating or delegating the BPE implementation.
+/// </remarks>
+public sealed class LayaTokenizer : IDecisionTokenizer
 {
     private readonly Tokenizer _tokenizer;
 
