@@ -235,19 +235,173 @@ public sealed class TypedDecisionCoreTests
     [TestMethod]
     public void DecisionJsonCodec_RoundTripsPreparedInputsAndScoredOutputs()
     {
-        var question = DecisionQuestion.Choice("team", "Which?", ["billing", "support"]);
+        var questions = new[]
+        {
+            DecisionQuestion.Choice("team", "Which?", ["billing", "support"]),
+            DecisionQuestion.Score("urgency", "How urgent?", ["low", "high"]),
+            DecisionQuestion.Noul(
+                "risk",
+                "Will it happen?",
+                new NoulCriteria("yes", "no"))
+        };
         var inputs = new DecisionInputBatch
         {
-            BatchSize = 1,
-            SequenceLength = 3,
-            MarkerWidth = 2,
-            InputIds = [1, 2, 3],
-            AttentionMask = [1, 1, 0],
-            MarkerPositions = [1, 2],
-            MarkerMask = [true, true],
-            QuestionTypes = [0],
-            Items = [new(0, question, [1, 2], ["billing", "support"], 0)]
+            BatchSize = 3,
+            SequenceLength = 4,
+            MarkerWidth = 3,
+            InputIds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            AttentionMask = [1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1],
+            MarkerPositions = [1, 2, 0, 0, 1, 0, 1, 2, 0],
+            MarkerMask = [true, true, false, true, true, false, true, true, true],
+            QuestionTypes = [0, 1, 2],
+            Items =
+            [
+                new(0, questions[0], [1, 2], ["billing", "support"], 0),
+                new(1, questions[1], [0, 1], ["0", "1"], 1),
+                new(2, questions[2], [1, 2], ["false", "true"], 2)
+            ]
         };
+        var outputs = new DecisionModelOutputs
+        {
+            BatchSize = 3,
+            MarkerWidth = 3,
+            Logits = [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            ActionProbabilities = [0.6f, 0.4f, 0.7f, 0.3f, 0.8f, 0.2f]
+        };
+
+        var json = DecisionJsonCodec.SerializeScored(inputs, outputs);
+        using (var document = JsonDocument.Parse(json))
+        {
+            var inputEnvelope = document.RootElement.GetProperty("inputs");
+            Assert.AreEqual(3, inputEnvelope.GetProperty("batchSize").GetInt32());
+            Assert.AreEqual(4, inputEnvelope.GetProperty("sequenceLength").GetInt32());
+            Assert.AreEqual(3, inputEnvelope.GetProperty("markerWidth").GetInt32());
+            CollectionAssert.AreEqual(
+                inputs.InputIds,
+                inputEnvelope.GetProperty("inputIds").Deserialize<long[]>()!);
+            CollectionAssert.AreEqual(
+                inputs.AttentionMask,
+                inputEnvelope.GetProperty("attentionMask").Deserialize<long[]>()!);
+            CollectionAssert.AreEqual(
+                inputs.MarkerPositions,
+                inputEnvelope.GetProperty("markerPositions").Deserialize<long[]>()!);
+            CollectionAssert.AreEqual(
+                inputs.MarkerMask,
+                inputEnvelope.GetProperty("markerMask").Deserialize<bool[]>()!);
+            CollectionAssert.AreEqual(
+                inputs.QuestionTypes,
+                inputEnvelope.GetProperty("questionTypes").Deserialize<long[]>()!);
+            Assert.AreEqual(
+                "Choice",
+                inputEnvelope.GetProperty("items")[0]
+                    .GetProperty("question")
+                    .GetProperty("type")
+                    .GetString());
+            Assert.AreEqual(
+                "Score",
+                inputEnvelope.GetProperty("items")[1]
+                    .GetProperty("question")
+                    .GetProperty("type")
+                    .GetString());
+            Assert.AreEqual(
+                "Noul",
+                inputEnvelope.GetProperty("items")[2]
+                    .GetProperty("question")
+                    .GetProperty("type")
+                    .GetString());
+            Assert.AreEqual(2, inputEnvelope.GetProperty("items")[2]
+                .GetProperty("requestIndex").GetInt32());
+            CollectionAssert.AreEqual(
+                outputs.Logits,
+                document.RootElement.GetProperty("outputs")
+                    .GetProperty("logits").Deserialize<float[]>()!);
+            CollectionAssert.AreEqual(
+                outputs.ActionProbabilities,
+                document.RootElement.GetProperty("outputs")
+                    .GetProperty("actionProbabilities").Deserialize<float[]>()!);
+        }
+        var roundTrip = DecisionJsonCodec.DeserializeScored(json);
+
+        Assert.AreEqual(inputs.BatchSize, roundTrip.Inputs.BatchSize);
+        Assert.AreEqual(inputs.SequenceLength, roundTrip.Inputs.SequenceLength);
+        Assert.AreEqual(inputs.MarkerWidth, roundTrip.Inputs.MarkerWidth);
+        CollectionAssert.AreEqual(inputs.InputIds, roundTrip.Inputs.InputIds);
+        CollectionAssert.AreEqual(inputs.AttentionMask, roundTrip.Inputs.AttentionMask);
+        CollectionAssert.AreEqual(inputs.MarkerPositions, roundTrip.Inputs.MarkerPositions);
+        CollectionAssert.AreEqual(inputs.MarkerMask, roundTrip.Inputs.MarkerMask);
+        CollectionAssert.AreEqual(inputs.QuestionTypes, roundTrip.Inputs.QuestionTypes);
+        CollectionAssert.AreEqual(outputs.Logits, roundTrip.Outputs.Logits);
+        CollectionAssert.AreEqual(outputs.ActionProbabilities, roundTrip.Outputs.ActionProbabilities);
+        Assert.AreEqual(3, roundTrip.Inputs.Items.Count);
+        Assert.AreEqual(0, roundTrip.Inputs.Items[0].RequestIndex);
+        Assert.AreEqual("team", roundTrip.Inputs.Items[0].Question.Id);
+        Assert.AreEqual(DecisionQuestionType.Choice, roundTrip.Inputs.Items[0].Question.Type);
+        Assert.AreEqual(DecisionQuestionType.Score, roundTrip.Inputs.Items[1].Question.Type);
+        CollectionAssert.AreEqual(new[] { "0", "1" }, roundTrip.Inputs.Items[1].OptionLabels);
+        Assert.AreEqual(DecisionQuestionType.Noul, roundTrip.Inputs.Items[2].Question.Type);
+        Assert.AreEqual("yes", roundTrip.Inputs.Items[2].Question.NoulCriteria!.True);
+    }
+
+    [TestMethod]
+    public void DecisionJsonCodec_SerializesResponseWithAllDerivedResultFields()
+    {
+        var response = new DecisionResponse
+        {
+            InputTokenCount = 7,
+            Results =
+            [
+                new ChoiceDecisionResult(
+                    "team",
+                    "support",
+                    new DecisionDistribution(["billing", "support"], [0.1f, 0.9f]),
+                    0.9f,
+                    0.8f),
+                new ScoreDecisionResult(
+                    "urgency",
+                    1.5f,
+                    new Dictionary<string, string> { ["0"] = "low", ["1"] = "high" },
+                    new DecisionDistribution(["0", "1"], [0.2f, 0.8f]),
+                    0.8f,
+                    0.7f),
+                new NoulDecisionResult(
+                    "risk",
+                    true,
+                    0.75f,
+                    new DecisionDistribution(["false", "true"], [0.25f, 0.75f]),
+                    0.75f,
+                    0.6f)
+            ]
+        };
+
+        using var document = JsonDocument.Parse(DecisionJsonCodec.SerializeResponse(response));
+        Assert.AreEqual(7, document.RootElement.GetProperty("input_tokens").GetInt32());
+        var results = document.RootElement.GetProperty("results");
+        Assert.AreEqual(3, results.GetArrayLength());
+
+        var choice = results[0];
+        Assert.AreEqual("team", choice.GetProperty("id").GetString());
+        Assert.AreEqual("choice", choice.GetProperty("type").GetString());
+        Assert.AreEqual("support", choice.GetProperty("choice").GetString());
+        Assert.AreEqual(0.9f, choice.GetProperty("confidence").GetSingle(), 0.0001f);
+        Assert.AreEqual(0.8f, choice.GetProperty("action_probability").GetSingle(), 0.0001f);
+        Assert.AreEqual(0.9f, choice.GetProperty("probabilities")[1].GetSingle(), 0.0001f);
+
+        var score = results[1];
+        Assert.AreEqual("score", score.GetProperty("type").GetString());
+        Assert.AreEqual(1.5f, score.GetProperty("score").GetSingle(), 0.0001f);
+        Assert.AreEqual("high", score.GetProperty("legend").GetProperty("1").GetString());
+        Assert.AreEqual(0.8f, score.GetProperty("confidence").GetSingle(), 0.0001f);
+
+        var noul = results[2];
+        Assert.AreEqual("noul", noul.GetProperty("type").GetString());
+        Assert.IsTrue(noul.GetProperty("noul").GetBoolean());
+        Assert.AreEqual(0.75f, noul.GetProperty("probability_true").GetSingle(), 0.0001f);
+        Assert.AreEqual(0.75f, noul.GetProperty("probabilities")[1].GetSingle(), 0.0001f);
+    }
+
+    [TestMethod]
+    public void DecisionJsonCodec_RejectsNullAndMalformedInput()
+    {
         var outputs = new DecisionModelOutputs
         {
             BatchSize = 1,
@@ -256,26 +410,12 @@ public sealed class TypedDecisionCoreTests
             ActionProbabilities = [0.6f, 0.4f]
         };
 
-        var json = DecisionJsonCodec.SerializeScored(inputs, outputs);
-        using (var document = JsonDocument.Parse(json))
-        {
-            var inputEnvelope = document.RootElement.GetProperty("inputs");
-            Assert.IsTrue(inputEnvelope.TryGetProperty("inputIds", out _));
-            Assert.IsTrue(inputEnvelope.TryGetProperty("attentionMask", out _));
-            Assert.AreEqual(
-                "Choice",
-                inputEnvelope.GetProperty("items")[0]
-                    .GetProperty("question")
-                    .GetProperty("type")
-                    .GetString());
-            Assert.IsTrue(document.RootElement.GetProperty("outputs")
-                .TryGetProperty("actionProbabilities", out _));
-        }
-        var roundTrip = DecisionJsonCodec.DeserializeScored(json);
-
-        CollectionAssert.AreEqual(inputs.InputIds, roundTrip.Inputs.InputIds);
-        CollectionAssert.AreEqual(outputs.Logits, roundTrip.Outputs.Logits);
-        Assert.AreEqual("team", roundTrip.Inputs.Items[0].Question.Id);
+        Assert.ThrowsException<ArgumentNullException>(() =>
+            DecisionJsonCodec.SerializeScored(null!, outputs));
+        Assert.ThrowsException<JsonException>(() =>
+            DecisionJsonCodec.DeserializeInputs("""{"batchSize":1}"""));
+        Assert.ThrowsException<JsonException>(() =>
+            DecisionJsonCodec.DeserializeInputs("{"));
     }
 
     [TestMethod]

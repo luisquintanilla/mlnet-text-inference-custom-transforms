@@ -23,6 +23,12 @@ The compiled facade can also be appended to an existing estimator chain with
 deliberately not implemented because the bundle remains an explicit local
 runtime dependency.
 
+In `composed` mode, the sample materializes both the original facade columns
+and the appended columns (`AppendedDecisionResults`, `AppendedDecisionChoice`,
+`AppendedDecisionScore`, `AppendedDecisionProbabilityTrue`,
+`AppendedDecisionConfidence`, and `AppendedDecisionActionProbability`) so the
+append-composition result can be compared directly with the first transform.
+
 Because file-based apps materialize a temporary project outside the repository,
 their first run needs the configured NuGet feeds to resolve project/package
 dependencies. `--help` still performs the same restore/build path; a missing

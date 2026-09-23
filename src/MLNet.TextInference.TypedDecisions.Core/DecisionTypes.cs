@@ -172,7 +172,10 @@ public sealed class DecisionInputBatch
     {
         if (BatchSize <= 0 || SequenceLength <= 0 || MarkerWidth <= 0)
             throw new InvalidOperationException("Decision input dimensions must be positive.");
-        if (InputIds.Length != BatchSize * SequenceLength ||
+        if (InputIds is null || AttentionMask is null ||
+            MarkerPositions is null || MarkerMask is null ||
+            QuestionTypes is null || Items is null ||
+            InputIds.Length != BatchSize * SequenceLength ||
             AttentionMask.Length != BatchSize * SequenceLength ||
             MarkerPositions.Length != BatchSize * MarkerWidth ||
             MarkerMask.Length != BatchSize * MarkerWidth ||
@@ -195,6 +198,7 @@ public sealed class DecisionModelOutputs
     public void Validate()
     {
         if (BatchSize <= 0 || MarkerWidth <= 0 ||
+            Logits is null || ActionProbabilities is null ||
             Logits.Length != BatchSize * MarkerWidth ||
             ActionProbabilities.Length != BatchSize * 2)
         {

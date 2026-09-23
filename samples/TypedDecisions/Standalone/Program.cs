@@ -5,6 +5,7 @@
 
 using System.Text.Json;
 using MLNet.TextInference.TypedDecisions;
+using static MLNet.TextInference.TypedDecisions.DecisionQuestion;
 
 if (args is ["--help"] or ["-h"])
 {
@@ -22,15 +23,15 @@ if (string.IsNullOrWhiteSpace(bundlePath))
 
 var questions = new[]
 {
-    DecisionQuestion.Choice(
+    Choice(
         "priority",
         "How urgent is the request?",
         new[] { "low", "high" }),
-    DecisionQuestion.Score(
+    Score(
         "quality",
         "How strong is the evidence?",
         new[] { "weak", "moderate", "strong" }),
-    DecisionQuestion.Noul(
+    Noul(
         "actionable",
         "Can the request be acted on now?")
 };

@@ -10,26 +10,29 @@ public static class DecisionJsonCodec
     {
         ArgumentNullException.ThrowIfNull(batch);
         batch.Validate();
-        return JsonSerializer.Serialize(CreateInputEnvelope(batch), JsonOptions);
+        return JsonSerializer.Serialize(batch, JsonOptions);
     }
 
     public static DecisionInputBatch DeserializeInputs(string json)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
-        var envelope = JsonSerializer.Deserialize<InputEnvelope>(json, JsonOptions)
+        var batch = JsonSerializer.Deserialize<DecisionInputBatch>(json, JsonOptions)
             ?? throw new InvalidDataException("Prepared decision inputs are not valid JSON.");
-        return CreateInputBatch(envelope);
+        batch.Validate();
+        return batch;
     }
 
     public static string SerializeScored(
         DecisionInputBatch inputs,
         DecisionModelOutputs outputs)
     {
+        ArgumentNullException.ThrowIfNull(inputs);
         ArgumentNullException.ThrowIfNull(outputs);
+        inputs.Validate();
         outputs.Validate();
         return JsonSerializer.Serialize(new ScoredEnvelope
         {
-            Inputs = CreateInputEnvelope(inputs),
+            Inputs = inputs,
             Outputs = outputs
         }, JsonOptions);
     }
@@ -39,58 +42,11 @@ public static class DecisionJsonCodec
         ArgumentException.ThrowIfNullOrWhiteSpace(json);
         var envelope = JsonSerializer.Deserialize<ScoredEnvelope>(json, JsonOptions)
             ?? throw new InvalidDataException("Scored decision inputs are not valid JSON.");
-        var inputs = CreateInputBatch(envelope.Inputs);
+        ArgumentNullException.ThrowIfNull(envelope.Inputs);
+        envelope.Inputs.Validate();
+        ArgumentNullException.ThrowIfNull(envelope.Outputs);
         envelope.Outputs.Validate();
-        return (inputs, envelope.Outputs);
-    }
-
-    private static InputEnvelope CreateInputEnvelope(DecisionInputBatch batch)
-    {
-        batch.Validate();
-        return new InputEnvelope
-        {
-            BatchSize = batch.BatchSize,
-            SequenceLength = batch.SequenceLength,
-            MarkerWidth = batch.MarkerWidth,
-            InputIds = batch.InputIds,
-            AttentionMask = batch.AttentionMask,
-            MarkerPositions = batch.MarkerPositions,
-            MarkerMask = batch.MarkerMask,
-            QuestionTypes = batch.QuestionTypes,
-            Items = batch.Items.Select(static item => new InputItemEnvelope
-            {
-                RequestIndex = item.RequestIndex,
-                Question = item.Question,
-                MarkerPositions = item.MarkerPositions,
-                OptionLabels = item.OptionLabels,
-                QuestionType = item.QuestionType
-            }).ToArray()
-        };
-    }
-
-    private static DecisionInputBatch CreateInputBatch(InputEnvelope envelope)
-    {
-        ArgumentNullException.ThrowIfNull(envelope);
-        var items = envelope.Items.Select(static item => new DecisionInputItem(
-            item.RequestIndex,
-            item.Question,
-            item.MarkerPositions,
-            item.OptionLabels,
-            item.QuestionType)).ToArray();
-        var batch = new DecisionInputBatch
-        {
-            BatchSize = envelope.BatchSize,
-            SequenceLength = envelope.SequenceLength,
-            MarkerWidth = envelope.MarkerWidth,
-            InputIds = envelope.InputIds,
-            AttentionMask = envelope.AttentionMask,
-            MarkerPositions = envelope.MarkerPositions,
-            MarkerMask = envelope.MarkerMask,
-            QuestionTypes = envelope.QuestionTypes,
-            Items = items
-        };
-        batch.Validate();
-        return batch;
+        return (envelope.Inputs, envelope.Outputs);
     }
 
     public static string SerializeResponse(DecisionResponse response)
@@ -153,31 +109,9 @@ public static class DecisionJsonCodec
         };
     }
 
-    private sealed class InputEnvelope
-    {
-        public int BatchSize { get; set; }
-        public int SequenceLength { get; set; }
-        public int MarkerWidth { get; set; }
-        public long[] InputIds { get; set; } = [];
-        public long[] AttentionMask { get; set; } = [];
-        public long[] MarkerPositions { get; set; } = [];
-        public bool[] MarkerMask { get; set; } = [];
-        public long[] QuestionTypes { get; set; } = [];
-        public InputItemEnvelope[] Items { get; set; } = [];
-    }
-
-    private sealed class InputItemEnvelope
-    {
-        public int RequestIndex { get; set; }
-        public DecisionQuestion Question { get; set; } = null!;
-        public int[] MarkerPositions { get; set; } = [];
-        public string[] OptionLabels { get; set; } = [];
-        public long QuestionType { get; set; }
-    }
-
     private sealed class ScoredEnvelope
     {
-        public InputEnvelope Inputs { get; set; } = null!;
+        public DecisionInputBatch Inputs { get; set; } = null!;
         public DecisionModelOutputs Outputs { get; set; } = null!;
     }
 

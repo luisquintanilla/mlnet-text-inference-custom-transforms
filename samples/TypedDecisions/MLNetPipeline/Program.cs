@@ -96,11 +96,37 @@ switch (mode.ToLowerInvariant())
         return 2;
 }
 
-foreach (var row in ml.Data.CreateEnumerable<DecisionRow>(output, reuseRowObject: false))
+if (mode.Equals("composed", StringComparison.OrdinalIgnoreCase))
 {
-    Console.WriteLine($"choice={row.DecisionChoice}; score={row.DecisionScore}; " +
-        $"true_probability={row.DecisionProbabilityTrue}; confidence={row.DecisionConfidence}");
-    Console.WriteLine(row.DecisionResults);
+    foreach (var row in ml.Data.CreateEnumerable<ComposedDecisionRow>(output, reuseRowObject: false))
+    {
+        PrintRow(
+            row.DecisionChoice,
+            row.DecisionScore,
+            row.DecisionProbabilityTrue,
+            row.DecisionConfidence,
+            row.DecisionActionProbability,
+            row.DecisionResults);
+        Console.WriteLine($"appended_choice={row.AppendedDecisionChoice}; " +
+            $"appended_score={row.AppendedDecisionScore}; " +
+            $"appended_true_probability={row.AppendedDecisionProbabilityTrue}; " +
+            $"appended_confidence={row.AppendedDecisionConfidence}; " +
+            $"appended_action_probability={row.AppendedDecisionActionProbability}");
+        Console.WriteLine(row.AppendedDecisionResults);
+    }
+}
+else
+{
+    foreach (var row in ml.Data.CreateEnumerable<DecisionRow>(output, reuseRowObject: false))
+    {
+        PrintRow(
+            row.DecisionChoice,
+            row.DecisionScore,
+            row.DecisionProbabilityTrue,
+            row.DecisionConfidence,
+            row.DecisionActionProbability,
+            row.DecisionResults);
+    }
 }
 
 return 0;
@@ -118,12 +144,26 @@ static void PrintUsage()
         """);
 }
 
+static void PrintRow(
+    string choice,
+    float score,
+    float trueProbability,
+    float confidence,
+    float actionProbability,
+    string results)
+{
+    Console.WriteLine($"choice={choice}; score={score}; " +
+        $"true_probability={trueProbability}; confidence={confidence}; " +
+        $"action_probability={actionProbability}");
+    Console.WriteLine(results);
+}
+
 public sealed class StateRow
 {
     public string State { get; set; } = string.Empty;
 }
 
-public sealed class DecisionRow
+public class DecisionRow
 {
     public string DecisionResults { get; set; } = string.Empty;
     public string DecisionChoice { get; set; } = string.Empty;
@@ -131,4 +171,14 @@ public sealed class DecisionRow
     public float DecisionProbabilityTrue { get; set; }
     public float DecisionConfidence { get; set; }
     public float DecisionActionProbability { get; set; }
+}
+
+public sealed class ComposedDecisionRow : DecisionRow
+{
+    public string AppendedDecisionResults { get; set; } = string.Empty;
+    public string AppendedDecisionChoice { get; set; } = string.Empty;
+    public float AppendedDecisionScore { get; set; }
+    public float AppendedDecisionProbabilityTrue { get; set; }
+    public float AppendedDecisionConfidence { get; set; }
+    public float AppendedDecisionActionProbability { get; set; }
 }

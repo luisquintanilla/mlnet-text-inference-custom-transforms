@@ -143,7 +143,7 @@ public sealed class PrepareDecisionInputs
         var instructions = question.Instructions.Replace(_tokenizerMetadata.MaskToken, " ", StringComparison.Ordinal);
         var head = Encode(
             $"{QuestionTypeName(question.Type)} question: {instructions}",
-            Math.Max(0, optionBudget));
+            Math.Max(8, optionBudget));
         var ids = new List<int>(_profile.MaxLength)
         {
             _tokenizerMetadata.ClsTokenId
