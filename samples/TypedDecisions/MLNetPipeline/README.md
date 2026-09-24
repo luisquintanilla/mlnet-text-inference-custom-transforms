@@ -54,7 +54,7 @@ must remain adjacent to the graph. The sample targets the public
 `68f27dfe5a27a54fb2b1fefc432f43f972e90868`; assets are deliberately not
 committed.
 
-## Four modes
+## Seven modes
 
 All commands use portable JIT execution (`PublishAot=false`):
 
@@ -115,19 +115,23 @@ The pipeline is:
    `attention_mask`, and `marker_pos`, a `Bool` vector for `marker_mask`, an
    `Int64` vector for `qtype`, and `Int32` scalar dimensions:
    `DecisionBatchSize`, `DecisionSequenceLength`, and `DecisionMarkerWidth`.
-4. The task-specific scorer batches prepared rows across cursor boundaries and
-   emits `Single` vectors for `logits` and already-softmaxed `act_probs`.
+4. The task-specific scorer batches prepared source rows within a cursor and
+   emits `Single` vectors for `logits` and already-softmaxed `act_probs`. It
+   does not promise a particular number of physical ORT invocations.
 5. The decoder applies the profile temperature policy (valid values are
    clamped to `[0.5, 5.0]` with diagnostics), masks unused options, computes
    stable option probabilities, expected ordinal scores, Boolean decisions,
    entropy confidence, and per-question action probability.
 
-For two source rows and three questions, each prepared row has `B=3`; the
-direct/facade batch contains six flattened question rows when both source
-rows are processed together. `L` and `K` are dynamic per prepared batch.
+For two source rows and three questions, each prepared source row has
+`B=3`: one flattened row for each configured question. The printed
+`native_batch=3` is this per-source-row prepared question count; it is not the
+`IDataView` row count and is not a promise of the physical ORT invocation
+count. The captured per-row flattened lengths are `3*45=135` and `3*46=138`.
 `input_tokens` is the aggregate nonpadding-token count over all
 question-specific sequences for one request, including instructions, options,
-state, and special tokens.
+state, and special tokens, so the captured values are `112` and `115`, not
+the padded lengths.
 
 The stage transport is native ML.NET numeric/vector/Boolean data, not a JSON
 envelope. In `stages` mode the sample prints the prepared/scored vector
@@ -165,9 +169,10 @@ Each configured question receives an unambiguous prefix:
 
 Choice labels are text. Score is the expected zero-based option index, not a
 confidence. Noul selects true when `P(true) >= P(false)`. Probability vectors
-are calibrated option probabilities (not logits) and carry `SlotNames`
-metadata with option labels. Every confidence and action-probability scalar
-is associated with its own question. `DecisionResults` retains all questions,
+are temperature-adjusted option probabilities (not logits) and carry
+`SlotNames` metadata with option labels. This documentation makes no
+empirical calibration claim. Every confidence and action-probability scalar is
+associated with its own question. `DecisionResults` retains all questions,
 distributions, legends, and derived values.
 
 The composed mode uses `OutputPrefix = "AppendedDecision_"` and
@@ -183,17 +188,38 @@ technical limitation of row mapping or persistence.
 
 ## Captured outputs
 
-The following values were captured from the pinned real-model direct/facade,
-stages, and composed runs. They are formatted for readability. Provider,
-runtime, and calibration differences can change float digits; labels,
-ordering, finite values, and typed relationships are the stable expectations.
+The following is captured expected output from actual CPU runs of all seven
+modes with the fixed sample inputs, pinned assets, and settings described
+above. It is not output from `--help`, a synthetic fixture, or a business-rule
+test. The model is the English FP32 Laya export at revision
+`68f27dfe5a27a54fb2b1fefc432f43f972e90868`, using managed/native ONNX Runtime
+1.24.2. The displayed values are a reproducible CPU snapshot: the
+independent comparison was within `1e-6`, but these expectations depend on
+the pinned inputs, assets, runtime, provider, and settings. They are not
+guaranteed business truth, and no empirical probability calibration claim is
+intended.
 
-| Source row | Choice | Score | `P(true)` | Priority confidence | Action probability |
-|---|---:|---:|---:|---:|---:|
-| Row 1, reproducible steps | `high` | `1.1856464` | `0.8520637` | `0.4831077` | `0` |
-| Row 2, missing logs | `low` | `0.6199823` | `0.10274245` | `0.5969069` | `0` |
+### Mode/output guide
 
-### Row 1 full `DecisionResults`
+| Mode | Captured output |
+|---|---|
+| `direct` | JSON response objects only: aggregate `input_tokens` and all decoded questions. |
+| `facade` | Typed scalar/vector fields plus the same diagnostic `DecisionResults` JSON. |
+| `prediction-engine` | The facade fields and JSON, read one source row at a time through `PredictionEngine`. |
+| `stages` | Native tensor dimensions, typed decoded fields, and diagnostic JSON. |
+| `prediction-engine-stages` | The native dimensions and typed fields through a single-row `PredictionEngine`. |
+| `composed` | The first facade's values plus `AppendedDecision_*` values and `AppendedDecisionResults`. |
+| `prediction-engine-composed` | The same original and appended values through a single-row `PredictionEngine`. |
+
+The excerpts below share identical output between equivalent modes; they do
+not represent seven different model predictions.
+
+### Direct JSON-only output
+
+These two JSON objects are the exact responses printed by `direct`. The
+`DecisionResults` JSON in `facade`, `prediction-engine`, `stages`,
+`prediction-engine-stages`, and the first application in each composed mode
+has the same values.
 
 ```json
 {
@@ -209,7 +235,7 @@ ordering, finite values, and typed relationships are the stable expectations.
         "high"
       ],
       "probabilities": [
-        0.115706585,
+        0.11570658,
         0.88429344
       ],
       "choice": "high"
@@ -225,9 +251,9 @@ ordering, finite values, and typed relationships are the stable expectations.
         "2"
       ],
       "probabilities": [
-        0.09035328,
-        0.6336471,
-        0.27599967
+        0.09035327,
+        0.633647,
+        0.2759997
       ],
       "score": 1.1856464,
       "legend": {
@@ -239,24 +265,22 @@ ordering, finite values, and typed relationships are the stable expectations.
     {
       "id": "actionable",
       "type": "noul",
-      "confidence": 0.39534837,
+      "confidence": 0.3953485,
       "action_probability": 0,
       "labels": [
         "false",
         "true"
       ],
       "probabilities": [
-        0.14793624,
-        0.8520637
+        0.14793625,
+        0.8520638
       ],
       "noul": true,
-      "probability_true": 0.8520637
+      "probability_true": 0.8520638
     }
   ]
 }
 ```
-
-### Row 2 full `DecisionResults`
 
 ```json
 {
@@ -265,14 +289,14 @@ ordering, finite values, and typed relationships are the stable expectations.
     {
       "id": "priority",
       "type": "choice",
-      "confidence": 0.5969069,
+      "confidence": 0.596907,
       "action_probability": 0,
       "labels": [
         "low",
         "high"
       ],
       "probabilities": [
-        0.91974044,
+        0.9197405,
         0.08025956
       ],
       "choice": "low"
@@ -289,10 +313,10 @@ ordering, finite values, and typed relationships are the stable expectations.
       ],
       "probabilities": [
         0.42993295,
-        0.52015173,
-        0.04991528
+        0.5201518,
+        0.049915284
       ],
-      "score": 0.6199823,
+      "score": 0.61998236,
       "legend": {
         "0": "weak",
         "1": "moderate",
@@ -319,7 +343,67 @@ ordering, finite values, and typed relationships are the stable expectations.
 }
 ```
 
-Row 1's ordinal score is visible as
-`0 * 0.09035328 + 1 * 0.6336471 + 2 * 0.27599967 ~= 1.1856464`.
-The composed run printed the same two rows under the `AppendedDecision_*`
-columns and the `AppendedDecisionResults` JSON column.
+### Facade and `PredictionEngine` exact typed lines
+
+`facade` and `prediction-engine` printed these exact typed lines; the
+corresponding diagnostic JSON is the two objects above.
+
+```text
+priority=high; quality_score=1.1856464; actionable=True; actionable_true_probability=0.8520638; priority_confidence=0.4831077; priority_action_probability=0; quality_confidence=0.21570939; quality_action_probability=0; actionable_confidence=0.3953485; actionable_action_probability=0; priority_probabilities=0.11570658,0.88429344; quality_probabilities=0.09035327,0.633647,0.2759997
+priority=low; quality_score=0.61998236; actionable=False; actionable_true_probability=0.10274245; priority_confidence=0.596907; priority_action_probability=0; quality_confidence=0.22399896; quality_action_probability=0; actionable_confidence=0.5223708; actionable_action_probability=0; priority_probabilities=0.9197405,0.08025956; quality_probabilities=0.42993295,0.5201518,0.049915284
+```
+
+### Native stage shape lines
+
+`stages` and `prediction-engine-stages` printed these exact shape lines,
+followed by the same typed lines and JSON:
+
+```text
+native_batch=3; sequence_length=45; marker_width=3; input_ids=135; logits=9; action_probabilities=6
+native_batch=3; sequence_length=46; marker_width=3; input_ids=138; logits=9; action_probabilities=6
+```
+
+`native_batch=3` is the three-question prepared batch for each source row,
+not the number of `IDataView` rows and not a promise of physical ORT
+invocation count. `B=3`, `L=45` or `46`, and `K=3`, so the flattened lengths
+are `B*L` (`3*45=135`, `3*46=138`), `B*K=9` for `logits`, and `B*2=6`
+for the action head. `K=3` is the maximum marker/option width. `priority`
+and `actionable` each have two valid slots and one padded slot; `marker_mask`
+identifies the valid marker positions. The aggregate nonpadding counts are
+`input_tokens=112` and `input_tokens=115`, not the padded `B*L` lengths.
+
+### Composed appended lines
+
+`composed` and `prediction-engine-composed` also printed these exact appended
+lines. Their JSON appears under `AppendedDecisionResults` and has the same
+two decoded response objects.
+
+```text
+appended_priority=high; appended_priority_confidence=0.4831077; appended_priority_action_probability=0; appended_priority_probabilities=0.11570658,0.88429344; appended_quality_score=1.1856464; appended_quality_confidence=0.21570939; appended_quality_action_probability=0; appended_quality_probabilities=0.09035327,0.633647,0.2759997; appended_actionable=True; appended_actionable_true_probability=0.8520638; appended_actionable_confidence=0.3953485; appended_actionable_action_probability=0
+appended_priority=low; appended_priority_confidence=0.596907; appended_priority_action_probability=0; appended_priority_probabilities=0.9197405,0.08025956; appended_quality_score=0.61998236; appended_quality_confidence=0.22399896; appended_quality_action_probability=0; appended_quality_probabilities=0.42993295,0.5201518,0.049915284; appended_actionable=False; appended_actionable_true_probability=0.10274245; appended_actionable_confidence=0.5223708; appended_actionable_action_probability=0
+```
+
+### Reading the values
+
+- **Choice/order/argmax:** `priority` labels are ordered `[low, high]`.
+  Row 1 is `high` because `0.88429344` is the larger probability; Row 2 is
+  `low` because `0.9197405` is the larger probability.
+- **Score:** `quality` is the expected zero-based option index, not a
+  confidence. Row 1 is
+  `0*0.09035327 + 1*0.633647 + 2*0.2759997 = 1.1856464` within displayed
+  precision. Row 2 is
+  `0*0.42993295 + 1*0.5201518 + 2*0.049915284 = 0.61998236`.
+- **Noul:** `actionable` is true when `P(true) >= P(false)`.
+  `probability_true` is the second value in the `[false, true]` vector.
+- **Confidence:** confidence is one minus normalized entropy,
+  `1 - H(p)/ln(valid option count)`. The count is the number of valid
+  options for that question, not padded `K=3`; it measures distribution
+  concentration, not predicted probability, correctness, or empirical
+  calibration. Here `H(p) = -sum(p * ln(p))`; confidence approaches `0` for a
+  uniform distribution and `1` for a concentrated distribution. It is not the
+  winning probability: Row 1 `priority` has winning probability `0.88429344`
+  and confidence `0.4831077`.
+- **Action probability:** `action_probability` is the separate configured
+  graph-head channel from already-softmaxed `act_probs`. Both captured rows
+  show `0`; that does not mean `actionable=false`, does not explain why the
+  graph produced zero, and does not gate the decoded decision.

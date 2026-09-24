@@ -67,9 +67,11 @@ preprocessing are model inputs; they are not business rules or guarantees.
    maximum option width in the batch.
 4. The graph returns `logits [B,K]` and already-softmaxed `act_probs [B,2]`.
    C# decoding applies the bundle temperature policy, masks unused options,
-   computes stable option probabilities, and does not softmax `act_probs`
-   again. Confidence is entropy-based. `action_probability` is the configured
-   action column from `act_probs`, not an option probability.
+   computes stable temperature-adjusted option probabilities, and does not
+   softmax `act_probs` again. Confidence is one minus normalized entropy.
+   `action_probability` is the configured action column from `act_probs`, not
+   an option probability. A zero action probability is not an explanation of
+   the model's decision and does not gate the decoded result.
 
 For a decoded response, `input_tokens` is the aggregate count of nonpadding
 tokens across that request's question-specific prepared sequences. It
@@ -151,21 +153,60 @@ sharing a fitted transformer.
 
 ## Captured output
 
-These representative values were captured from the pinned real-model
-facade, stages, and composed runs. Providers and runtime versions can change
-floating-point digits; labels, ordering, finite values, probability
-normalization, and the typed relationships are the stable expectations.
+The following is a compact preview from actual CPU runs with the fixed sample
+inputs, pinned assets, and model settings above, not from `--help`, a
+synthetic fixture, or a business-rule test. The model is the English FP32 Laya
+export at revision
+`68f27dfe5a27a54fb2b1fefc432f43f972e90868`, using managed/native ONNX Runtime
+1.24.2. The independent comparison was within `1e-6` for this CPU snapshot;
+changing the pinned inputs, assets, or settings can change predictions, not
+merely the last displayed digit. These are model outputs, not guaranteed
+business truth, and no empirical probability calibration claim is intended.
 
-| State row | Choice (`priority`) | Score (`quality`) | `P(true)` (`actionable`) | Priority confidence | Action probability |
-|---|---|---:|---:|---:|---:|
-| Reproducible steps, urgent fix | `high` | `1.1856464` | `0.8520637` | `0.4831077` | `0` |
-| Missing logs, no requested action | `low` | `0.6199823` | `0.10274245` | `0.5969069` | `0` |
+### Mode/output guide
 
-For Row 1's ordinal score, the arithmetic is
-`0 * 0.09035328 + 1 * 0.6336471 + 2 * 0.27599967 ~= 1.1856464`.
+| Mode | Output summary |
+|---|---|
+| `direct` | JSON-only decoded responses. |
+| `facade` / `prediction-engine` | Typed values plus diagnostic JSON. |
+| `stages` / `prediction-engine-stages` | Native dimensions plus typed values and JSON. |
+| `composed` / `prediction-engine-composed` | Original values plus appended `AppendedDecision_*` values. |
 
-The full readable JSON responses, native stage output details, and the actual
-per-question column names are in
+### Facade and `PredictionEngine` typed output
+
+`facade` and `prediction-engine` printed these exact typed lines for the two
+state rows. The vectors preserve the configured option order.
+
+```text
+priority=high; quality_score=1.1856464; actionable=True; actionable_true_probability=0.8520638; priority_confidence=0.4831077; priority_action_probability=0; quality_confidence=0.21570939; quality_action_probability=0; actionable_confidence=0.3953485; actionable_action_probability=0; priority_probabilities=0.11570658,0.88429344; quality_probabilities=0.09035327,0.633647,0.2759997
+priority=low; quality_score=0.61998236; actionable=False; actionable_true_probability=0.10274245; priority_confidence=0.596907; priority_action_probability=0; quality_confidence=0.22399896; quality_action_probability=0; actionable_confidence=0.5223708; actionable_action_probability=0; priority_probabilities=0.9197405,0.08025956; quality_probabilities=0.42993295,0.5201518,0.049915284
+```
+
+### Reading the typed preview
+
+- **Choice:** `priority` uses the labels in order: `low` is index `0` and
+  `high` is index `1`. The decoder returns the argmax label, so Row 1 is
+  `high` because `0.88429344` is larger than `0.11570658`; Row 2 is `low`.
+- **Score:** `quality` is the expected zero-based option index, not a
+  confidence. Row 1 is
+  `0*0.09035327 + 1*0.633647 + 2*0.2759997 = 1.1856464` (within displayed
+  precision). Row 2 is
+  `0*0.42993295 + 1*0.5201518 + 2*0.049915284 = 0.61998236`.
+- **Noul:** `actionable` is true when `P(true) >= P(false)`. Its
+  `probability_true` is the second probability in the `[false,true]` vector;
+  it is not the same field as `action_probability`.
+- **Confidence:** the decoder uses one minus normalized entropy,
+  `1 - H(p)/ln(valid option count)`, over the valid option distribution. The
+  count excludes padded marker slots; it is not padded `K=3`. Confidence
+  describes concentration of the distribution, not empirical accuracy or a
+  calibrated probability that the prediction is correct.
+- **Action probability:** `action_probability` is a separate configured
+  channel from the graph's already-softmaxed `act_probs` head. Both captured
+  rows happen to show `0`; that value does not imply `actionable=false`, does
+  not explain why the graph produced it, and does not gate any decision.
+
+The full exact JSON responses, native shape lines, appended output, and
+seven-mode walkthrough are in
 [MLNetPipeline/README.md](MLNetPipeline/README.md).
 
 ## Output columns and limitations
@@ -181,11 +222,12 @@ configured questions:
 
 Columns are prefixed with the configured question ID, for example
 `Decision_priority_PredictedLabel` and
-`Decision_actionable_Probability`. Probability vectors are calibrated option
-probabilities, not logits, and carry `SlotNames` metadata with the option
-labels. Each confidence and action-probability column belongs to the same
-question. `DecisionResults` remains an optional full diagnostic JSON column
-with every question and distribution.
+`Decision_actionable_Probability`. Probability vectors are
+temperature-adjusted option probabilities, not logits, and carry `SlotNames`
+metadata with the option labels. This documentation makes no empirical
+calibration claim. Each confidence and action-probability column belongs to
+the same question. `DecisionResults` remains an optional full diagnostic JSON
+column with every question and distribution.
 
 The direct API, lazy `IDataView` paths, and native single-row
 `PredictionEngine` mapping are supported. Native ML.NET `Save`/`Load` remains
