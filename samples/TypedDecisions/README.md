@@ -77,6 +77,11 @@ The [beginner and developer walkthrough](MLNetPipeline/README.md#beginner-and-de
 then follows one row through assets, BPE tokenization, five tensors, ONNX
 scoring, decoding, and ML.NET output mapping.
 
+![Overview diagram showing typed-decision inference from caller state and configured questions through C# preparation, five tensors, ONNX Runtime, separate decision and action-head decoding, and application outputs.](MLNetPipeline/images/pipeline-overview.svg)
+
+*Figure. A visual overview of the same pipeline described in the detailed
+walkthrough. [Open the full-size editable SVG](MLNetPipeline/images/pipeline-overview.svg).*
+
 ## What happens
 
 1. The configured Microsoft.ML.Tokenizers BPE tokenizer applies the selected

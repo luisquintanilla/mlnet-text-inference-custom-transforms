@@ -168,15 +168,11 @@ provide an implicit Python-compatible object serializer.
 
 ### 2. The pipeline in one picture
 
-```text
-State text + fixed question instructions/options
-    -> Microsoft.ML.Tokenizers BPE + Laya sequence layout
-    -> five prepared tensors: IDs, masks, marker positions, question type
-    -> ONNX Runtime: logits + already-softmaxed action head
-    -> C# decoder: option probabilities, typed value, confidence
-    -> direct typed C# response objects, or ML.NET typed columns/DTOs
-       plus optional diagnostic JSON
-```
+![Flow diagram showing caller state and fixed questions moving through C# preparation, five tensors, ONNX Runtime, separate logits and action-head decoding, and direct or ML.NET outputs.](images/pipeline-overview.svg)
+
+*Figure 1. The conceptual flow: the logits path decodes valid options into
+typed decisions, while the already-normalized action head remains a separate
+diagnostic channel. [Open the full-size editable SVG](images/pipeline-overview.svg).*
 
 ONNX is the exported computation/model format; ONNX Runtime is the execution
 engine that evaluates it. In this implementation, preprocessing and
@@ -292,6 +288,13 @@ dimensions when it wraps the flat values for ONNX Runtime's native shaped
 inputs. The ML.NET representation is therefore not the same thing as an ORT
 tensor object.
 
+![Batching diagram showing two source states with captured prepared shapes 3 by 45 and 3 by 46, an illustrative repadded combined batch 6 by 46, regrouping, token attention masking, and the K equals 3 marker-mask matrix.](images/batching-and-masks.svg)
+
+*Figure 2. Source rows are prepared per state, can be repadded and combined
+within a cursor, then are sliced back to their source rows. The combined
+`[6,46]` is an explanatory illustration, not a replacement for the captured
+per-source shapes. [Open the full-size editable SVG](images/batching-and-masks.svg).*
+
 The graph inputs are:
 
 | Input | Type and shape | Meaning |
@@ -320,6 +323,14 @@ separate model calls. See
 [TypedDecisionDataViews.cs](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionDataViews.cs).
 
 ### 7. Run the graph, then decode only valid options
+
+![Decision-decoding diagram with proportional 0 to 1 probability bars for the first captured source row: priority chooses high, quality yields expected index 1.1856464, and actionable chooses true.](images/decision-decoding.svg)
+
+*Figure 3. The first captured source row, decoded with one shared probability
+scale. The bars show observed probabilities, not invented logits. See
+[Captured outputs](#captured-outputs) for the pinned model/runtime context.
+The confidence and action-probability caveats are called out separately.
+[Open the full-size editable SVG](images/decision-decoding.svg).*
 
 The graph's `logits` are unnormalized learned scores, not probabilities.
 Forward inference applies the trained weights to the whole prepared context
