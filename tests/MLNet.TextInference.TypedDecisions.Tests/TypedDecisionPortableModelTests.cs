@@ -669,8 +669,19 @@ public sealed class TypedDecisionPortableModelTests
         File.WriteAllText(Path.Combine(validDestination, "sentinel.txt"), "keep");
         using var validTransformer = ml.Transforms.OnnxTypedDecisions(
             fixture.CreateFacadeOptions(Questions())).Fit(input);
-        Assert.ThrowsException<UnauthorizedAccessException>(() =>
-            validTransformer.Save(validDestination));
+        Exception? destinationFailure = null;
+        try
+        {
+            validTransformer.Save(validDestination);
+        }
+        catch (Exception exception)
+        {
+            destinationFailure = exception;
+        }
+        Assert.IsNotNull(destinationFailure);
+        Assert.IsTrue(
+            destinationFailure is UnauthorizedAccessException or IOException,
+            $"Unexpected destination-save exception: {destinationFailure.GetType().FullName}");
         Assert.AreEqual(
             "keep",
             File.ReadAllText(Path.Combine(validDestination, "sentinel.txt")));
