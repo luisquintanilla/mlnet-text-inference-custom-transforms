@@ -1,20 +1,25 @@
-# ML.NET typed decisions
+# ML.NET typed decisions: a guided tutorial
 
-This file-based .NET 10 sample is the primary entry point for typed-decision
-inference. It uses the existing `MLNet.TextInference.Onnx` package. `Fit`
-validates the `IDataView` schema and opens local model assets, but does not
-train the ONNX model.
+This guide starts with one useful result, teaches the vocabulary needed to
+understand it, follows one source row through preparation, ONNX execution, and
+decoding, and ends with execution choices and portable deployment. The small
+[orientation page](../README.md) tells you where to begin; this page is the
+step-by-step lesson and technical reference.
 
-## Inputs
+## Quick navigation
 
-The two `State` rows are:
+- [Run the sample](#3-run-one-recommended-path)
+- [Copy the complete facade example](#5-a-complete-followable-mlnet-pipeline)
+- [Understand the request boundary](#6-walk-one-request-through-the-implementation)
+- [Choose direct, staged, or composed execution](#8-choose-an-execution-mode)
+- [Save and load for deployment](#portable-saveload-for-deployment)
+- [Read exact captures and implementation links](#captured-outputs)
 
-```text
-The customer supplied reproducible steps and requested an urgent fix.
-The report is missing logs and has no clear requested action.
-```
+## 1. The problem and the result
 
-The configured questions are:
+A typed-decision model scores alternatives supplied by the application. It
+does not generate prose, infer an unbounded answer, execute a side effect, or
+replace application policy. For each `State`, this sample asks:
 
 ```csharp
 using MLNet.TextInference.TypedDecisions;
@@ -22,21 +27,43 @@ using static MLNet.TextInference.TypedDecisions.DecisionQuestion;
 
 var questions = new[]
 {
-    Choice("priority", "How urgent is the request?", new[] { "low", "high" }),
-    Score("quality", "How strong is the evidence?",
-        new[] { "weak", "moderate", "strong" }),
+    Choice("priority", "How urgent is the request?", ["low", "high"]),
+    Score("quality", "How strong is the evidence?", ["weak", "moderate", "strong"]),
     Noul("actionable", "Can the request be acted on now?")
 };
 ```
 
-State is text. If the caller needs JSON state, it serializes that JSON before
-putting it in the `State` column. The model scores the supplied alternatives;
-it does not generate prose or apply business rules.
+`Choice` selects a caller-supplied label. `Score` returns an expected
+zero-based option index (`0..2` here), not a percentage. `Noul` is this API's
+name for a Boolean question and exposes both the Boolean result and `P(true)`.
+The full state text is:
 
-## Local model-directory setup
+```text
+The customer supplied reproducible steps and requested an urgent fix.
+The report is missing logs and has no clear requested action.
+```
 
-Inference has no implicit network access. Point `ModelAssetsPath` (or the
-sample's `--model-assets` option) at a directory such as:
+The pinned CPU capture decodes those rows as:
+
+| State | Priority | Quality score | Actionable | `P(true)` |
+|---|---|---:|---|---:|
+| Reproducible steps, urgent fix | `high` | `1.1856464` | `true` | `0.8520638` |
+| Missing logs, no clear action | `low` | `0.61998236` | `false` | `0.10274245` |
+
+The exact distributions, confidence values, legends, and provenance are
+collected later in [Captured outputs](#captured-outputs). They are a pinned
+model/runtime snapshot, not universal business truth or an empirical
+calibration claim.
+
+## 2. Before you run the sample
+
+Use a checkout of this repository and install .NET 10. The file-based sample's
+`#:project` directive references
+`src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj` in that
+checkout; it is not a claim that a published NuGet version already contains
+these PR APIs. The first `dotnet run` may restore NuGet packages and therefore
+needs network access. After restore and asset acquisition, inference itself is
+offline: it reads only the local directory or portable ZIP you provide.
 
 ```text
 models/laya-english-fp32/
@@ -47,126 +74,260 @@ models/laya-english-fp32/
   tokenizer/tokenizer_config.json
 ```
 
-An optional versioned ZIP archive with a manifest is also accepted. A
-directory does not require a generated manifest. The graph's external data
-must remain adjacent to the graph. The sample targets the public
-`receptron/laya-onnx` English FP32 revision
-`68f27dfe5a27a54fb2b1fefc432f43f972e90868`; assets are deliberately not
-committed.
+The graph's external-data sidecar must stay beside `laya.onnx`, and the
+tokenizer/profile must belong to the graph. This tutorial targets
+[`receptron/laya-onnx` revision
+`68f27dfe5a27a54fb2b1fefc432f43f972e90868`](https://huggingface.co/receptron/laya-onnx/tree/68f27dfe5a27a54fb2b1fefc432f43f972e90868).
+The heavyweight weights are not committed; ordinary tests use a small offline
+ONNX fixture instead.
 
-## Results at a glance
+### Optional one-time asset acquisition
 
-These are the exact decoded values for the two fixed sample states used by
-the captured runs:
+The following PowerShell commands download the exact five files from that
+pinned revision. Run them **from the repository root**. The `laya.onnx.data`
+file is about 1.7 GB; use a stable connection and keep it beside
+`laya.onnx`. These are real model assets, not placeholders. Do not run these
+commands if you only want to build the sample or inspect the offline tests.
 
-| Sample input | Priority | Quality score | Actionable | P(true) |
-|---|---|---:|---|---:|
-| Reproducible steps, urgent fix | high | 1.1856464 | true | 0.8520638 |
-| Missing logs, no clear action | low | 0.61998236 | false | 0.10274245 |
+Each filename is also a direct source link:
 
-`Reproducible steps, urgent fix` abbreviates the full state
-`The customer supplied reproducible steps and requested an urgent fix.`.
-`Missing logs, no clear action` abbreviates
-`The report is missing logs and has no clear requested action.`. The values
-are from the pinned local capture described in
-[Captured outputs](#captured-outputs); `quality` is a three-level zero-based
-Score with range `0..2`, not a percentage, so `1.1856464` is an expected
-ordinal index rather than a percent. These are not universal business truth.
-
-## Eleven modes
-
-All commands use portable JIT execution (`PublishAot=false`):
+- [`laya.onnx` (3.8 MB)](https://huggingface.co/receptron/laya-onnx/resolve/68f27dfe5a27a54fb2b1fefc432f43f972e90868/laya.onnx)
+- [`laya.onnx.data` (about 1.7 GB)](https://huggingface.co/receptron/laya-onnx/resolve/68f27dfe5a27a54fb2b1fefc432f43f972e90868/laya.onnx.data)
+- [`laya_config.json`](https://huggingface.co/receptron/laya-onnx/resolve/68f27dfe5a27a54fb2b1fefc432f43f972e90868/laya_config.json)
+- [`tokenizer/tokenizer.json`](https://huggingface.co/receptron/laya-onnx/resolve/68f27dfe5a27a54fb2b1fefc432f43f972e90868/tokenizer/tokenizer.json)
+- [`tokenizer/tokenizer_config.json`](https://huggingface.co/receptron/laya-onnx/resolve/68f27dfe5a27a54fb2b1fefc432f43f972e90868/tokenizer/tokenizer_config.json)
 
 ```powershell
-# Direct convenience API on the fitted transformer
-dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode direct --model-assets .\models\laya-english-fp32
+$revision = "68f27dfe5a27a54fb2b1fefc432f43f972e90868"
+$root = Join-Path (Get-Location) "models\laya-english-fp32"
+$tokenizer = Join-Path $root "tokenizer"
+New-Item -ItemType Directory -Force -Path $tokenizer | Out-Null
+$base = "https://huggingface.co/receptron/laya-onnx/resolve/$revision"
 
-# Recommended: lazy IDataView facade with cursor batching
-dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode facade --model-assets .\models\laya-english-fp32
-
-# Native single-row PredictionEngine mapping
-dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode prediction-engine --model-assets .\models\laya-english-fp32
-
-# PredictionEngine over the explicit native stages
-dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode prediction-engine-stages --model-assets .\models\laya-english-fp32
-
-# PredictionEngine over an append-composed facade
-dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode prediction-engine-composed --model-assets .\models\laya-english-fp32
-
-# Preparation -> scoring -> decoding stages
-dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode stages --model-assets .\models\laya-english-fp32
-
-# Two append-composed facade applications
-dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- `
-  --mode composed --model-assets .\models\laya-english-fp32
+Invoke-WebRequest "$base/laya.onnx" `
+  -OutFile (Join-Path $root "laya.onnx")
+Invoke-WebRequest "$base/laya.onnx.data" `
+  -OutFile (Join-Path $root "laya.onnx.data")
+Invoke-WebRequest "$base/laya_config.json" `
+  -OutFile (Join-Path $root "laya_config.json")
+Invoke-WebRequest "$base/tokenizer/tokenizer.json" `
+  -OutFile (Join-Path $tokenizer "tokenizer.json")
+Invoke-WebRequest "$base/tokenizer/tokenizer_config.json" `
+  -OutFile (Join-Path $tokenizer "tokenizer_config.json")
 ```
 
-The program accepts `--bundle` as a compatibility alias for
-`--model-assets`, but the value can be an ordinary model directory and need
-not be a bundle archive.
+The first run of the sample may trigger a NuGet restore after the model
+download; later runs with the same packages and files do not need network
+access.
 
-The direct API uses the same kernels and asset contract as the facade; each
-fitted transformer instance reuses its own initialized resources:
+## 3. Run one recommended path
+
+Start with the facade. It is the all-in-one preparation, ONNX scoring, and
+decoding transform; it is the smallest example that demonstrates schema
+validation, lazy ML.NET execution, cursor batching, typed columns, and
+explicit ownership:
+
+```powershell
+dotnet run --file .\samples\TypedDecisions\MLNetPipeline\Program.cs -- `
+  --mode facade --model-assets .\models\laya-english-fp32
+```
+
+`--bundle` is a compatibility alias for `--model-assets`; either value may be
+a directory or a portable archive. The command uses portable JIT execution
+(`PublishAot=false`) and the same source rows/questions shown above. If it
+fails before inference, check the working directory, the graph/sidecar pair,
+the tokenizer directory, and the pinned profile before changing code.
+
+You should see typed scalar/vector fields and a diagnostic `DecisionResults`
+JSON column. The next sections explain how to consume those values without
+confusing a score with confidence, `P(true)` with an action policy, or a
+lazy `IDataView` with already-materialized data.
+
+## 4. Vocabulary before implementation
+
+These terms are introduced here so the later trace has a concrete meaning:
+
+- **State** is the per-row text being evaluated. If an application has JSON,
+  it serializes that JSON into the text column itself; there is no implicit
+  Python-compatible object serializer.
+- An **`IDataView`** is ML.NET's schema-aware view of rows and columns. A
+  **schema** is the list of column names, types, and vector shapes that a view
+  promises. A view may be lazy: it describes how to obtain rows without
+  having read every row yet.
+- An **estimator** is a recipe. Calling `Fit` checks the input schema and
+  returns an initialized **transformer**. For this pretrained typed-decision
+  estimator, `Fit` initializes tokenizer/profile/session resources; it does
+  not train or fine-tune the graph. `Transform` returns another `IDataView`
+  recipe, and `foreach`, a cursor, `ToArray`, or a requested getter enumerates
+  it and performs the work.
+- A **DTO** (data-transfer object) is an ordinary C# result class whose
+  properties receive mapped columns. `PredictionEngine` is a convenient
+  single-row mapper from an input DTO to an output DTO; it is not a batch
+  engine and is not thread-safe.
+- **ONNX** is the exported graph format. **ONNX Runtime** executes that graph.
+  Microsoft.ML.Tokenizers supplies the selected BPE encoding boundary.
+  Preparation and decoding remain explicit C#; they are not automatically
+  embedded in the ONNX file.
+- A **token** is one ID produced by the profile's tokenizer. BPE (byte-pair
+  encoding) repeatedly joins configured symbol pairs into model-specific
+  pieces; a piece may be a word fragment or a byte-level space-marked piece,
+  not necessarily a whole word. The adapter uses
+  `BpeOptions`/`BpeTokenizer` once at this boundary and then passes IDs to the
+  graph.
+- A **tensor** is a typed multidimensional array. A shape such as `[B,L]`
+  says how many values exist along each dimension; `B`, `L`, and `K` are
+  explained before the captured trace. ML.NET transports some tensors as flat
+  `VBuffer<T>` columns plus scalar dimensions, while ONNX Runtime receives
+  shaped buffers.
+- **Batching** is an implementation choice. Direct bulk `Infer` can batch
+  states, while ML.NET cursor stages can batch prepared question rows and
+  regroup them. ML.NET is not promised to be faster, more accurate, or the
+  only batching option.
+
+**Checkpoint:** you should now know the difference between a schema and its
+rows, an estimator and its fitted transformer, and a flat `VBuffer<T>` and a
+shaped graph tensor. You also know why seeing no work at `Transform` is
+expected until something enumerates the result.
+
+## 5. A complete, followable ML.NET pipeline
+
+This is a small complete file-based app, not an excerpt with undefined
+`ml`, `data`, or `options` variables. Create a file named
+`DocsWalkthrough.cs` beside `Program.cs`, paste the complete block below, and
+run it from the repository root. The directives are the same project/package
+surface used by the sample:
+
+```powershell
+dotnet run --file .\samples\TypedDecisions\MLNetPipeline\DocsWalkthrough.cs -- `
+  .\models\laya-english-fp32
+```
+
+The one argument is the local asset directory. The app reads the two sample
+states, materializes the typed result rows, and prints scalar values. It does
+not print probability vectors yet; those are explained after the shape and
+mapping boundaries.
 
 ```csharp
+// Save as DocsWalkthrough.cs beside Program.cs.
+#:project ../../../src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj
+#:package Microsoft.ML@5.0.0
+#:package Microsoft.ML.OnnxRuntime@1.24.2
+#:property PublishAot=false
+
+using Microsoft.ML;
 using MLNet.TextInference.Onnx;
 using MLNet.TextInference.TypedDecisions;
+using static MLNet.TextInference.TypedDecisions.DecisionQuestion;
 
-using var transformer = ml.Transforms.OnnxTypedDecisions(options).Fit(data);
-DecisionResponse one = transformer.Infer(state);
-IReadOnlyList<DecisionResponse> many = transformer.Infer(states);
+var modelAssetsPath = args is [var assetPath]
+    ? assetPath
+    : throw new ArgumentException(
+        "Pass the local laya-english-fp32 directory as the only argument.");
+var ml = new MLContext(seed: 1);
+var data = ml.Data.LoadFromEnumerable(new[]
+{
+    new StateRow { State = "The customer supplied reproducible steps and requested an urgent fix." },
+    new StateRow { State = "The report is missing logs and has no clear requested action." }
+});
+
+var options = new OnnxTypedDecisionsOptions
+{
+    ModelAssetsPath = modelAssetsPath,
+    Questions =
+    [
+        Choice("priority", "How urgent is the request?", ["low", "high"]),
+        Score("quality", "How strong is the evidence?", ["weak", "moderate", "strong"]),
+        Noul("actionable", "Can the request be acted on now?")
+    ],
+    BatchSize = 16
+};
+
+using var fitted = ml.Transforms.OnnxTypedDecisions(options).Fit(data);
+var lazyResults = fitted.Transform(data);
+var rows = ml.Data.CreateEnumerable<DecisionRow>(
+    lazyResults, reuseRowObject: false).ToArray();
+
+foreach (var row in rows)
+{
+    Console.WriteLine(
+        $"priority={row.Decision_priority_PredictedLabel}; " +
+        $"quality_score={row.Decision_quality_Score}; " +
+        $"actionable={row.Decision_actionable_PredictedLabel}; " +
+        $"actionable_true_probability={row.Decision_actionable_Probability}");
+}
+
+public sealed class StateRow
+{
+    public string State { get; set; } = string.Empty;
+}
+
+public class DecisionRow
+{
+    public string Decision_priority_PredictedLabel { get; set; } = string.Empty;
+    public float Decision_quality_Score { get; set; }
+    public bool Decision_actionable_PredictedLabel { get; set; }
+    public float Decision_actionable_Probability { get; set; }
+}
 ```
 
-`Infer(states)` is the bulk form and can batch states internally. `direct` is
-therefore a straightforward call-oriented API; the ML.NET facade and stages
-are useful when the application already has a schema-aware, composable,
-lazy-`IDataView` pipeline. ML.NET is not presented here as an exclusive
-batching feature, an automatic speedup, or a source of better accuracy.
+The direct, stage, composition, and Save/Load examples later in this guide
+are contextual top-level continuations. Paste those statements **before** the
+`StateRow` and `DecisionRow` declarations at the end of this file; C# requires
+top-level statements to come before type declarations. For the stage example,
+add `using Microsoft.ML.Data;` and copy the `StageRow` DTO from
+[`Program.cs`](Program.cs); it inherits from the non-sealed `DecisionRow`
+shown above.
 
-## Beginner and developer walkthrough
+For the pinned assets, the two printed lines are:
 
-This section starts with the mental model, then follows one request through
-the implementation. The links point to the source that owns each part of the
-contract.
+```text
+priority=high; quality_score=1.1856464; actionable=True; actionable_true_probability=0.8520638
+priority=low; quality_score=0.61998236; actionable=False; actionable_true_probability=0.10274245
+```
 
-### 1. What this decision model does
+Read the code in four small steps:
 
-A decision model is a learned scorer for alternatives supplied by the caller.
-For each `State`, the application supplies instructions and a fixed set of
-options, and the ONNX graph scores those alternatives. It is **not** a
-free-form text generator, a collection of hand-written business rules, or an
-agent that executes an action.
+1. `LoadFromEnumerable` creates an `IDataView` whose schema contains one
+   `State` text column.
+2. `OnnxTypedDecisions(options)` creates an estimator recipe. `Fit` validates
+   that schema and initializes the local tokenizer/profile/session.
+3. `Transform` creates a lazy result view. `CreateEnumerable` returns a
+   deferred `IEnumerable<DecisionRow>`; `ToArray()` is what enumerates it and
+   causes preparation, graph execution, decoding, and mapping. A `foreach`
+   would also enumerate it.
+4. The DTO receives only the scalar columns needed for this first lesson.
+   Probability vectors and native stage columns still exist in the output
+   schema; they are deliberately introduced later.
 
-The three question types express different meanings:
+The input property is named `State` because the options use the default
+`StateColumnName = "State"`. If you change that option, rename the input
+property or map it with an ML.NET column attribute. Output property names are
+generated from each question ID and `OutputPrefix`: for example,
+`priority` plus the default `Decision_` prefix produces
+`Decision_priority_PredictedLabel`. If you rename a question ID or prefix,
+update the DTO properties (or their `[ColumnName]` mappings) to match.
 
-- **Choice** returns one label, such as `low` or `high`, by taking the
-  largest option probability. The caller's label order is significant.
-- **Score** returns the expected zero-based option index. This sample's
-  `weak`, `moderate`, and `strong` levels are rendered as `level 0: weak`,
-  `level 1: moderate`, and `level 2: strong`; the arithmetic assumes those
-  indices are equally spaced. Its three-level range is `0..2`, not a
-  percentage.
-- **Noul** is this API's name for a Boolean question. It compares exactly two
-  explicit criteria rendered as
-  `false: no, the statement does not hold` and
-  `true: yes, the statement holds` by default. A caller can provide
-  `NoulCriteria` to replace those two texts. It returns true on a tie
-  (`P(true) >= P(false)`), and exposes `P(true)` separately.
+The fitted transformer owns the tokenizer, profile, decoder, and ONNX
+session, so it is disposed only after `rows` and any other borrowed consumer
+are finished. The optional explicit stages and their additional tensor DTO
+are shown in [execution choices](#8-choose-an-execution-mode), after the
+facade has established the basic vocabulary. The public extension methods and
+role types are in
+[`MLContextExtensions.cs`](../../../src/MLNet.TextInference.Onnx/MLContextExtensions.cs)
+and
+[`TypedDecisionEstimators.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionEstimators.cs).
 
-The question IDs, instructions, option order, and resulting typed output
-columns are configured when the transformer is fitted. `State` is the
-per-row text that varies at inference time. There is no dynamic per-row
-question schema: every row in this sample uses the same three questions.
-Serializing JSON into `State` is an application choice; this package does not
-provide an implicit Python-compatible object serializer.
+**Checkpoint:** you should now be able to explain why a transformer can be
+fitted once and consumed by many materializations, and why disposing it too
+early invalidates borrowed mappers/cursors.
 
-### 2. The pipeline in one picture
+<a id="beginner-and-developer-walkthrough"></a>
+
+## 6. Walk one request through the implementation
+
+The following subsections use the same four boundaries as the complete
+example: prepare, score, decode, and map. The visual overview is useful
+before the numeric details:
 
 ![Flow diagram showing caller state and fixed questions moving through C# preparation, five tensors, ONNX Runtime, separate logits and action-head decoding, and direct or ML.NET outputs.](images/pipeline-overview.svg)
 
@@ -174,161 +335,160 @@ provide an implicit Python-compatible object serializer.
 typed decisions, while the already-normalized action head remains a separate
 diagnostic channel. [Open the full-size editable SVG](images/pipeline-overview.svg).*
 
-ONNX is the exported computation/model format; ONNX Runtime is the execution
-engine that evaluates it. In this implementation, preprocessing and
-postprocessing remain explicit C# code around the graph. They are not
-automatically embedded into the ONNX file or exported as a whole ML.NET
-pipeline.
+ONNX Runtime evaluates the graph; it does not expose a reasoning trace. The
+direct facade, lazy facade, and explicit stages share the same kernels and
+asset contract. The four conceptual boundaries are:
 
-The direct, facade, and explicit-stage surfaces share the same kernels and
-asset contract. A fitted facade initializes and owns its tokenizer, ONNX
-session, profile, and decoder resources; `Infer` and `Transform` on that
-facade share the instance. Separately fitted explicit stages initialize only
-the resources required by their stage, while separately fitted composed
-pipelines create their own instances. A useful way to remember the stages is:
+1. **Prepare** renders and encodes each state/question pair into five graph
+   inputs.
+2. **Score** validates the declared types/shapes and executes ONNX Runtime.
+3. **Decode** converts logits and the already-softmaxed action head into
+   Choice, Score, and Noul values.
+4. **Map** exposes those values as direct C# results, ML.NET columns, or DTO
+   properties.
 
-1. **Prepare** converts caller text and the fixed question contract into the
-   graph's five inputs.
-2. **Score** executes the graph with ONNX Runtime.
-3. **Decode** turns graph outputs into Choice, Score, and Noul results.
-4. **Map** exposes those results as ML.NET columns or DTO properties.
+### 6.1 Trusted assets and `Fit`
 
-### 3. Load trusted local assets; `Fit` is initialization, not training
+Bundle validation keeps paths relative to the bundle root, preserves
+external-data locations, checks declared file hashes, and rejects ZIP entries
+that escape the extraction destination. It does not download a missing file
+or silently select another revision. See
+[`TypedDecisionBundle.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionBundle.cs)
+and [`AssetArchive.cs`](../../../src/MLNet.TextInference.Onnx/AssetArchive.cs).
 
-The sample points at a local directory or a versioned archive containing
-`laya.onnx`, its adjacent `laya.onnx.data` external weights, Laya profile
-configuration, and the tokenizer directory. Bundle validation keeps paths
-relative to the bundle root, preserves external-data locations, and checks
-declared file hashes. ZIP extraction rejects entries that escape the
-destination. Inference never downloads missing assets or silently chooses a
-different revision. See
-[TypedDecisionBundle.cs](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionBundle.cs)
-and [AssetArchive.cs](../../../src/MLNet.TextInference.Onnx/AssetArchive.cs).
+The profile's `max_len`, `head_max_len`, special-token metadata, and
+temperature policy must stay paired with its graph and tokenizer. A
+different-looking-but-compatible tokenizer can still change IDs, marker
+positions, and sequence layout.
 
-`Fit` validates the input schema and initializes reusable tokenizer, ONNX
-session, profile, and decoder resources. It does not train or fine-tune the
-ONNX graph. The profile's `max_len`, `head_max_len`, special-token metadata,
-and temperature policy must match the weights and tokenizer that produced the
-export. Mixing a tokenizer or configuration from another model can change
-token IDs and sequence layout even when the files look superficially similar.
+### 6.2 Token IDs and the Microsoft tokenizer boundary
 
-This is the existing `MLNet.TextInference.Onnx` package and assembly. The
-direct mode is another surface over the same fitted ML.NET transformer; it is
-not a dependency-free standalone package or a second public core API.
+The selected profile is a Hugging Face byte-level BPE. BPE pieces are
+model-specific subwords, not necessarily words. The adapter uses
+`BpeOptions`/`BpeTokenizer` from `Microsoft.ML.Tokenizers`; it does not add a
+second tokenizer runtime. It reads vocabulary, merges, special tokens, and
+added-token metadata, preserving the selected byte-level/NFC behavior and
+rejecting unsupported approximations. See
+[`HuggingFaceBpeTokenizerLoader.cs`](../../../src/MLNet.TextInference.Onnx/HuggingFaceBpeTokenizerLoader.cs),
+[`TokenizerEncoding.cs`](../../../src/MLNet.TextInference.Onnx/TokenizerEncoding.cs),
+and [`LayaTokenizer.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/LayaTokenizer.cs).
 
-### 4. Token IDs are not words
+### 6.3 Prepare one sequence per state-question pair
 
-The selected Laya asset is a Hugging Face BPE (byte-pair encoding) tokenizer.
-BPE splits text into
-model-specific subword pieces and maps pieces to integer IDs; an ID is not
-necessarily a whole word, and the IDs have meaning only with this vocabulary
-and merge table. The implementation adapts that asset through
-`BpeOptions`/`BpeTokenizer` from `Microsoft.ML.Tokenizers`, rather than using
-another tokenizer runtime. It reads vocabulary, merges, special tokens, and
-added-token metadata from `tokenizer.json` and `tokenizer_config.json`,
-preserves the profile's byte-level and supported NFC/lowercase normalization
-behavior, and rejects unsupported configurations instead of approximating
-them. Encoding explicitly considers the configured pre-tokenization and
-normalization. See
-[HuggingFaceBpeTokenizerLoader.cs](../../../src/MLNet.TextInference.Onnx/HuggingFaceBpeTokenizerLoader.cs),
-[TokenizerEncoding.cs](../../../src/MLNet.TextInference.Onnx/TokenizerEncoding.cs),
-and [LayaTokenizer.cs](../../../src/MLNet.TextInference.Onnx/TypedDecisions/LayaTokenizer.cs).
+`PrepareDecisionInputs` creates one sequence for every question for every
+state. With two states and three questions, a bulk request has six logical
+flattened rows. The profile-specific construction is:
 
-The official [.NET tokenizer guidance](https://learn.microsoft.com/en-us/dotnet/ai/how-to/use-tokenizers)
-also explains why a model's vocabulary and merges must stay paired with its
-tokenizer instance. Its examples are not interchangeable with the Laya
-assets used here.
-
-### 5. Build one Laya sequence per state-question pair
-
-`PrepareDecisionInputs` creates a separate prepared sequence for every
-question for every state. With two states and three configured questions, a
-direct multi-state request has six logical flattened rows. The sequence
-construction is profile-specific:
-
-1. Render options in caller order. Choice renders each label, or
-   `label: description` when a description is supplied; this sample uses
-   labels alone. Score renders `level {index}: {level}`; Noul renders its two
-   explicit `false` and `true` criteria.
-2. Scrub the configured mask-token literal from instructions, options, and
-   state so a caller cannot accidentally create an extra marker. The guide
-   writes that configured token schematically as `[MASK]`; it is not a
-   hardcoded assumption about every tokenizer asset.
-3. Encode each option as a separate chunk with a literal leading space before
-   BPE, prefix the option tokens with the configured mask-token ID, and record
-   `marker_pos` at that prepended MASK position. It points to the MASK slot,
-   not to the option label text.
-4. Encode the question head separately as
+1. Render options in caller order. Choice uses labels (or `label:
+   description`); Score uses `level {index}: {level}`; Noul uses its explicit
+   false/true criteria.
+2. Scrub the configured mask-token literal from caller text so it cannot
+   create an extra marker.
+3. Encode each option separately as BPE of a string with a literal leading
+   space, then prefix that option's tokens with the configured MASK ID.
+   `marker_pos` points to the inserted MASK, not option text.
+4. Encode the head separately as
    `{choice|score|noul} question: {instructions}`.
-5. Explicitly assemble the final special-token layout:
-   `[CLS] + question head + [SEP] + option sequences + [SEP] + state + [SEP]`.
-6. Allocate bounded option/head space from `head_max_len`. When option
-   material is too large, preparation bounds the option encodings, then gives
-   the remaining `max_len` room to the state. The state is truncated to that
-   remaining room; there is no automatic chunking, so a long state tail can be
-   lost. Marker/option alignment is validated and marker loss is rejected
-   rather than silently decoding the wrong option.
-7. Pad rows to the maximum sequence length in the prepared batch with the
-   configured pad token. In this guide `[CLS]`, `[SEP]`, `[MASK]`, and
-   `[PAD]` are schematic names for the profile's configured token strings and
-   IDs loaded from the tokenizer metadata; they are not universal numeric
-   constants. The worked trace below records the pinned profile's actual IDs.
+5. Assemble `[CLS] + head + [SEP] + option sequences + [SEP] + state + [SEP]`.
+6. Bound head/option material with `head_max_len`, then give remaining
+   `max_len` room to the state. There is no automatic chunking; a long state
+   tail can be truncated. Marker loss is rejected.
+7. Pad to the prepared batch's maximum sequence length using the configured
+   PAD ID.
 
-The layout and special-token contract live in
-[PrepareDecisionInputs.cs](../../../src/MLNet.TextInference.Onnx/TypedDecisions/PrepareDecisionInputs.cs).
-This is why replacing the tokenizer with a generic GPT/Tiktoken example would
-not be equivalent.
+This is why one `EncodeToIds` call over the displayed sentence is not
+equivalent: separate BPE chunks, the leading option space, and inserted MASK
+IDs are part of the contract. The implementation is in
+[`PrepareDecisionInputs.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/PrepareDecisionInputs.cs).
 
-### 5a. Follow one source row across stage boundaries
+### 6.4 `B`, `L`, `K`, masks, and the five graph inputs
+
+Define the shape vocabulary before reading the trace:
+
+- `B` is the flattened number of question sequences, not source
+  `IDataView` rows. In the first source state, `B=3`.
+- `L` is the padded token sequence length (`45` or `46` in the captured
+  source rows).
+- `K` is the maximum option/marker width (`3` here). Choice and Noul have
+  two valid slots and one padded slot; Score has three.
+
+The graph contract is:
+
+| Input | Type and shape | Meaning |
+|---|---|---|
+| `input_ids` | `Int64 [B,L]` | Padded BPE token IDs. |
+| `attention_mask` | `Int64 [B,L]` | `1` for nonpadding, `0` for padding. |
+| `marker_pos` | `Int64 [B,K]` | Positions of option MASK markers. |
+| `marker_mask` | `Bool [B,K]` | Which marker slots are real options. |
+| `qtype` | `Int64 [B]` | Choice `0`, Score `1`, Noul `2`. |
+
+ML.NET stages carry flat `VBuffer<T>` values and scalar dimensions such as
+`DecisionBatchSize`, `DecisionSequenceLength`, and `DecisionMarkerWidth`.
+The scorer wraps those values into shaped ORT tensors. That is a
+representation boundary, not a second tokenizer or universal Tensor layer.
+
+![Batching diagram showing two source states with captured prepared shapes 3 by 45 and 3 by 46, an illustrative repadded combined batch 6 by 46, regrouping, token attention masking, and the K equals 3 marker-mask matrix.](images/batching-and-masks.svg)
+
+*Figure 2. Source rows are prepared per state, can be repadded and combined
+within a cursor, then sliced back to source rows. The combined `[6,46]` is
+an explanatory illustration, not a replacement for the captured per-source
+shapes. [Open the full-size editable SVG](images/batching-and-masks.svg).*
+
+**Checkpoint:** `B` is not source-row count, `K` is not always the number of
+valid options, and `marker_mask`—not a zero position—identifies padding.
+
+### 6.5 Follow one source row across stage boundaries
+
+<a id="5a-follow-one-source-row-across-stage-boundaries"></a>
 
 ![Worked stage I/O trace showing the first source state, rendered questions, real tokenizer-only preparation dimensions and ID slices, flat ML.NET VBuffers versus shaped ONNX Runtime tensors, separate output heads, an illustrative temperature-one softmax calculation, and the real decoded response and typed ML.NET columns.](images/stage-io-trace.svg)
 
-*Figure 2. A boundary-by-boundary trace for the first `State` value and its
+*Figure 3. A boundary-by-boundary trace for the first `State` value and its
 three configured questions. Green cards are source-backed evidence; the
 hatched card is a complete tiny fixture used only to show decoder mechanics.
 [Open the full-size editable SVG](images/stage-io-trace.svg).*
 
-This graphic combines two evidence sets rather than implying a new end-to-end
-run:
+This graphic combines two evidence sets rather than implying a new
+end-to-end run:
 
 - **Preparation rerun:** only the pinned tokenizer files
   (`tokenizer.json`, `tokenizer_config.json`) and `laya_config.json` were
   downloaded from the English FP32 Laya revision. No weights were downloaded
-  and no graph was executed. The public `PrepareDecisionInputs` stage
-  reproduced the first source row as `B=3`, `L=45`, `K=3`, with 135 flattened
-  ID positions, `marker_pos` rows `[11,13]`, `[11,16,21]`, `[14,24]`,
-  `qtype=[0,1,2]`, and nonpadding counts `[28,39,45]`. Their sum is
-  `input_tokens=112`; it is not the padded array length.
-- **Earlier inference capture:** the retained graph outputs were `logits [3,3]`
-  (9 float values) and `act_probs [3,2]` (6 float values) **per source after
-  regrouping**, followed by the exact decoded probabilities and typed results
-  already shown in [Captured outputs](#captured-outputs). If scored alone,
-  this source uses an ORT input of `[3,45]`; a cursor combining two source
-  rows may repad a forward call to `[6,46]`. Raw logits and every action-head
-  channel were not retained, so this guide does not reconstruct them from
-  normalized probabilities.
+  and no graph was executed. The public preparation stage reproduced the
+  first source row as `B=3`, `L=45`, `K=3`, with 135 flattened ID positions,
+  `marker_pos` rows `[11,13]`, `[11,16,21]`, `[14,24]`, `qtype=[0,1,2]`,
+  and nonpadding counts `[28,39,45]`. Their sum is `input_tokens=112`; it
+  is not the padded array length.
+- **Earlier inference capture:** retained graph outputs were `logits [3,3]`
+  (9 float values) and `act_probs [3,2]` (6 values) per source after
+  regrouping. If scored alone, this source uses ORT input `[3,45]`; a cursor
+  combining two source rows may repad a forward call to `[6,46]`. Raw logits
+  and every action-head channel were not retained, so this guide does not
+  reconstruct them from normalized probabilities.
 
 For this sample, `RenderOptions()` produces `low`, `high`; `level 0: weak`,
 `level 1: moderate`, `level 2: strong`; and the exact Noul strings
 `false: no, the statement does not hold` and
-`true: yes, the statement holds`. The public preparation surface below is a
-fragment; `data` and `ml` are the sample's existing `IDataView` and
-`MLContext`, and the fitted transformer must remain alive while `prepared` is
-consumed:
+`true: yes, the statement holds`. The public preparation surface is:
+
+The following is a **contextual continuation, not a standalone snippet**. It
+uses the `ml`, `data`, and `options` variables from the complete app in
+[section 5](#5-a-complete-followable-mlnet-pipeline), or the equivalent setup
+in `Program.cs`.
 
 ```csharp
 using var preparationTransformer = ml.Transforms.PrepareDecisionInputs(
         new DecisionInputPreparationOptions
         {
-            ModelAssetsPath = modelAssetsPath,
-            Questions = questions
+            ModelAssetsPath = options.ModelAssetsPath,
+            Questions = options.Questions
         })
     .Fit(data);
 var prepared = preparationTransformer.Transform(data);
 ```
 
-For the first source row, the preparation columns/subset (not a full
-scored-and-decoded result DTO) are:
+The fitted owner must remain alive while `prepared` is consumed. For the
+first source row, the preparation columns are:
 
 ```text
 DecisionBatchSize       = 3
@@ -350,6 +510,12 @@ marker mask by question =
   quality [true, true, true];
   actionable [true, true, false]
 ```
+
+### 6.6 Complete tensor capture and token IDs
+
+The compact excerpt above is enough to understand the boundary. The complete
+tokenizer-only capture is retained here for readers who need to inspect every
+value or compare a stage dump.
 
 <details>
 <summary>All five prepared tensors as shaped JSON from the tokenizer-only rerun</summary>
@@ -509,51 +675,7 @@ DecisionResponse.Results[2] = NoulDecisionResult
 | `NoulDecisionResult.Value` | `true` | `Decision_actionable_PredictedLabel` |
 | `NoulDecisionResult.ProbabilityTrue` | `0.8520638` | `Decision_actionable_Probability` |
 
-### 6. Understand `B`, `L`, `K`, padding, and the five inputs
-
-A tensor is a numeric grid with declared dimensions. For example,
-`[3,45]` contains `3*45=135` positions. ML.NET stage columns carry flat
-`VBuffer` values plus scalar dimension columns such as
-`DecisionBatchSize` and `DecisionSequenceLength`; the scorer uses those
-dimensions when it wraps the flat values for ONNX Runtime's native shaped
-inputs. The ML.NET representation is therefore not the same thing as an ORT
-tensor object.
-
-![Batching diagram showing two source states with captured prepared shapes 3 by 45 and 3 by 46, an illustrative repadded combined batch 6 by 46, regrouping, token attention masking, and the K equals 3 marker-mask matrix.](images/batching-and-masks.svg)
-
-*Figure 3. Source rows are prepared per state, can be repadded and combined
-within a cursor, then are sliced back to their source rows. The combined
-`[6,46]` is an explanatory illustration, not a replacement for the captured
-per-source shapes. [Open the full-size editable SVG](images/batching-and-masks.svg).*
-
-The graph inputs are:
-
-| Input | Type and shape | Meaning |
-|---|---|---|
-| `input_ids` | `Int64 [B,L]` | Padded BPE token IDs for each prepared sequence. |
-| `attention_mask` | `Int64 [B,L]` | `1` for nonpadding sequence positions and `0` for padding. |
-| `marker_pos` | `Int64 [B,K]` | Positions of option `[MASK]` markers. |
-| `marker_mask` | `Bool [B,K]` | Which marker positions are real options rather than padding. |
-| `qtype` | `Int64 [B]` | Question type: Choice `0`, Score `1`, Noul `2`. |
-
-`B` is a flattened question-row count, `L` is the padded sequence length,
-and `K` is the maximum option/marker width. Choice and Noul have two valid
-markers plus one padded slot when `K=3`; Score has three valid markers.
-`marker_mask`, not a zero-valued position, determines validity. For the
-sample, each source state produces a per-source prepared row with `B=3`.
-The captured lengths are `3*45=135` and `3*46=138`, and the aggregate
-nonpadding counts are `input_tokens=112` and `input_tokens=115`; those counts
-are not the padded `B*L` lengths.
-
-The explicit native stage prints those per-source shapes. The scorer can
-combine multiple prepared source rows by repadding them to the batch's
-maximum `L` and `K`, flattening them for one ORT call, then slicing the
-outputs back to each source row. Therefore `3*45` and `3*46` describe the
-individual prepared rows; different `L` values do not by themselves require
-separate model calls. See
-[TypedDecisionDataViews.cs](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionDataViews.cs).
-
-### 7. Run the graph, then decode only valid options
+### 6.7 Run the graph, then decode only valid options
 
 ![Decision-decoding diagram with proportional 0 to 1 probability bars for the first captured source row: priority chooses high, quality yields expected index 1.1856464, and actionable chooses true.](images/decision-decoding.svg)
 
@@ -565,8 +687,9 @@ The confidence and action-probability caveats are called out separately.
 
 The graph's `logits` are unnormalized learned scores, not probabilities.
 Forward inference applies the trained weights to the whole prepared context
-and scores the supplied options; it does not expose a reasoning trace, and
-this guide does not name an unverified backbone.
+and scores the supplied options. The exported graph does not expose a
+reasoning trace, so the adapter explains the observable tensors and decoded
+outputs rather than inventing an internal model explanation.
 
 The custom scorer binds the five named inputs and validates actual element
 types and output shapes before decoding. It preserves adjacent ONNX external
@@ -633,7 +756,7 @@ configured action head. A captured zero does not mean `actionable=false`, does
 not override the Noul result, and is not explained here beyond what the graph
 returned.
 
-### 8. Map results into ML.NET columns and DTOs
+## 7. Read typed results
 
 Direct `Infer` returns typed C# `DecisionResponse` objects; it does not
 materialize an `IDataView` or ML.NET columns on every call. The facade and
@@ -642,67 +765,145 @@ Choice gets a text label and probabilities, Score gets a float score and
 probabilities, and Noul gets a Boolean plus `P(true)`. All questions also
 expose confidence and the separate action probability. Probability vectors
 carry `SlotNames` metadata. `DecisionResults` is optional diagnostic JSON
-containing the complete response; it is not the transport format between
-native stages.
+containing the complete response, including distributions, legends, and
+derived values; it is not the transport format between native stages.
+
+Each configured question receives an unambiguous prefix:
+
+| Question | Columns in this sample |
+|---|---|
+| `priority` Choice | `Decision_priority_PredictedLabel`, `Decision_priority_Probabilities`, `Decision_priority_Confidence`, `Decision_priority_ActionProbability` |
+| `quality` Score | `Decision_quality_Score`, `Decision_quality_Probabilities`, `Decision_quality_Confidence`, `Decision_quality_ActionProbability` |
+| `actionable` Noul | `Decision_actionable_PredictedLabel`, `Decision_actionable_Probability`, `Decision_actionable_Confidence`, `Decision_actionable_ActionProbability` |
+
+Choice labels are text. Score is the expected zero-based option index, not a
+confidence. Noul selects true when `P(true) >= P(false)`. Probability vectors
+are temperature-adjusted option probabilities (not logits) and carry
+`SlotNames` metadata with option labels. Every confidence and
+action-probability scalar is associated with its own question.
+
+The composed mode uses `OutputPrefix = "AppendedDecision_"` and
+`ResultsColumnName = "AppendedDecisionResults"`, so it adds corresponding
+`AppendedDecision_*` columns without overwriting the first facade's columns.
+Both facades use the same request and assets, so equivalent values should
+match within floating-point tolerance. Accessing multiple output getters does
+not repeat inference for the same cursor row.
 
 The direct call, facade, and stage chain use the same kernels and asset
-contract, but each separately fitted transformer owns its own resources:
+contract, but each separately fitted transformer owns its own resources. The
+native vector DTOs used by the sample are in [`Program.cs`](Program.cs).
+The public extension methods and typed mapping are implemented in
+[`MLContextExtensions.cs`](../../../src/MLNet.TextInference.Onnx/MLContextExtensions.cs),
+[`TypedDecisionEstimators.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionEstimators.cs),
+and
+[`TypedDecisionRowMappers.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionRowMappers.cs).
 
-```csharp
-// Non-standalone fragment from samples/TypedDecisions/MLNetPipeline/Program.cs.
-// `prepared`, `scored`, `decoded`, `ml`, and `data` are defined earlier there.
-var stages = ml.Transforms.PrepareDecisionInputs(prepared)
-    .Append(ml.Transforms.ScoreOnnxDecisionModel(scored))
-    .Append(ml.Transforms.DecodeDecisions(decoded));
-var stageTransformer = stages.Fit(data);
-```
-
-The public extension methods are declared in
-[MLContextExtensions.cs](../../../src/MLNet.TextInference.Onnx/MLContextExtensions.cs).
-The facade and typed stage mapping are implemented in
-[TypedDecisionEstimators.cs](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionEstimators.cs)
-and [TypedDecisionRowMappers.cs](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionRowMappers.cs).
-
-### 9. Choose an execution mode
+## 8. Choose an execution mode
 
 All eleven sample modes use the same questions, states, assets, and fitted
 package surface:
 
-1. **`direct`** calls `transformer.Infer` and prints JSON response objects.
-2. **`facade`** calls `Transform` and enumerates a lazy `IDataView`, exposing
-   typed columns plus diagnostic JSON.
-3. **`stages`** exposes preparation/scoring tensors and decoded columns so
-   intermediate dimensions can be inspected.
-4. **`composed`** appends a second independent typed-decision facade with
-   `AppendedDecision_` names.
-5. **`prediction-engine`** reads the facade through a conventional
-   single-row DTO mapper.
-6. **`prediction-engine-stages`** reads the explicit stages through that
-   single-row mapper.
-7. **`prediction-engine-composed`** reads both independent facade outputs
-   through one DTO.
-8. **`portable-writer`** fits the facade, writes a portable typed-decision
-   archive, and prints the fitted output. It requires both
-   `--model-assets` and `--portable-path`.
-9. **`portable-reader`** loads that archive in the current process and
-   materializes the same output without `Fit` or the original asset directory.
-   It requires only `--portable-path`.
-10. **`portable-pipeline-writer`** fits the demonstrated append-composed
-    facade pipeline, writes a portable pipeline archive, and prints both
-    facade outputs. It requires both `--model-assets` and `--portable-path`.
-11. **`portable-pipeline-reader`** loads that pipeline archive in the current
-    process and materializes both outputs without `Fit` or the original asset
-    directory. It requires only `--portable-path`.
+| Mode | Use it when you need to... |
+|---|---|
+| `direct` | Call `transformer.Infer` and inspect JSON response objects. |
+| `facade` | Enumerate a lazy `IDataView` with typed columns and diagnostic JSON. |
+| `prediction-engine` | Map one facade input row to a DTO. |
+| `prediction-engine-stages` | Map one explicit-stage row while exposing native tensors. |
+| `prediction-engine-composed` | Map both appended facade outputs through one DTO. |
+| `stages` | Inspect preparation/scoring tensors and decoded columns. |
+| `composed` | Append a second facade with `AppendedDecision_` output names. |
+| `portable-writer` | Fit a facade and write a portable archive. |
+| `portable-reader` | Load that archive without `Fit` or the original asset directory. |
+| `portable-pipeline-writer` | Fit the demonstrated composed pipeline and write both outputs. |
+| `portable-pipeline-reader` | Load both composed outputs without `Fit` or source assets. |
+
+Writer modes require both `--model-assets` and `--portable-path`; reader modes
+require only `--portable-path`.
+
+The direct facade is useful when the application already owns text states and
+does not need an `IDataView` boundary. Reuse the fitted facade from the
+complete example:
+
+```csharp
+var firstState =
+    "The customer supplied reproducible steps and requested an urgent fix.";
+var secondState =
+    "The report is missing logs and has no clear requested action.";
+DecisionResponse one = fitted.Infer(
+    firstState);
+IReadOnlyList<DecisionResponse> many = fitted.Infer(
+    new[] { firstState, secondState });
+```
+
+The bulk overload can batch states internally. It has the same tokenizer,
+graph, and decoder contract as the facade path; choosing ML.NET is about
+schema-aware composition and lazy interoperability, not exclusive batching.
+
+If you need to see the native preparation and scoring columns, append the
+three stages explicitly. This is a **contextual continuation** of section 5:
+`ml`, `data`, and `options` already exist, and `StageRow` is the larger DTO
+defined in [`Program.cs`](Program.cs).
+
+```csharp
+var stagePipeline = ml.Transforms.PrepareDecisionInputs(
+        new DecisionInputPreparationOptions
+        {
+            ModelAssetsPath = options.ModelAssetsPath,
+            Questions = options.Questions
+        })
+    .Append(ml.Transforms.ScoreOnnxDecisionModel(
+        new OnnxDecisionModelScorerOptions
+        {
+            ModelAssetsPath = options.ModelAssetsPath
+        }))
+    .Append(ml.Transforms.DecodeDecisions(
+        new DecisionDecodingOptions
+        {
+            ModelAssetsPath = options.ModelAssetsPath,
+            Questions = options.Questions
+        }));
+
+using var staged = stagePipeline.Fit(data);
+var stagedRows = ml.Data.CreateEnumerable<StageRow>(
+    staged.Transform(data), reuseRowObject: false).ToArray();
+Console.WriteLine($"source_rows={stagedRows.Length}");
+```
+
+`source_rows` is the number of source `IDataView` rows (two in this example);
+it is not the flattened graph batch `B`, which is three question sequences for
+each source state.
+
+The compiled helper for appending another facade is:
+
+```csharp
+var appendedOptions = new OnnxTypedDecisionsOptions
+{
+    ModelAssetsPath = options.ModelAssetsPath,
+    Questions = options.Questions,
+    OutputPrefix = "AppendedDecision_",
+    ResultsColumnName = "AppendedDecisionResults",
+    BatchSize = 2
+};
+
+var composedPipeline = ml.Transforms.OnnxTypedDecisions(options)
+    .AppendOnnxTypedDecisions(ml, appendedOptions);
+var composed = composedPipeline.Fit(data);
+try
+{
+    var composedView = composed.Transform(data);
+    // Enumerate composedView with the ComposedDecisionRow DTO from Program.cs.
+}
+finally
+{
+    (composed as IDisposable)?.Dispose();
+}
+```
 
 Composition reuses the same input rows and fitted asset paths; it is not a
 merged model and does not produce a better prediction. Each facade has its
 own fitted resources, while per-stage/per-row caching prevents repeated getter
 execution within that stage and row. It does not promise cross-facade cache
 sharing.
-
-The compiled facade helper used by the sample is
-`pipeline.AppendOnnxTypedDecisions(ml, appendedOptions)`; it appends another
-typed facade without hiding or renaming the first facade's output columns.
 
 ML.NET transformations are lazy: `Transform` constructs a schema-aware
 `IDataView`, while cursor enumeration and requested getters cause the row
@@ -728,7 +929,7 @@ built-in ONNX scoring is limited to single-input or static-dimension graphs;
 these decision-specific responsibilities are simply clearer and safer in the
 custom path.
 
-### 10. Shared infrastructure versus task-specific behavior
+## 9. Shared infrastructure versus task-specific behavior
 
 The package shares tokenizer adaptation, numeric helpers, ONNX session
 management, schema-aware mappers, and cursor lifetime/batching infrastructure
@@ -739,7 +940,7 @@ decision head: pooling expects hidden states such as `[B,L,H]`, while this
 graph consumes marker positions and question types and returns decision logits
 plus an action head.
 
-### 11. What belongs in an application
+## 10. What belongs in an application
 
 Treat the outputs as model signals that require application validation:
 
@@ -753,81 +954,73 @@ Treat the outputs as model signals that require application validation:
 - Changing the state, question wording, option order, tokenizer, model
   revision, provider, or temperature settings can change the result.
 
-Native ML.NET `MLContext.Model.Save`/`Load` for these custom path-based
-typed-decision components remains unsupported. The portable API is explicit:
-`OnnxTypedDecisionsTransformer.Save(path)`,
-`OnnxTypedDecisionsTransformer.Load(mlContext, path)`, and the corresponding
-stage methods. It stores the fitted configuration plus the graph, referenced
-external data, tokenizer assets, profile, hashes, and decoder policy in a
-versioned ZIP; it does not serialize native sessions, cursors, delegates, or
-absolute paths. `TypedDecisionPortableModel.SavePipeline` and
-`LoadPipeline` support the demonstrated flat prepare -> score -> decode chain
-and naturally inferred appended typed-decision facades (with distinct prefixes,
-results columns, and question widths). Individual facade, preparation, scoring,
-and decoding archives remain supported. A pipeline archive requires all source
-transformers to reference the same complete asset payload; separately loaded
-selective stage archives cannot currently be recombined and fail explicitly.
-Unsupported transformers and arbitrary chains fail explicitly. The loader never
-downloads assets. Automatic
-whole-pipeline ONNX export is not provided.
+Deployment and persistence are covered separately in
+[Portable Save/Load](#portable-saveload-for-deployment). Keeping that
+boundary separate matters: native `MLContext.Model.Save`/`Load` remains
+unsupported for these path-based custom components.
 
-## Processing and native stage schema
+<a id="portable-saveload-for-deployment"></a>
 
-The [walkthrough above](#beginner-and-developer-walkthrough) explains the
-sequence layout, five-input contract, dynamic `B/L/K` dimensions, decoder,
-and cursor batching. In the native schema, preparation adds `Int64` vectors
-for `input_ids`, `attention_mask`, `marker_pos`, and `qtype`, a `Bool` vector
-for `marker_mask`, and `Int32` scalars
-`DecisionBatchSize`, `DecisionSequenceLength`, and `DecisionMarkerWidth`.
-Scoring adds `Single` vectors for `logits` and already-softmaxed `act_probs`.
-The stage transport is native ML.NET data, not a JSON envelope;
-`DecisionResults` is the optional diagnostic JSON column.
+## 11. Portable Save/Load for deployment
 
-## PredictionEngine mode
+Portable persistence is a deployment artifact, not native ML.NET model
+serialization. Individual facade and preparation/scoring/decoding stage
+archives are supported. `SavePipeline` supports the demonstrated flat
+prepare -> score -> decode chain and naturally inferred appended typed
+facades with distinct prefixes, results columns, and question widths.
 
-`prediction-engine` uses
-`MLContext.Model.CreatePredictionEngine<StateRow, DecisionRow>` against the
-fitted facade. The mapper computes the requested typed columns from the
-current input row and reuses the fitted tokenizer, decoder, and ONNX session.
-The sample prints the actual probability vectors, typed scalar values, and
-`DecisionResults` for both states.
+The archive stores fitted question metadata, column names, batching settings,
+profile/decoder policy, tokenizer files, graph-relative external data, and
+hashes. It does not store native sessions, cursors, delegates, absolute
+paths, or a network dependency. Loading rebuilds runtime resources according
+to the load context. Native `MLContext.Model.Save`/`Load` and automatic
+whole-pipeline ONNX export remain unsupported.
 
-`prediction-engine-stages` uses `StageRow` and exposes the native prepared and
-scored vectors through the same single-row mapper. `prediction-engine-composed`
-uses `ComposedDecisionRow` and reads both the original and appended typed
-column sets from one mapped row.
+Pipeline sources must reference the same complete asset payload. Separately
+loaded selective profile-only/scorer-only stage archives cannot currently be
+recombined and saved together; the API rejects that narrower v1 case
+explicitly. Arbitrary, nested, or mixed native/custom chains are also
+rejected. Individual selective stage archives remain supported, but they are
+not a promise that independently loaded subsets can be unioned later.
 
-`PredictionEngine` is a single-row convenience API and is not thread-safe.
-Create one instance per caller, or use a pool of instances when sharing a
-fitted transformer. Do not share one instance concurrently.
+### Save and load the facade in code
 
-## Output mapping
+Continuing the complete app from section 5, the fitted facade can save a
+portable ZIP. The same `Load` call can run in a new process without calling
+`Fit` or retaining the original asset directory; the short continuation below
+shows that call in place:
 
-Each configured question receives an unambiguous prefix:
+```csharp
+var portablePath = Path.Combine("artifacts", "typed-decisions.zip");
+Directory.CreateDirectory(Path.GetDirectoryName(portablePath)!);
+fitted.Save(portablePath);
 
-| Question | Columns in this sample |
-|---|---|
-| `priority` Choice | `Decision_priority_PredictedLabel`, `Decision_priority_Probabilities`, `Decision_priority_Confidence`, `Decision_priority_ActionProbability` |
-| `quality` Score | `Decision_quality_Score`, `Decision_quality_Probabilities`, `Decision_quality_Confidence`, `Decision_quality_ActionProbability` |
-| `actionable` Noul | `Decision_actionable_PredictedLabel`, `Decision_actionable_Probability`, `Decision_actionable_Confidence`, `Decision_actionable_ActionProbability` |
+using var loaded = OnnxTypedDecisionsTransformer.Load(ml, portablePath);
+var loadedRows = ml.Data.CreateEnumerable<DecisionRow>(
+    loaded.Transform(data), reuseRowObject: false).ToArray();
 
-Choice labels are text. Score is the expected zero-based option index, not a
-confidence. Noul selects true when `P(true) >= P(false)`. Probability vectors
-are temperature-adjusted option probabilities (not logits) and carry
-`SlotNames` metadata with option labels. This documentation makes no
-empirical calibration claim. Every confidence and action-probability scalar is
-associated with its own question. `DecisionResults` retains all questions,
-distributions, legends, and derived values.
+foreach (var row in loadedRows)
+{
+    Console.WriteLine(
+        $"loaded priority={row.Decision_priority_PredictedLabel}; " +
+        $"quality_score={row.Decision_quality_Score}; " +
+        $"actionable={row.Decision_actionable_PredictedLabel}");
+}
+```
 
-The composed mode uses `OutputPrefix = "AppendedDecision_"` and
-`ResultsColumnName = "AppendedDecisionResults"`, so it adds the corresponding
-`AppendedDecision_*` columns without overwriting the first facade's columns.
-Both applications use the same request and assets, so the values should match
-within floating-point tolerance. Accessing multiple output getters does not
-repeat inference for the same cursor row.
+This continuation uses the `fitted`, `ml`, `data`, and `DecisionRow` values
+from section 5. `Load` rebuilds tokenizer and ONNX Runtime resources from the
+ZIP; it does not call `Fit`, and it does not serialize native handles. Ship
+the ZIP together with the application, its .NET/runtime dependencies, and the
+ONNX Runtime provider/runtime files required by the deployment. A portable
+typed-decision ZIP is not a native ML.NET model file, so do not pass it to
+`MLContext.Model.Load` or assume
+`PredictionEnginePool.FromFile` can load it.
 
-Portable persistence is separate from native ML.NET model persistence. The
-portable sample commands are:
+### Run the portable sample
+
+The writer needs local source assets and an output ZIP. The reader needs only
+the ZIP, so it demonstrates the offline boundary:
 
 ```powershell
 dotnet run --file .\samples\TypedDecisions\MLNetPipeline\Program.cs -- `
@@ -849,10 +1042,11 @@ dotnet run --file .\samples\TypedDecisions\MLNetPipeline\Program.cs -- `
   --portable-path .\artifacts\typed-decisions-pipeline.zip
 ```
 
-For a portability check, run the writer in one process, move the ZIP, remove
-only the isolated source-assets directory, and run the reader in a fresh
-process. Do not delete a caller-owned model directory. The tracked
-`samples/TypedDecisions/PortableProcessHarness/Program.cs` provides the
+For a portability check, run the writer in one process, move the ZIP to a
+different test-owned directory, remove only the isolated source-assets
+directory, and run the reader in a fresh process. Do not delete a
+caller-owned model directory. The tracked
+[`PortableProcessHarness`](../PortableProcessHarness/Program.cs) provides the
 offline acceptance shape for `facade`, `stages`, and `composed` archives; the
 `TrackedFreshProcessHarnessRoundTripsStructuredFacadeStagesAndComposedArtifacts`
 test runs separate writer and reader processes and compares structured JSON
@@ -860,12 +1054,17 @@ including every typed field, ordered labels/probabilities, score legends,
 confidence/action channels, tensor vectors, schema dimensions, hiddenness, and
 SlotNames.
 
-## Captured outputs
+<a id="captured-outputs"></a>
 
-The following is captured expected output from actual CPU runs of all seven
-modes with the fixed sample inputs, pinned assets, and settings described
-above. It is not output from `--help`, a synthetic fixture, or a business-rule
-test. The model is the English FP32 Laya export at revision
+## 12. Captured outputs
+
+The following is captured expected output from actual CPU runs of the seven
+real-model inference modes listed in the table below with the fixed sample
+inputs, pinned assets, and settings described above. It is not output from
+`--help`, a synthetic fixture, or a business-rule test. The two portable
+facade/pipeline writer-reader modes are deliberately not presented as fresh
+heavyweight Laya captures; their acceptance evidence uses tiny offline
+fixtures and fresh processes. The model is the English FP32 Laya export at revision
 `68f27dfe5a27a54fb2b1fefc432f43f972e90868`, using managed/native ONNX Runtime
 1.24.2. The displayed values are a reproducible CPU snapshot: the
 independent comparison was within `1e-6`, but these expectations depend on
@@ -886,7 +1085,8 @@ intended.
 | `prediction-engine-composed` | The same original and appended values through a single-row `PredictionEngine`. |
 
 The excerpts below share identical output between equivalent modes; they do
-not represent seven different model predictions.
+not represent seven different model predictions, and they do not imply that
+all eleven sample modes have independent real-model captures.
 
 ### Direct JSON-only output
 
@@ -1081,3 +1281,40 @@ appended_priority=low; appended_priority_confidence=0.596907; appended_priority_
   graph-head channel from already-softmaxed `act_probs`. Both captured rows
   show `0`; that does not mean `actionable=false`, does not explain why the
   graph produced zero, and does not gate the decoded decision.
+
+<a id="api-and-source-map"></a>
+
+## 13. API and source map
+
+Use this section after the tutorial when you need to connect a concept to the
+public API or implementation. All typed-decision behavior remains in the
+existing `MLNet.TextInference.Onnx` assembly:
+
+- facade: `OnnxTypedDecisions`;
+- stages: `PrepareDecisionInputs`, `ScoreOnnxDecisionModel`,
+  `DecodeDecisions`;
+- composition: `AppendOnnxTypedDecisions`;
+- portable persistence: `OnnxTypedDecisionsTransformer.Save`/`Load` and
+  `TypedDecisionPortableModel.SavePipeline`/`LoadPipeline`.
+
+The native stage schema is ML.NET data, not a JSON envelope. Preparation adds
+`Int64` vectors for `input_ids`, `attention_mask`, `marker_pos`, and `qtype`,
+a `Bool` vector for `marker_mask`, and `Int32` scalars
+`DecisionBatchSize`, `DecisionSequenceLength`, and `DecisionMarkerWidth`.
+Scoring adds `Single` vectors for `logits` and already-softmaxed `act_probs`.
+The five vectors are flat `VBuffer<T>` values in the `IDataView`; the scalar
+dimensions tell the scorer how to wrap them into shaped ONNX tensors.
+
+| Concern | Source |
+|---|---|
+| Public options, estimators, transformers | [`TypedDecisionOptions.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionOptions.cs), [`TypedDecisionEstimators.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionEstimators.cs) |
+| Preparation and profile-specific layout | [`PrepareDecisionInputs.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/PrepareDecisionInputs.cs), [`LayaTokenizer.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/LayaTokenizer.cs) |
+| ONNX binding and output validation | [`ScoreOnnxDecisionModel.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/ScoreOnnxDecisionModel.cs) |
+| Choice/Score/Noul decoding | [`DecodeDecisions.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/DecodeDecisions.cs) |
+| Bundle validation and external data | [`TypedDecisionBundle.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionBundle.cs), [`AssetArchive.cs`](../../../src/MLNet.TextInference.Onnx/AssetArchive.cs) |
+| Portable artifact and supported chains | [`TypedDecisionPortableModel.cs`](../../../src/MLNet.TextInference.Onnx/TypedDecisions/TypedDecisionPortableModel.cs) |
+| Developer/acceptance process harness | [`PortableProcessHarness/Program.cs`](../PortableProcessHarness/Program.cs) |
+
+If a local asset, schema, or output does not match the tutorial, start with
+the troubleshooting checkpoint beside the relevant step before changing the
+model or tokenizer independently.

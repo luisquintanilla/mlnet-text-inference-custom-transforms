@@ -129,6 +129,14 @@ DecodeDecisions
 OnnxTypedDecisionsEstimator facade or composable ML.NET stages
 ```
 
+For a reader-first walkthrough of this path, start with
+[`samples/TypedDecisions/README.md`](../samples/TypedDecisions/README.md) and
+continue to the
+[canonical ML.NET tutorial](../samples/TypedDecisions/MLNetPipeline/README.md).
+The tutorial is a repository-checkout sample: its file-based app references
+the local `MLNet.TextInference.Onnx` project rather than assuming a published
+package contains the current PR surface.
+
 ## Conventional IDataView Column Flow
 
 ```

@@ -73,10 +73,12 @@ entry point; the direct transformer API and inspectable native stages use the
 same implementation. The feature scores caller-supplied alternatives rather
 than generating prose: `Choice` selects a label, `Score` returns an expected
 zero-based option index, and `Noul` returns a Boolean plus the probability of
-the `true` option. `Fit` validates an ML.NET schema and does not train the
+the `true` option. For this pretrained typed-decision estimator, `Fit`
+validates an ML.NET schema and initializes resources; it does not train the
 ONNX model.
 
-The typed-decision implementation is part of the ML.NET package. It uses
+In this repository, the typed-decision implementation is part of the
+`MLNet.TextInference.Onnx` assembly/package. It uses
 `Microsoft.ML.Tokenizers` for the selected byte-level BPE contract,
 the managed/native ONNX Runtime packages for the five-input graph, and C#
 decoding with stable tensor primitives. State is text (including
@@ -95,11 +97,15 @@ assets prepared locally:
   -ModelAssetsPath .\models\laya-english-fp32.bundle -Mode stages
 ```
 
-The samples document the exact questions, both example input rows, file-based
-run commands, captured output, tensor shapes, decoder semantics, and native
-stage columns:
-[samples/TypedDecisions/README.md](samples/TypedDecisions/README.md) and
-[MLNetPipeline/README.md](samples/TypedDecisions/MLNetPipeline/README.md).
+The typed-decision samples have deliberately different jobs: the short
+[orientation page](samples/TypedDecisions/README.md) points to the
+[canonical guided tutorial](samples/TypedDecisions/MLNetPipeline/README.md),
+which owns the exact questions, file-based run path, captured output, tensor
+shapes, decoder semantics, native stage columns, and portable deployment
+boundary. The tracked
+[PortableProcessHarness](samples/TypedDecisions/PortableProcessHarness/Program.cs)
+is a developer/acceptance utility for fresh-process offline persistence, not
+the beginner walkthrough.
 
 The internal Laya preparation kernel loads and configures the existing
 Microsoft.ML.Tokenizers BPE engine, while separate profile metadata carries the
