@@ -76,6 +76,9 @@ not write an answer, enforce a business policy, or perform an action.
 The [beginner and developer walkthrough](MLNetPipeline/README.md#beginner-and-developer-walkthrough)
 then follows one row through assets, BPE tokenization, five tensors, ONNX
 scoring, decoding, and ML.NET output mapping.
+For a boundary-by-boundary worked trace, see
+[stage I/O examples](MLNetPipeline/README.md#5a-follow-one-source-row-across-stage-boundaries)
+and the [full-size editable SVG](MLNetPipeline/images/stage-io-trace.svg).
 
 ![Overview diagram showing typed-decision inference from caller state and configured questions through C# preparation, five tensors, ONNX Runtime, separate decision and action-head decoding, and application outputs.](MLNetPipeline/images/pipeline-overview.svg)
 

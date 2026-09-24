@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="2360" viewBox="0 0 900 2360" role="img" aria-labelledby="title desc">
+  <title id="title">One typed-decision source row at every stage boundary</title>
+  <desc id="desc">A vertical worked trace for the first captured source state. It shows the C sharp caller contract, rendered questions, Microsoft tokenizer and Laya preparation, real captured dimensions and selected ID and marker examples, flat ML.NET VBuffer columns versus shaped ONNX Runtime tensors, separate real output shapes, an explicitly illustrative temperature-one softmax calculation, and the real decoded response and typed ML.NET columns.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#38556f"/>
+    </marker>
+    <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+      <rect width="10" height="10" fill="#fff4d6"/>
+      <line x1="0" y1="0" x2="0" y2="10" stroke="#d6a84b" stroke-width="3"/>
+    </pattern>
+    <style>
+      .title { font: 700 27px Arial, Helvetica, sans-serif; fill: #142b40; }
+      .subtitle { font: 18px Arial, Helvetica, sans-serif; fill: #52677b; }
+      .heading { font: 700 21px Arial, Helvetica, sans-serif; fill: #142b40; }
+      .subheading { font: 700 18px Arial, Helvetica, sans-serif; fill: #20384d; }
+      .body { font: 18px Arial, Helvetica, sans-serif; fill: #20384d; }
+      .small { font: 16px Arial, Helvetica, sans-serif; fill: #365066; }
+      .tiny { font: 15px Arial, Helvetica, sans-serif; fill: #52677b; }
+      .mono { font: 17px "Cascadia Mono", "Segoe UI Mono", Consolas, monospace; fill: #20384d; }
+      .mono-small { font: 16px "Cascadia Mono", "Segoe UI Mono", Consolas, monospace; fill: #365066; }
+      .value { font: 700 16px Arial, Helvetica, sans-serif; fill: #20384d; }
+      .on-dark { font: 700 16px Arial, Helvetica, sans-serif; fill: #ffffff; }
+      .card { stroke-width: 2; rx: 16; }
+      .arrow { stroke: #38556f; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="900" height="2360" fill="#fbfcfe"/>
+  <text x="40" y="45" class="title">One source row, shown at every boundary</text>
+  <text x="40" y="76" class="subtitle">Real preparation and inference facts are separated from one illustrative numeric trace.</text>
+
+  <rect x="40" y="100" width="820" height="32" rx="10" fill="#e7f5e9" stroke="#3b7d4a" stroke-width="2"/>
+  <rect x="58" y="109" width="16" height="14" rx="3" fill="#3b7d4a"/>
+  <text x="84" y="121" class="tiny">REAL / source-backed boundary</text>
+  <rect x="328" y="109" width="16" height="14" rx="3" fill="url(#hatch)" stroke="#b7791f"/>
+  <text x="354" y="121" class="tiny">ILLUSTRATIVE ONLY / decoder mechanics</text>
+
+  <rect x="40" y="155" width="820" height="155" class="card" fill="#e6f1fb" stroke="#4f86b5"/>
+  <text x="68" y="193" class="heading">1. Caller: options and one State value</text>
+  <text x="68" y="226" class="mono">OnnxTypedDecisionsOptions { Questions = [priority, quality, actionable],</text>
+  <text x="68" y="251" class="mono">  StateColumnName = "State", BatchSize = 16 }</text>
+  <text x="68" y="283" class="body">State = "The customer supplied reproducible steps and requested an urgent fix."</text>
+
+  <path d="M450 310 V340" class="arrow"/>
+
+  <rect x="40" y="342" width="820" height="235" class="card" fill="#e5f4f0" stroke="#23827a"/>
+  <text x="68" y="380" class="heading">2. Render the fixed questions and assemble the Laya layout</text>
+  <text x="68" y="414" class="subheading">priority / Choice</text>
+  <text x="260" y="414" class="body">low | high</text>
+  <text x="68" y="447" class="subheading">quality / Score</text>
+  <text x="260" y="447" class="body">level 0: weak | level 1: moderate | level 2: strong</text>
+  <text x="68" y="480" class="subheading">actionable / Noul</text>
+  <text x="260" y="480" class="body">false: no, the statement does not hold</text>
+  <text x="260" y="505" class="body">true: yes, the statement holds</text>
+  <text x="68" y="523" class="mono">head chunk: BPE("choice question: How urgent is the request?")</text>
+  <text x="68" y="548" class="mono">options: [MASK-ID] + BPE(" low"); [MASK-ID] + BPE(" high")</text>
+  <text x="68" y="570" class="mono-small">final = [CLS] head [SEP] options [SEP] state [SEP]; marker_pos -> MASK-ID</text>
+
+  <path d="M450 577 V607" class="arrow"/>
+
+  <rect x="40" y="609" width="820" height="305" class="card" fill="#fff4d6" stroke="#b7791f"/>
+  <text x="68" y="647" class="heading">3. Microsoft.ML.Tokenizers BPE prepares three logical question rows</text>
+  <text x="68" y="681" class="small">The tokenizer-only rerun used the pinned vocabulary, merges, config, and profile; no graph or weights.</text>
+  <rect x="68" y="706" width="764" height="120" rx="12" fill="#fbfcfe" stroke="#b7791f" stroke-width="2"/>
+  <text x="88" y="735" class="subheading">REAL selected ID slice from priority row</text>
+  <text x="88" y="762" class="mono">[50281, 22122, 1953, 27, 1359, 21007, 310, 253, 2748, 32, 50282, 50284,</text>
+  <text x="88" y="786" class="mono"> 1698, 50284, 1029]</text>
+  <text x="88" y="811" class="tiny">The public stage emits IDs and offsets, not decoded BPE token strings.</text>
+  <text x="68" y="850" class="body">Captured preparation boundary: B=3, L=45, K=3; 135 ID positions.</text>
+  <text x="68" y="879" class="mono-small">marker_pos priority [11,13] | quality [11,16,21]</text>
+  <text x="68" y="904" class="mono-small">           actionable [14,24] | mask [T,T,F] [T,T,T] [T,T,F] | qtype [0,1,2]</text>
+
+  <path d="M450 914 V944" class="arrow"/>
+
+  <rect x="40" y="946" width="820" height="350" class="card" fill="#f2f5f8" stroke="#8aa0b3"/>
+  <text x="68" y="984" class="heading">4. Flat ML.NET vectors become shaped ORT tensors</text>
+  <text x="68" y="1017" class="small">VBuffer values are flat; scalar dimension columns tell the scorer how to reshape them.</text>
+  <rect x="68" y="1040" width="764" height="140" rx="12" fill="#e6f1fb" stroke="#4f86b5" stroke-width="2"/>
+  <text x="88" y="1068" class="mono-small">ML.NET: DecisionInputIds VBuffer&lt;long&gt;[135]</text>
+  <text x="88" y="1092" class="mono-small">DecisionAttentionMask VBuffer&lt;long&gt;[135]</text>
+  <text x="88" y="1116" class="mono-small">DecisionMarkerPositions VBuffer&lt;long&gt;[9] | DecisionMarkerMask VBuffer&lt;bool&gt;[9]</text>
+  <text x="88" y="1140" class="mono-small">DecisionQuestionTypes VBuffer&lt;long&gt;[3]</text>
+  <text x="88" y="1165" class="tiny">DecisionBatchSize=3; DecisionSequenceLength=45; DecisionMarkerWidth=3</text>
+  <path d="M450 1175 V1195" class="arrow"/>
+  <rect x="68" y="1210" width="764" height="80" rx="12" fill="#efe8fb" stroke="#6b4e9b" stroke-width="2"/>
+  <text x="88" y="1232" class="mono">ORT: input_ids Int64[3,45] | attention_mask Int64[3,45]</text>
+  <text x="88" y="1255" class="mono">marker_pos Int64[3,3] | marker_mask Bool[3,3]</text>
+  <text x="88" y="1278" class="mono">qtype Int64[3] | attention=token positions | marker=option slots</text>
+
+  <g transform="translate(0,50)">
+  <path d="M450 1246 V1276" class="arrow"/>
+
+  <rect x="40" y="1278" width="820" height="360" class="card" fill="#efe8fb" stroke="#6b4e9b"/>
+  <text x="68" y="1316" class="heading">5. The graph returns logits and a separate action head</text>
+  <rect x="68" y="1340" width="764" height="86" rx="12" fill="#e7f5e9" stroke="#3b7d4a" stroke-width="2"/>
+  <text x="88" y="1368" class="subheading">REAL retained per-source output after regrouping</text>
+  <text x="88" y="1396" class="mono">logits float[3,3] = 9 slots | act_probs float[3,2] = 6 values</text>
+  <text x="88" y="1418" class="tiny">Scored alone: input [3,45]; a combined cursor call may repad [6,46].</text>
+  <rect x="68" y="1448" width="764" height="143" rx="12" fill="#fffaf0" stroke="#b7791f" stroke-width="2"/>
+  <rect x="68" y="1448" width="16" height="143" rx="4" fill="url(#hatch)" stroke="#b7791f"/>
+  <text x="96" y="1476" class="subheading">ILLUSTRATIVE ONLY: T=1.0 softmax mechanics</text>
+  <text x="88" y="1504" class="mono-small">mask [T,T,F]; logits [0.4,1.2,0.0] -> valid slice [0.4,1.2]</text>
+  <text x="88" y="1531" class="mono-small">m=1.2; exp(0.4-m)=0.4493; exp(1.2-m)=1; sum=1.4493</text>
+  <text x="88" y="1558" class="value">p ~= [0.4493/1.4493, 1/1.4493] = [0.3100, 0.6900]</text>
+  <text x="88" y="1584" class="mono-small">act_probs [0.25,0.75] -> select 0.75 directly; no second softmax</text>
+  <text x="68" y="1623" class="tiny">The padded slot has numeric storage, but marker_mask excludes it from decoding.</text>
+
+  <path d="M450 1638 V1668" class="arrow"/>
+
+  <rect x="40" y="1670" width="820" height="570" class="card" fill="#e5f4f0" stroke="#23827a"/>
+  <text x="68" y="1708" class="heading">6. Decode the real capture and expose typed results</text>
+  <text x="68" y="1740" class="small">These values are the accepted first-source-row inference capture, not the illustrative fixture.</text>
+  <text x="68" y="1776" class="mono">priority     [0.11570658, 0.88429344] -> Choice "high"</text>
+  <text x="68" y="1805" class="mono">quality      [0.09035327, 0.633647, 0.2759997] -> Score 1.1856464 (range 0..2)</text>
+  <text x="68" y="1834" class="mono">actionable   [0.14793625, 0.8520638] -> Noul true (P(true))</text>
+  <text x="68" y="1863" class="mono">InputTokenCount = 112 | ActionProbability = 0 (separate graph head)</text>
+  <rect x="68" y="1890" width="764" height="290" rx="12" fill="#e6f1fb" stroke="#4f86b5" stroke-width="2"/>
+  <text x="88" y="1918" class="subheading">Direct C# response: debugger-style values</text>
+  <text x="88" y="1948" class="mono-small">ChoiceDecisionResult.Choice = "high"</text>
+  <text x="88" y="1975" class="mono-small">ScoreDecisionResult.Score = 1.1856464</text>
+  <text x="88" y="2002" class="mono-small">NoulDecisionResult.Value = true</text>
+  <text x="88" y="2029" class="mono-small">NoulDecisionResult.ProbabilityTrue = 0.8520638</text>
+  <text x="88" y="2060" class="subheading">Mapped ML.NET column values</text>
+  <text x="88" y="2087" class="mono-small">Decision_priority_PredictedLabel = "high"</text>
+  <text x="88" y="2114" class="mono-small">Decision_quality_Score = 1.1856464</text>
+  <text x="88" y="2141" class="mono-small">Decision_actionable_PredictedLabel = true</text>
+  <text x="88" y="2168" class="mono-small">Decision_actionable_Probability = 0.8520638</text>
+  <text x="68" y="2202" class="tiny">Direct Infer returns objects; facade/stages expose typed columns and optional DecisionResults JSON.</text>
+  <text x="68" y="2228" class="tiny">Mapped rows borrow fitted resources; the caller owns the fitted transformer.</text>
+  </g>
+  <text x="40" y="2310" class="tiny">One existing MLNet.TextInference.Onnx package; preparation rerun plus retained inference capture.</text>
+  <text x="40" y="2336" class="tiny">No training or native Save/Load claim.</text>
+</svg>

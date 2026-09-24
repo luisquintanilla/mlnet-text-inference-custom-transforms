@@ -248,18 +248,19 @@ construction is profile-specific:
 
 1. Render options in caller order. Choice renders each label, or
    `label: description` when a description is supplied; this sample uses
-   labels alone. Score renders `level {index}: {level}`; Noul renders the two
-   criteria as `false` and `true`.
+   labels alone. Score renders `level {index}: {level}`; Noul renders its two
+   explicit `false` and `true` criteria.
 2. Scrub the configured mask-token literal from instructions, options, and
    state so a caller cannot accidentally create an extra marker. The guide
    writes that configured token schematically as `[MASK]`; it is not a
    hardcoded assumption about every tokenizer asset.
-3. Encode each option with the BPE tokenizer, prefix it with the configured
-   mask token, and record that marker's position. The position is an index
-   into the final sequence, not a raw token ID.
-4. Encode the question head as
+3. Encode each option as a separate chunk with a literal leading space before
+   BPE, prefix the option tokens with the configured mask-token ID, and record
+   `marker_pos` at that prepended MASK position. It points to the MASK slot,
+   not to the option label text.
+4. Encode the question head separately as
    `{choice|score|noul} question: {instructions}`.
-5. Assemble the Laya layout:
+5. Explicitly assemble the final special-token layout:
    `[CLS] + question head + [SEP] + option sequences + [SEP] + state + [SEP]`.
 6. Allocate bounded option/head space from `head_max_len`. When option
    material is too large, preparation bounds the option encodings, then gives
@@ -271,12 +272,242 @@ construction is profile-specific:
    configured pad token. In this guide `[CLS]`, `[SEP]`, `[MASK]`, and
    `[PAD]` are schematic names for the profile's configured token strings and
    IDs loaded from the tokenizer metadata; they are not universal numeric
-   constants. This documentation intentionally does not invent those IDs.
+   constants. The worked trace below records the pinned profile's actual IDs.
 
 The layout and special-token contract live in
 [PrepareDecisionInputs.cs](../../../src/MLNet.TextInference.Onnx/TypedDecisions/PrepareDecisionInputs.cs).
 This is why replacing the tokenizer with a generic GPT/Tiktoken example would
 not be equivalent.
+
+### 5a. Follow one source row across stage boundaries
+
+![Worked stage I/O trace showing the first source state, rendered questions, real tokenizer-only preparation dimensions and ID slices, flat ML.NET VBuffers versus shaped ONNX Runtime tensors, separate output heads, an illustrative temperature-one softmax calculation, and the real decoded response and typed ML.NET columns.](images/stage-io-trace.svg)
+
+*Figure 2. A boundary-by-boundary trace for the first `State` value and its
+three configured questions. Green cards are source-backed evidence; the
+hatched card is a complete tiny fixture used only to show decoder mechanics.
+[Open the full-size editable SVG](images/stage-io-trace.svg).*
+
+This graphic combines two evidence sets rather than implying a new end-to-end
+run:
+
+- **Preparation rerun:** only the pinned tokenizer files
+  (`tokenizer.json`, `tokenizer_config.json`) and `laya_config.json` were
+  downloaded from the English FP32 Laya revision. No weights were downloaded
+  and no graph was executed. The public `PrepareDecisionInputs` stage
+  reproduced the first source row as `B=3`, `L=45`, `K=3`, with 135 flattened
+  ID positions, `marker_pos` rows `[11,13]`, `[11,16,21]`, `[14,24]`,
+  `qtype=[0,1,2]`, and nonpadding counts `[28,39,45]`. Their sum is
+  `input_tokens=112`; it is not the padded array length.
+- **Earlier inference capture:** the retained graph outputs were `logits [3,3]`
+  (9 float values) and `act_probs [3,2]` (6 float values) **per source after
+  regrouping**, followed by the exact decoded probabilities and typed results
+  already shown in [Captured outputs](#captured-outputs). If scored alone,
+  this source uses an ORT input of `[3,45]`; a cursor combining two source
+  rows may repad a forward call to `[6,46]`. Raw logits and every action-head
+  channel were not retained, so this guide does not reconstruct them from
+  normalized probabilities.
+
+For this sample, `RenderOptions()` produces `low`, `high`; `level 0: weak`,
+`level 1: moderate`, `level 2: strong`; and the exact Noul strings
+`false: no, the statement does not hold` and
+`true: yes, the statement holds`. The public preparation surface below is a
+fragment; `data` and `ml` are the sample's existing `IDataView` and
+`MLContext`, and the fitted transformer must remain alive while `prepared` is
+consumed:
+
+```csharp
+using var preparationTransformer = ml.Transforms.PrepareDecisionInputs(
+        new DecisionInputPreparationOptions
+        {
+            ModelAssetsPath = modelAssetsPath,
+            Questions = questions
+        })
+    .Fit(data);
+var prepared = preparationTransformer.Transform(data);
+```
+
+For the first source row, the preparation columns/subset (not a full
+scored-and-decoded result DTO) are:
+
+```text
+DecisionBatchSize       = 3
+DecisionSequenceLength = 45
+DecisionMarkerWidth    = 3
+DecisionInputIds        = VBuffer<long> length 135
+DecisionAttentionMask   = VBuffer<long> length 135
+DecisionMarkerPositions = VBuffer<long> length 9
+DecisionMarkerMask      = VBuffer<bool> length 9
+DecisionQuestionTypes   = VBuffer<long> values [0, 1, 2]
+
+first 15 DecisionInputIds =
+  [50281, 22122, 1953, 27, 1359, 21007, 310, 253,
+   2748, 32, 50282, 50284, 1698, 50284, 1029]
+marker positions by question =
+  priority [11, 13]; quality [11, 16, 21]; actionable [14, 24]
+marker mask by question =
+  priority [true, true, false];
+  quality [true, true, true];
+  actionable [true, true, false]
+```
+
+<details>
+<summary>All five prepared tensors as shaped JSON from the tokenizer-only rerun</summary>
+
+```json
+{
+  "input_ids": [
+    [
+      50281, 22122, 1953, 27, 1359, 21007, 310, 253, 2748, 32, 50282, 50284, 1698, 50284, 1029,
+      50282, 510, 7731, 12164, 41374, 5018, 285, 9521, 271, 21007, 4993, 15, 50282, 50283, 50283,
+      50283, 50283, 50283, 50283, 50283, 50283, 50283, 50283, 50283, 50283, 50283, 50283, 50283, 50283, 50283
+    ],
+    [
+      50281, 18891, 1953, 27, 1359, 2266, 310, 253, 1941, 32, 50282, 50284, 1268, 470, 27,
+      5075, 50284, 1268, 337, 27, 10290, 50284, 1268, 374, 27, 2266, 50282, 510, 7731, 12164,
+      41374, 5018, 285, 9521, 271, 21007, 4993, 15, 50282, 50283, 50283, 50283, 50283, 50283, 50283
+    ],
+    [
+      50281, 79, 3941, 1953, 27, 2615, 253, 2748, 320, 14001, 327, 1024, 32, 50282, 50284,
+      3221, 27, 642, 13, 253, 3908, 1057, 417, 2186, 50284, 2032, 27, 4754, 13, 253,
+      3908, 6556, 50282, 510, 7731, 12164, 41374, 5018, 285, 9521, 271, 21007, 4993, 15, 50282
+    ]
+  ],
+  "attention_mask": [
+    [
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    ],
+    [
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0
+    ],
+    [
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+    ]
+  ],
+  "marker_pos": [
+    [11, 13, 0],
+    [11, 16, 21],
+    [14, 24, 0]
+  ],
+  "marker_mask": [
+    [true, true, false],
+    [true, true, true],
+    [true, true, false]
+  ],
+  "qtype": [0, 1, 2]
+}
+```
+
+Each `input_ids` and `attention_mask` row has 45 values. The padded
+`marker_pos` zeros are storage for the unused K=3 slots; the corresponding
+`marker_mask=false` entries exclude them. The first attention row has 28 ones
+and 17 zeros, while its two valid option slots are selected independently by
+`marker_mask=[true,true,false]`.
+</details>
+
+The pinned tokenizer vocabulary maps the most useful first-row positions as
+follows:
+
+| Position | ID | Pinned tokenizer piece / meaning |
+|---:|---:|---|
+| 0 | 50281 | `[CLS]` |
+| 1 | 22122 | `choice` |
+| 2 | 1953 | `Ġquestion` (`Ġ` is the byte-level space marker) |
+| 3 | 27 | `:` |
+| 4-9 | 1359, 21007, 310, 253, 2748, 32 | `ĠHow Ġurgent Ġis Ġthe Ġrequest ?` |
+| 10 | 50282 | `[SEP]` |
+| 11 | 50284 | `[MASK]` before `low` |
+| 12 | 1698 | `Ġlow` |
+| 13 | 50284 | `[MASK]` before `high` |
+| 14 | 1029 | `Ġhigh` |
+| 15 | 50282 | `[SEP]` |
+| 16 | 510 | `The` (start of the state) |
+| 28+ | 50283 | `[PAD]` (padding begins after the first row's 28 attention ones) |
+
+These pieces were looked up in the pinned tokenizer vocabulary; they are not
+inferred from the decoded probabilities. The public preparation stage emits
+IDs and offsets, not a token-string column. The five ML.NET vectors are flat
+`VBuffer<T>` values plus the three scalar dimension columns. The scorer uses
+those dimensions to wrap equivalent ORT shapes: `input_ids` and
+`attention_mask` become `Int64 [3,45]`, `marker_pos` and `marker_mask` become
+`[3,3]`, and `qtype` becomes `Int64 [3]`. This is a representation boundary,
+not a second tokenizer or a universal `Tensor<T>` layer.
+
+The first priority row's rendered text view is:
+
+```text
+[CLS] choice question: How urgent is the request? [SEP]
+[MASK] low [MASK] high [SEP]
+The customer supplied reproducible steps and requested an urgent fix. [SEP]
+```
+
+The implementation encodes the question head, each option, and the state as
+separate chunks, then assembles them around the configured special-token
+markers; a single `EncodeToIds` call over the displayed sentence is not
+guaranteed to produce the same IDs because byte-level BPE boundaries, the
+leading option space, and the inserted MASK IDs are part of the contract. The
+table maps the selected real IDs from that assembled row, including the two
+valid priority markers at positions 11 and 13.
+
+For the missing raw-score arithmetic, the hatched lane uses an explicitly
+illustrative fixture, not a model output:
+
+```text
+valid marker_mask = [true, true, false]
+illustrative logits = [0.4, 1.2, 0.0]
+valid-only logits = [0.4, 1.2]       # slot 2 is excluded, not zeroed
+temperature T = 1.0                  # illustrative, not the pinned profile values
+m = 1.2
+exp(0.4 - m) = 0.4493; exp(1.2 - m) = 1
+sum = 1.4493
+softmax = [0.4493 / 1.4493, 1 / 1.4493] ~= [0.3100, 0.6900]
+illustrative act_probs = [0.25, 0.75] -> select configured channel 0.75
+```
+
+The real first-row decoder output is the separate captured result:
+`priority` probabilities `[0.11570658, 0.88429344]` select `"high"`;
+`quality` probabilities `[0.09035327, 0.633647, 0.2759997]` produce
+`1.1856464` on the `0..2` Score range; and `actionable` probabilities
+`[0.14793625, 0.8520638]` produce `true`. Direct `Infer` returns a
+`DecisionResponse` with typed `DecisionResult` records and
+`InputTokenCount=112`; facade/stage paths expose properties such as
+`Decision_priority_PredictedLabel`, `Decision_quality_Score`,
+`Decision_actionable_PredictedLabel`, and
+`Decision_actionable_Probability`, plus optional `DecisionResults` diagnostic
+JSON. `ActionProbability=0` remains the separate graph head and does not
+override the Boolean result. `DecisionRequest` and `DecisionInputBatch` are internal
+implementation types, not public caller records.
+
+In a debugger, the direct response and its native-column projection look like
+this:
+
+```text
+DecisionResponse.Results[0] = ChoiceDecisionResult
+  Choice = "high"
+  -> Decision_priority_PredictedLabel = "high"
+
+DecisionResponse.Results[1] = ScoreDecisionResult
+  Score = 1.1856464
+  -> Decision_quality_Score = 1.1856464
+
+DecisionResponse.Results[2] = NoulDecisionResult
+  Value = true; ProbabilityTrue = 0.8520638
+  -> Decision_actionable_PredictedLabel = true
+  -> Decision_actionable_Probability = 0.8520638
+```
+
+| Direct property | Value | Native output column |
+|---|---:|---|
+| `ChoiceDecisionResult.Choice` | `"high"` | `Decision_priority_PredictedLabel` |
+| `ScoreDecisionResult.Score` | `1.1856464` | `Decision_quality_Score` |
+| `NoulDecisionResult.Value` | `true` | `Decision_actionable_PredictedLabel` |
+| `NoulDecisionResult.ProbabilityTrue` | `0.8520638` | `Decision_actionable_Probability` |
 
 ### 6. Understand `B`, `L`, `K`, padding, and the five inputs
 
@@ -290,7 +521,7 @@ tensor object.
 
 ![Batching diagram showing two source states with captured prepared shapes 3 by 45 and 3 by 46, an illustrative repadded combined batch 6 by 46, regrouping, token attention masking, and the K equals 3 marker-mask matrix.](images/batching-and-masks.svg)
 
-*Figure 2. Source rows are prepared per state, can be repadded and combined
+*Figure 3. Source rows are prepared per state, can be repadded and combined
 within a cursor, then are sliced back to their source rows. The combined
 `[6,46]` is an explanatory illustration, not a replacement for the captured
 per-source shapes. [Open the full-size editable SVG](images/batching-and-masks.svg).*
@@ -326,7 +557,7 @@ separate model calls. See
 
 ![Decision-decoding diagram with proportional 0 to 1 probability bars for the first captured source row: priority chooses high, quality yields expected index 1.1856464, and actionable chooses true.](images/decision-decoding.svg)
 
-*Figure 3. The first captured source row, decoded with one shared probability
+*Figure 4. The first captured source row, decoded with one shared probability
 scale. The bars show observed probabilities, not invented logits. See
 [Captured outputs](#captured-outputs) for the pinned model/runtime context.
 The confidence and action-probability caveats are called out separately.
