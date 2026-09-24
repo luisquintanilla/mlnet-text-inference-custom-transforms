@@ -13,7 +13,8 @@ internal sealed class TypedDecisionBundle : IDisposable
 {
     public const string ManifestFileName = "typed-decision-bundle.json";
 
-    private readonly bool _ownsRoot;
+    private bool _ownsRoot;
+    private TypedDecisionRootLease? _rootLease;
     private readonly Lazy<LayaDecisionProfile> _profile;
     private readonly Lazy<LayaTokenizerMetadata> _tokenizerMetadata;
     private readonly Lazy<LayaTokenizer> _tokenizer;
@@ -23,6 +24,7 @@ internal sealed class TypedDecisionBundle : IDisposable
     {
         RootPath = rootPath;
         _ownsRoot = ownsRoot;
+        _rootLease = ownsRoot ? new TypedDecisionRootLease(rootPath) : null;
         Manifest = manifest;
         _profile = new Lazy<LayaDecisionProfile>(
             () => LayaDecisionProfile.Load(RootPath, Manifest),
@@ -41,6 +43,35 @@ internal sealed class TypedDecisionBundle : IDisposable
     public LayaTokenizerMetadata TokenizerMetadata => _tokenizerMetadata.Value;
     public LayaTokenizer Tokenizer => _tokenizer.Value;
     public string ModelPath => Path.Combine(RootPath, Manifest.ModelFile);
+
+    internal void AttachOwnedRoot(string rootPath)
+        => AttachOwnedRoot(rootPath, lease: null);
+
+    internal void AttachOwnedRoot(
+        string rootPath,
+        TypedDecisionRootLease? lease)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!string.Equals(
+                Path.GetFullPath(rootPath),
+                RootPath,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "The extracted asset root does not belong to this typed-decision bundle.");
+        }
+
+        if (lease is not null)
+        {
+            lease.AddRef();
+            _rootLease = lease;
+            _ownsRoot = false;
+        }
+        else
+        {
+            _ownsRoot = true;
+        }
+    }
 
     public static TypedDecisionBundle Open(
         string path,
@@ -149,7 +180,9 @@ internal sealed class TypedDecisionBundle : IDisposable
         if (_disposed)
             return;
         _disposed = true;
-        if (_ownsRoot && Directory.Exists(RootPath))
+        if (_rootLease is not null)
+            _rootLease.Release();
+        else if (_ownsRoot && Directory.Exists(RootPath))
             Directory.Delete(RootPath, recursive: true);
     }
 
@@ -214,9 +247,52 @@ internal sealed class TypedDecisionBundle : IDisposable
     };
 }
 
+internal sealed class TypedDecisionRootLease : IDisposable
+{
+    private readonly object _gate = new();
+    private int _references = 1;
+    private bool _disposed;
+
+    internal TypedDecisionRootLease(string rootPath)
+    {
+        RootPath = Path.GetFullPath(rootPath);
+    }
+
+    internal string RootPath { get; }
+
+    internal void AddRef()
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _references++;
+        }
+    }
+
+    internal void Release()
+    {
+        bool delete;
+        lock (_gate)
+        {
+            if (_disposed)
+                return;
+            _references--;
+            delete = _references == 0;
+            if (delete)
+                _disposed = true;
+        }
+
+        if (delete && Directory.Exists(RootPath))
+            Directory.Delete(RootPath, recursive: true);
+    }
+
+    public void Dispose() => Release();
+}
+
 [Flags]
 internal enum TypedDecisionBundleLoadRequirements
 {
+    None = 0,
     Model = 1,
     Profile = 2,
     Tokenizer = 4,

@@ -73,7 +73,7 @@ are from the pinned local capture described in
 Score with range `0..2`, not a percentage, so `1.1856464` is an expected
 ordinal index rather than a percent. These are not universal business truth.
 
-## Seven modes
+## Eleven modes
 
 All commands use portable JIT execution (`PublishAot=false`):
 
@@ -665,7 +665,7 @@ and [TypedDecisionRowMappers.cs](../../../src/MLNet.TextInference.Onnx/TypedDeci
 
 ### 9. Choose an execution mode
 
-All seven sample modes use the same questions, states, assets, and fitted
+All eleven sample modes use the same questions, states, assets, and fitted
 package surface:
 
 1. **`direct`** calls `transformer.Infer` and prints JSON response objects.
@@ -681,6 +681,18 @@ package surface:
    single-row mapper.
 7. **`prediction-engine-composed`** reads both independent facade outputs
    through one DTO.
+8. **`portable-writer`** fits the facade, writes a portable typed-decision
+   archive, and prints the fitted output. It requires both
+   `--model-assets` and `--portable-path`.
+9. **`portable-reader`** loads that archive in the current process and
+   materializes the same output without `Fit` or the original asset directory.
+   It requires only `--portable-path`.
+10. **`portable-pipeline-writer`** fits the demonstrated append-composed
+    facade pipeline, writes a portable pipeline archive, and prints both
+    facade outputs. It requires both `--model-assets` and `--portable-path`.
+11. **`portable-pipeline-reader`** loads that pipeline archive in the current
+    process and materializes both outputs without `Fit` or the original asset
+    directory. It requires only `--portable-path`.
 
 Composition reuses the same input rows and fitted asset paths; it is not a
 merged model and does not produce a better prediction. Each facade has its
@@ -741,10 +753,23 @@ Treat the outputs as model signals that require application validation:
 - Changing the state, question wording, option order, tokenizer, model
   revision, provider, or temperature settings can change the result.
 
-Native ML.NET `Save`/`Load` for these path-based typed-decision assets is not
-implemented, and automatic whole-pipeline ONNX export is not provided. Keep
-the model, external data, tokenizer directory/configuration, and profile
-metadata packaged and versioned together.
+Native ML.NET `MLContext.Model.Save`/`Load` for these custom path-based
+typed-decision components remains unsupported. The portable API is explicit:
+`OnnxTypedDecisionsTransformer.Save(path)`,
+`OnnxTypedDecisionsTransformer.Load(mlContext, path)`, and the corresponding
+stage methods. It stores the fitted configuration plus the graph, referenced
+external data, tokenizer assets, profile, hashes, and decoder policy in a
+versioned ZIP; it does not serialize native sessions, cursors, delegates, or
+absolute paths. `TypedDecisionPortableModel.SavePipeline` and
+`LoadPipeline` support the demonstrated flat prepare -> score -> decode chain
+and naturally inferred appended typed-decision facades (with distinct prefixes,
+results columns, and question widths). Individual facade, preparation, scoring,
+and decoding archives remain supported. A pipeline archive requires all source
+transformers to reference the same complete asset payload; separately loaded
+selective stage archives cannot currently be recombined and fail explicitly.
+Unsupported transformers and arbitrary chains fail explicitly. The loader never
+downloads assets. Automatic
+whole-pipeline ONNX export is not provided.
 
 ## Processing and native stage schema
 
@@ -801,9 +826,39 @@ Both applications use the same request and assets, so the values should match
 within floating-point tolerance. Accessing multiple output getters does not
 repeat inference for the same cursor row.
 
-Native ML.NET model `Save`/`Load` remains unimplemented in this release.
-External local assets are a packaging consideration, not an inherent
-technical limitation of row mapping or persistence.
+Portable persistence is separate from native ML.NET model persistence. The
+portable sample commands are:
+
+```powershell
+dotnet run --file .\samples\TypedDecisions\MLNetPipeline\Program.cs -- `
+  --mode portable-writer `
+  --model-assets .\models\laya-english-fp32 `
+  --portable-path .\artifacts\typed-decisions.zip
+
+dotnet run --file .\samples\TypedDecisions\MLNetPipeline\Program.cs -- `
+  --mode portable-reader `
+  --portable-path .\artifacts\typed-decisions.zip
+
+dotnet run --file .\samples\TypedDecisions\MLNetPipeline\Program.cs -- `
+  --mode portable-pipeline-writer `
+  --model-assets .\models\laya-english-fp32 `
+  --portable-path .\artifacts\typed-decisions-pipeline.zip
+
+dotnet run --file .\samples\TypedDecisions\MLNetPipeline\Program.cs -- `
+  --mode portable-pipeline-reader `
+  --portable-path .\artifacts\typed-decisions-pipeline.zip
+```
+
+For a portability check, run the writer in one process, move the ZIP, remove
+only the isolated source-assets directory, and run the reader in a fresh
+process. Do not delete a caller-owned model directory. The tracked
+`samples/TypedDecisions/PortableProcessHarness/Program.cs` provides the
+offline acceptance shape for `facade`, `stages`, and `composed` archives; the
+`TrackedFreshProcessHarnessRoundTripsStructuredFacadeStagesAndComposedArtifacts`
+test runs separate writer and reader processes and compares structured JSON
+including every typed field, ordered labels/probabilities, score legends,
+confidence/action channels, tensor vectors, schema dimensions, hiddenness, and
+SlotNames.
 
 ## Captured outputs
 

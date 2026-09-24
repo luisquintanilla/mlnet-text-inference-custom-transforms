@@ -211,6 +211,8 @@ business truth, and no empirical probability calibration claim is intended.
 | `facade` / `prediction-engine` | Typed values plus diagnostic JSON. |
 | `stages` / `prediction-engine-stages` | Native dimensions plus typed values and JSON. |
 | `composed` / `prediction-engine-composed` | Original values plus appended `AppendedDecision_*` values. |
+| `portable-writer` / `portable-reader` | Portable facade ZIP writer/reader; reader needs no source assets. |
+| `portable-pipeline-writer` / `portable-pipeline-reader` | Portable appended-facade pipeline ZIP writer/reader; reader needs no source assets. |
 
 ### Facade and `PredictionEngine` typed output
 
@@ -270,11 +272,19 @@ the same question. `DecisionResults` remains an optional full diagnostic JSON
 column with every question and distribution.
 
 The direct API, lazy `IDataView` paths, and native single-row
-`PredictionEngine` mapping are supported. Native ML.NET `Save`/`Load` remains
-unimplemented in this release. External assets are a packaging consideration,
-not an inherent technical limitation of row mapping or persistence. The direct
-methods are `transformer.Infer(state)` and `transformer.Infer(states)`; the
-bulk form can batch states while remaining a straightforward call-oriented
-API. ML.NET's value here is schema-aware composition and lazy `IDataView`
-interoperability, not exclusive batching, an automatic speedup, or better
-accuracy.
+`PredictionEngine` mapping are supported. Native ML.NET
+`MLContext.Model.Save`/`Load` remains unsupported for these custom
+path-based components. Use the explicit portable API instead:
+`OnnxTypedDecisionsTransformer.Save(path)` and
+`OnnxTypedDecisionsTransformer.Load(mlContext, path)` package the fitted
+configuration and required local graph, external-data, tokenizer, profile,
+decoder, and hash metadata in a versioned ZIP. The demonstrated flat
+prepare -> score -> decode chain has `TypedDecisionPortableModel.SavePipeline`
+and `LoadPipeline`; arbitrary ML.NET chains are rejected. Portable load has no
+network dependency and does not embed native sessions or absolute paths.
+
+The direct methods are `transformer.Infer(state)` and
+`transformer.Infer(states)`; the bulk form can batch states while remaining a
+straightforward call-oriented API. ML.NET's value here is schema-aware
+composition and lazy `IDataView` interoperability, not exclusive batching, an
+automatic speedup, or better accuracy.

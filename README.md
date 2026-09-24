@@ -443,9 +443,17 @@ an optional full diagnostic JSON column. Preparation and scoring stages use
 native ML.NET numeric/vector/Boolean columns, and the facade is the normal
 cursor-batched path. Native single-row `PredictionEngine` mapping is supported
 through the transformer and native stage row mappers. Native ML.NET `Save`/`Load`
-remains unimplemented for typed decisions in this release. External assets are
-a packaging consideration, not an inherent limitation of row mapping or
-persistence.
+remains unsupported for typed decisions in this release; use the explicit
+portable API instead. External assets are a packaging consideration, not an
+inherent limitation of row mapping.
+Typed-decision transformers provide an explicit portable ZIP API
+(`Save`/`Load` and the supported facade/stage pipeline helpers); this is separate from
+native `MLContext.Model.Save`/`Load`, which remains unsupported for these custom
+components. The supported pipeline boundary is the demonstrated flat
+preparation -> scoring -> decoding chain and naturally inferred appended
+typed-decision facades; arbitrary/native chains are rejected. All sources in a
+saved pipeline must reference the same complete asset payload, so separately
+loaded selective stage archives cannot currently be recombined.
 
 ### Text Generation
 

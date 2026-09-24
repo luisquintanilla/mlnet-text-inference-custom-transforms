@@ -117,6 +117,16 @@ public sealed class OnnxTypedDecisionsTransformer : ITransformer, IDisposable
         _engine = new DecisionInferenceEngine(mlContext, options.ModelAssetsPath);
     }
 
+    internal OnnxTypedDecisionsOptions Options => _options;
+    internal string AssetsRootPath => _engine.AssetsRootPath;
+
+    /// <summary>Saves this transformer as a portable typed-decision artifact.</summary>
+    public void Save(string path) => TypedDecisionPortableModel.Save(this, path);
+
+    /// <summary>Loads a transformer from a portable typed-decision artifact.</summary>
+    public static OnnxTypedDecisionsTransformer Load(MLContext mlContext, string path)
+        => TypedDecisionPortableModel.LoadFacade(mlContext, path);
+
     /// <summary>
     /// Direct convenience inference using the same prepared/scored/decoded kernel as the IDataView path.
     /// </summary>
@@ -158,7 +168,8 @@ public sealed class OnnxTypedDecisionsTransformer : ITransformer, IDisposable
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException(
-            "Typed decision model assets are referenced by path and are not embedded in ML.NET models.");
+            "Native MLContext.Model.Save/Load is not supported for typed decisions; " +
+            "use the portable typed-decision Save/Load API.");
 
     public void Dispose()
     {
@@ -167,6 +178,14 @@ public sealed class OnnxTypedDecisionsTransformer : ITransformer, IDisposable
         _disposed = true;
         _engine.Dispose();
     }
+
+    internal void AttachOwnedAssetDirectory(string rootPath)
+        => _engine.AttachOwnedAssetDirectory(rootPath);
+
+    internal void AttachOwnedAssetDirectory(
+        string rootPath,
+        TypedDecisionRootLease lease)
+        => _engine.AttachOwnedAssetDirectory(rootPath, lease);
 }
 
 public sealed class DecisionInputPreparationTransformer : ITransformer, IDisposable
@@ -189,6 +208,25 @@ public sealed class DecisionInputPreparationTransformer : ITransformer, IDisposa
             _bundle.Tokenizer.Tokenizer,
             _bundle.Tokenizer.Metadata);
     }
+
+    internal DecisionInputPreparationOptions Options => _options;
+    internal string AssetsRootPath
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _bundle.RootPath;
+        }
+    }
+
+    /// <summary>Saves this transformer as a portable typed-decision artifact.</summary>
+    public void Save(string path) => TypedDecisionPortableModel.Save(this, path);
+
+    /// <summary>Loads a transformer from a portable typed-decision artifact.</summary>
+    public static DecisionInputPreparationTransformer Load(
+        MLContext mlContext,
+        string path)
+        => TypedDecisionPortableModel.LoadPreparation(mlContext, path);
 
     public bool IsRowToRowMapper => true;
 
@@ -213,7 +251,9 @@ public sealed class DecisionInputPreparationTransformer : ITransformer, IDisposa
     }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
-        => throw new NotSupportedException("Typed decision assets are referenced by path.");
+        => throw new NotSupportedException(
+            "Native MLContext.Model.Save/Load is not supported for typed decisions; " +
+            "use the portable typed-decision Save/Load API.");
 
     public void Dispose()
     {
@@ -222,6 +262,14 @@ public sealed class DecisionInputPreparationTransformer : ITransformer, IDisposa
         _disposed = true;
         _bundle.Dispose();
     }
+
+    internal void AttachOwnedAssetDirectory(string rootPath)
+        => _bundle.AttachOwnedRoot(rootPath);
+
+    internal void AttachOwnedAssetDirectory(
+        string rootPath,
+        TypedDecisionRootLease lease)
+        => _bundle.AttachOwnedRoot(rootPath, lease);
 }
 
 public sealed class OnnxDecisionModelScorerTransformer : ITransformer, IDisposable
@@ -255,6 +303,25 @@ public sealed class OnnxDecisionModelScorerTransformer : ITransformer, IDisposab
         }
     }
 
+    internal OnnxDecisionModelScorerOptions Options => _options;
+    internal string AssetsRootPath
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _bundle.RootPath;
+        }
+    }
+
+    /// <summary>Saves this transformer as a portable typed-decision artifact.</summary>
+    public void Save(string path) => TypedDecisionPortableModel.Save(this, path);
+
+    /// <summary>Loads a transformer from a portable typed-decision artifact.</summary>
+    public static OnnxDecisionModelScorerTransformer Load(
+        MLContext mlContext,
+        string path)
+        => TypedDecisionPortableModel.LoadScoring(mlContext, path);
+
     public bool IsRowToRowMapper => true;
 
     public IDataView Transform(IDataView input)
@@ -278,7 +345,9 @@ public sealed class OnnxDecisionModelScorerTransformer : ITransformer, IDisposab
     }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
-        => throw new NotSupportedException("Typed decision assets are referenced by path.");
+        => throw new NotSupportedException(
+            "Native MLContext.Model.Save/Load is not supported for typed decisions; " +
+            "use the portable typed-decision Save/Load API.");
 
     public void Dispose()
     {
@@ -288,6 +357,14 @@ public sealed class OnnxDecisionModelScorerTransformer : ITransformer, IDisposab
         _scorer.Dispose();
         _bundle.Dispose();
     }
+
+    internal void AttachOwnedAssetDirectory(string rootPath)
+        => _bundle.AttachOwnedRoot(rootPath);
+
+    internal void AttachOwnedAssetDirectory(
+        string rootPath,
+        TypedDecisionRootLease lease)
+        => _bundle.AttachOwnedRoot(rootPath, lease);
 }
 
 public sealed class DecisionDecodingTransformer : ITransformer, IDisposable
@@ -305,6 +382,23 @@ public sealed class DecisionDecodingTransformer : ITransformer, IDisposable
             TypedDecisionBundleLoadRequirements.Profile);
         _decoder = new DecodeDecisions(_bundle.Profile.TemperaturePolicy, _bundle.Manifest.Decoder);
     }
+
+    internal DecisionDecodingOptions Options => _options;
+    internal string AssetsRootPath
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _bundle.RootPath;
+        }
+    }
+
+    /// <summary>Saves this transformer as a portable typed-decision artifact.</summary>
+    public void Save(string path) => TypedDecisionPortableModel.Save(this, path);
+
+    /// <summary>Loads a transformer from a portable typed-decision artifact.</summary>
+    public static DecisionDecodingTransformer Load(MLContext mlContext, string path)
+        => TypedDecisionPortableModel.LoadDecoding(mlContext, path);
 
     public bool IsRowToRowMapper => true;
 
@@ -329,7 +423,9 @@ public sealed class DecisionDecodingTransformer : ITransformer, IDisposable
     }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
-        => throw new NotSupportedException("Typed decision assets are referenced by path.");
+        => throw new NotSupportedException(
+            "Native MLContext.Model.Save/Load is not supported for typed decisions; " +
+            "use the portable typed-decision Save/Load API.");
 
     public void Dispose()
     {
@@ -338,6 +434,14 @@ public sealed class DecisionDecodingTransformer : ITransformer, IDisposable
         _disposed = true;
         _bundle.Dispose();
     }
+
+    internal void AttachOwnedAssetDirectory(string rootPath)
+        => _bundle.AttachOwnedRoot(rootPath);
+
+    internal void AttachOwnedAssetDirectory(
+        string rootPath,
+        TypedDecisionRootLease lease)
+        => _bundle.AttachOwnedRoot(rootPath, lease);
 }
 
 internal sealed class DecisionInferenceEngine : IDisposable
@@ -377,6 +481,14 @@ internal sealed class DecisionInferenceEngine : IDisposable
         }
     }
 
+    internal void AttachOwnedAssetDirectory(string rootPath)
+        => _bundle.AttachOwnedRoot(rootPath);
+
+    internal void AttachOwnedAssetDirectory(
+        string rootPath,
+        TypedDecisionRootLease lease)
+        => _bundle.AttachOwnedRoot(rootPath, lease);
+
     internal IReadOnlyList<DecisionResponse> Infer(
         IReadOnlyList<string> states,
         IReadOnlyList<DecisionQuestion> questions,
@@ -400,6 +512,15 @@ internal sealed class DecisionInferenceEngine : IDisposable
         }
 
         return responses;
+    }
+
+    internal string AssetsRootPath
+    {
+        get
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            return _bundle.RootPath;
+        }
     }
 
     private IReadOnlyList<DecisionResponse> InferBatch(

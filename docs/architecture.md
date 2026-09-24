@@ -244,3 +244,21 @@ embedding-model.mlnet (zip)
 ```
 
 Individual transforms don't need standalone save/load — they're reconstructed from the facade's portable package where supported. The package preserves the model's original basename under `model/`, external-data sidecars under their relative paths, and tokenizer files under `tokenizer/`. Native ML.NET chain persistence remains a separate, intentionally unimplemented capability. The `EmbeddingGeneratorTransformer` does NOT support save/load (since `IEmbeddingGenerator` has no save contract).
+
+Typed decisions use a separate versioned portable artifact rather than the
+embedding archive format. `OnnxTypedDecisionsTransformer.Save` and the
+stage-specific methods package fitted questions, column/batching options,
+profile and decoder policy, plus the referenced graph, external-data and
+tokenizer assets. `TypedDecisionPortableModel.SavePipeline` supports the
+demonstrated flat preparation -> scoring -> decoding composition and the
+demonstrated naturally inferred chain of appended typed-decision facades
+(including distinct output prefixes/results columns and per-facade question
+widths). Individual facade and stage archives remain supported. A pipeline
+save requires every source transformer to reference the same complete asset
+payload; separately loaded selective profile-only/scorer-only archives cannot
+currently be recombined into a new pipeline archive and are rejected
+explicitly. The loader
+extracts into an owned temporary root and validates entry hashes and safe
+relative paths; it never restores live native handles, embeds absolute source
+paths, or downloads missing assets. This portable format does not make these
+custom components compatible with native `MLContext.Model.Save`/`Load`.

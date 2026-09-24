@@ -1207,7 +1207,7 @@ public sealed class TypedDecisionNativeDataViewTests
         }
     }
 
-    private sealed class NativeBundleFixture : IDisposable
+    internal sealed class NativeBundleFixture : IDisposable
     {
         private const string ModelBase64 =
             "CAgSB2ZpeHR1cmU6sgMKFgoFcXR5cGUSBnFzaGFwZSIFU2hhcGUKLQoGcXNoYXBlCgN0d28SCWFjdF9zaGFwZSIGQ29uY2F0KgsKBGF4aXMYAKABAgpFCglhY3Rfc2hhcGUSCWFjdF9wcm9icyIPQ29uc3RhbnRPZlNoYXBlKhwKBXZhbHVlKhAIARABIgQAAAAAQgR6ZXJvoAEECiUKCm1hcmtlcl9wb3MSBmxvZ2l0cyIEQ2FzdCoJCgJ0bxgBoAECEgdmaXh0dXJlKgwIARAHOgECQgN0d28qEAgBEAEiBAAAAABCBHplcm9aHQoJaW5wdXRfaWRzEhAKDggHEgoKAxIBQgoDEgFMWiIKDmF0dGVudGlvbl9tYXNrEhAKDggHEgoKAxIBQgoDEgFMWh4KCm1hcmtlcl9wb3MSEAoOCAcSCgoDEgFCCgMSAUtaHwoLbWFya2VyX21hc2sSEAoOCAkSCgoDEgFCCgMSAUtaFAoFcXR5cGUSCwoJCAcSBQoDEgFCYhoKBmxvZ2l0cxIQCg4IARIKCgMSAUIKAxIBS2IcCglhY3RfcHJvYnMSDwoNCAESCQoDEgFCCgIIAkIECgAQDQ==";

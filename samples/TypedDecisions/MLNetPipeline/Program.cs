@@ -19,9 +19,17 @@ if (args is ["--help"] or ["-h"])
 
 var mode = GetOption(args, "--mode") ?? "facade";
 var modelAssetsPath = GetOption(args, "--model-assets") ?? GetOption(args, "--bundle");
-if (string.IsNullOrWhiteSpace(modelAssetsPath))
+var portablePath = GetOption(args, "--portable-path");
+if (!mode.EndsWith("-reader", StringComparison.OrdinalIgnoreCase) &&
+    string.IsNullOrWhiteSpace(modelAssetsPath))
 {
     Console.Error.WriteLine("A local --model-assets path is required. Inference never downloads model assets.");
+    return 2;
+}
+if (mode.StartsWith("portable-", StringComparison.OrdinalIgnoreCase) &&
+    string.IsNullOrWhiteSpace(portablePath))
+{
+    Console.Error.WriteLine("Portable modes require --portable-path.");
     return 2;
 }
 
@@ -38,7 +46,7 @@ var states = new[]
 };
 var options = new OnnxTypedDecisionsOptions
 {
-    ModelAssetsPath = modelAssetsPath,
+    ModelAssetsPath = modelAssetsPath ?? string.Empty,
     Questions = questions,
     BatchSize = 16
 };
@@ -48,6 +56,70 @@ var data = ml.Data.LoadFromEnumerable(states.Select(static state => new StateRow
 
 switch (mode.ToLowerInvariant())
 {
+    case "portable-writer":
+        using (var transformer = ml.Transforms.OnnxTypedDecisions(options).Fit(data))
+        {
+            transformer.Save(portablePath!);
+            Console.WriteLine($"portable_archive={Path.GetFullPath(portablePath!)}");
+            PrintRows(
+                ml.Data.CreateEnumerable<DecisionRow>(
+                    transformer.Transform(data),
+                    reuseRowObject: false));
+        }
+        break;
+
+    case "portable-reader":
+        using (var transformer = OnnxTypedDecisionsTransformer.Load(ml, portablePath!))
+        {
+            PrintRows(
+                ml.Data.CreateEnumerable<DecisionRow>(
+                    transformer.Transform(data),
+                    reuseRowObject: false));
+        }
+        break;
+
+    case "portable-pipeline-writer":
+    {
+        var appendedOptions = new OnnxTypedDecisionsOptions
+        {
+            ModelAssetsPath = options.ModelAssetsPath,
+            Questions = options.Questions,
+            StateColumnName = options.StateColumnName,
+            ResultsColumnName = "AppendedDecisionResults",
+            OutputPrefix = "AppendedDecision_",
+            BatchSize = 2
+        };
+        var fitted = ml.Transforms.OnnxTypedDecisions(options)
+            .AppendOnnxTypedDecisions(ml, appendedOptions)
+            .Fit(data);
+        try
+        {
+            var typed = (TransformerChain<OnnxTypedDecisionsTransformer>)fitted;
+            TypedDecisionPortableModel.SavePipeline(typed, portablePath!);
+            PrintComposedRows(
+                ml.Data.CreateEnumerable<ComposedDecisionRow>(
+                    fitted.Transform(data),
+                    reuseRowObject: false));
+        }
+        finally
+        {
+            (fitted as IDisposable)?.Dispose();
+        }
+        break;
+    }
+
+    case "portable-pipeline-reader":
+        using (var transformer = TypedDecisionPortableModel.LoadPipeline(
+                   ml,
+                   portablePath!))
+        {
+            PrintComposedRows(
+                ml.Data.CreateEnumerable<ComposedDecisionRow>(
+                    transformer.Transform(data),
+                    reuseRowObject: false));
+        }
+        break;
+
     case "direct":
         using (var transformer = ml.Transforms.OnnxTypedDecisions(options).Fit(data))
         {
@@ -81,13 +153,13 @@ switch (mode.ToLowerInvariant())
     {
         var prepared = new DecisionInputPreparationOptions
         {
-            ModelAssetsPath = modelAssetsPath,
+            ModelAssetsPath = modelAssetsPath!,
             Questions = questions
         };
-        var scored = new OnnxDecisionModelScorerOptions { ModelAssetsPath = modelAssetsPath };
+        var scored = new OnnxDecisionModelScorerOptions { ModelAssetsPath = modelAssetsPath! };
         var decoded = new DecisionDecodingOptions
         {
-            ModelAssetsPath = modelAssetsPath,
+            ModelAssetsPath = modelAssetsPath!,
             Questions = questions
         };
         var stages = ml.Transforms.PrepareDecisionInputs(prepared)
@@ -113,13 +185,13 @@ switch (mode.ToLowerInvariant())
     {
         var prepared = new DecisionInputPreparationOptions
         {
-            ModelAssetsPath = modelAssetsPath,
+            ModelAssetsPath = modelAssetsPath!,
             Questions = questions
         };
-        var scored = new OnnxDecisionModelScorerOptions { ModelAssetsPath = modelAssetsPath };
+        var scored = new OnnxDecisionModelScorerOptions { ModelAssetsPath = modelAssetsPath! };
         var decoded = new DecisionDecodingOptions
         {
-            ModelAssetsPath = modelAssetsPath,
+            ModelAssetsPath = modelAssetsPath!,
             Questions = questions
         };
         var stages = ml.Transforms.PrepareDecisionInputs(prepared)
@@ -200,7 +272,9 @@ switch (mode.ToLowerInvariant())
     default:
         Console.Error.WriteLine(
             $"Unknown mode '{mode}'. Use direct, facade, prediction-engine, " +
-            "prediction-engine-stages, prediction-engine-composed, stages, or composed.");
+            "prediction-engine-stages, prediction-engine-composed, stages, composed, " +
+            "portable-writer, portable-reader, portable-pipeline-writer, or " +
+            "portable-pipeline-reader.");
         return 2;
 }
 
@@ -295,7 +369,7 @@ static void PrintJson(string json) => Console.WriteLine(json);
 static void PrintUsage()
 {
     Console.WriteLine("""
-        Usage: dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- --mode <direct|facade|prediction-engine|prediction-engine-stages|prediction-engine-composed|stages|composed> --model-assets <directory-or-zip>
+        Usage: dotnet run --file samples/TypedDecisions/MLNetPipeline/Program.cs -- --mode <direct|facade|prediction-engine|prediction-engine-stages|prediction-engine-composed|stages|composed|portable-writer|portable-reader|portable-pipeline-writer|portable-pipeline-reader> [--model-assets <directory-or-zip>] [--portable-path <archive.zip>]
         """);
 }
 
