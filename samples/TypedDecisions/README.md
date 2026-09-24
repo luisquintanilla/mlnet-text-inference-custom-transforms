@@ -6,8 +6,9 @@ model scores the alternatives supplied by the caller:
 
 - **Choice** selects one caller-provided label.
 - **Score** returns the expected zero-based option index, not a classification
-  confidence. For three options, `1.1856464` means the probability-weighted
-  index is between options `1` and `2`.
+  confidence. For this three-level question, the range is `0..2`, not a
+  percentage; `1.1856464` means the probability-weighted index is between
+  options `1` and `2`.
 - **Noul (Boolean)** returns `true` when `pTrue >= pFalse` and exposes `pTrue`.
 
 The primary and only file-based sample is
@@ -44,6 +45,37 @@ State is always text. A caller may serialize JSON into that text column, but
 the library does not provide a Python-compatible object serializer. The
 question instructions, option labels, state text, and profile-specific
 preprocessing are model inputs; they are not business rules or guarantees.
+
+## Results at a glance
+
+These are the exact decoded values for the two fixed sample states used by
+the captured runs:
+
+| Sample input | Priority | Quality score | Actionable | P(true) |
+|---|---|---:|---|---:|
+| Reproducible steps, urgent fix | high | 1.1856464 | true | 0.8520638 |
+| Missing logs, no clear action | low | 0.61998236 | false | 0.10274245 |
+
+`Reproducible steps, urgent fix` abbreviates the full state
+`The customer supplied reproducible steps and requested an urgent fix.`.
+`Missing logs, no clear action` abbreviates
+`The report is missing logs and has no clear requested action.`. The values
+come from the pinned English FP32 Laya capture at revision
+`68f27dfe5a27a54fb2b1fefc432f43f972e90868` with managed/native ONNX Runtime
+1.24.2. `quality` is a three-level zero-based Score with range `0..2`, not a
+percentage, so `1.1856464` is an expected ordinal index. Changing inputs,
+assets, or settings can change the predictions.
+
+## Start here: beginner explanation
+
+Think of this as a model-powered checklist: the application supplies a state,
+asks fixed questions, and supplies the alternatives the model is allowed to
+choose or score. The model returns signals for those alternatives; it does
+not write an answer, enforce a business policy, or perform an action.
+
+The [beginner and developer walkthrough](MLNetPipeline/README.md#beginner-and-developer-walkthrough)
+then follows one row through assets, BPE tokenization, five tensors, ONNX
+scoring, decoding, and ML.NET output mapping.
 
 ## What happens
 
@@ -232,5 +264,9 @@ column with every question and distribution.
 The direct API, lazy `IDataView` paths, and native single-row
 `PredictionEngine` mapping are supported. Native ML.NET `Save`/`Load` remains
 unimplemented in this release. External assets are a packaging consideration,
-not an inherent technical limitation of row mapping or persistence. The direct methods are
-`transformer.Infer(state)` and `transformer.Infer(states)`.
+not an inherent technical limitation of row mapping or persistence. The direct
+methods are `transformer.Infer(state)` and `transformer.Infer(states)`; the
+bulk form can batch states while remaining a straightforward call-oriented
+API. ML.NET's value here is schema-aware composition and lazy `IDataView`
+interoperability, not exclusive batching, an automatic speedup, or better
+accuracy.
