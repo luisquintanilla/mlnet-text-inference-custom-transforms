@@ -1,9 +1,9 @@
 # ML.NET typed decisions
 
 This file-based .NET 10 sample is the primary entry point for typed-decision
-inference. It uses `MLNet.TextInference.Onnx`; there is no separate standalone
-core package. `Fit` validates the `IDataView` schema and opens local model
-assets, but does not train the ONNX model.
+inference. It uses the existing `MLNet.TextInference.Onnx` package. `Fit`
+validates the `IDataView` schema and opens local model assets, but does not
+train the ONNX model.
 
 ## Inputs
 

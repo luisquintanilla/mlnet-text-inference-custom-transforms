@@ -17,7 +17,7 @@ Three distinct numeric/tensor systems meet in this transform. Each owns a specif
 │  │   • SIMD-accelerated    │  │   • Create, Reshape, Slice       │ │
 │  │   • Add, Multiply, Div  │  │   • Broadcast                    │ │
 │  │   • Norm, Sum, Dot      │  │   • Indexing: t[b, s, d]         │ │
-│  │   • SoftMax, CosineSim  │  │   • Wraps array (zero-copy)      │ │
+│  │   • SoftMax, CosineSim  │  │   • Wraps array (managed view)   │ │
 │  │   • No shape awareness  │  │   • Delegates math to Primitives │ │
 │  └─────────────────────────┘  └──────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
@@ -38,7 +38,7 @@ Three distinct numeric/tensor systems meet in this transform. Each owns a specif
 
 **Key property:** `Tensor.Create<T>(array, shape)` **wraps the existing array without copying**. This means:
 - Writes through `Tensor<T>` indexing are reflected in the original array
-- The backing array can be passed to other APIs (like OrtValue) without data movement
+- The backing array can be offered to other APIs (like OrtValue) without an intermediate tensor copy. This is a managed-memory view, not a promise that the complete ONNX call is zero-copy.
 
 ```csharp
 // Create a [2, 3] tensor backed by an existing array
@@ -68,24 +68,24 @@ Key operations we use:
 
 ### `OrtValue` — The ONNX Bridge
 
-`OrtValue` is OnnxRuntime's native tensor type. It wraps managed memory and makes it accessible to the ONNX inference engine:
+`OrtValue` is OnnxRuntime's native tensor type. For CPU inputs it can bind managed memory for the duration of inference:
 
 ```csharp
-// Zero-copy: pins the managed array and creates a native tensor reference
+// CPU input: binds/pins the managed array for the native call
 var ortValue = OrtValue.CreateTensorValueFromMemory(managedArray, shape);
 
-// Zero-copy read: returns a span pointing into native memory
+// Borrowed read: returns a span pointing into native output memory
 ReadOnlySpan<float> output = results[0].GetTensorDataAsSpan<float>();
 ```
 
-No data is copied in either direction. The managed array is pinned during inference, and the output span reads directly from OnnxRuntime's allocated memory.
+The managed input may be pinned rather than copied on the CPU path, but an execution provider can transfer it to device memory. Output spans borrow native storage and are valid only while the result values remain alive; production code snapshots them into managed arrays before disposing results or returning them from a batch. Tensor construction, padding, batch repacking, VBuffer snapshots, and final embedding objects can therefore allocate even when an individual bridge is a view.
 
 ## Where Each Tool Is Used
 
 | Pipeline Stage | Tensor\<T\> | TensorPrimitives | OrtValue | Why |
 |---------------|:-----------:|:----------------:|:--------:|-----|
 | Input construction | ✅ | | | Shape-safe `[b, s]` indexing |
-| ONNX I/O bridge | | | ✅ | Zero-copy native tensor |
+| ONNX I/O bridge | | | ✅ | CPU input view/pinning when supported; providers may copy to device memory |
 | Mean pooling | | ✅ | | SIMD-accelerated inner loop |
 | L2 normalization | | ✅ | | `Norm` + `Divide` |
 | Cosine similarity | | ✅ | | Built-in `CosineSimilarity` |
@@ -116,13 +116,14 @@ for (int b = 0; b < batchSize; b++)
     // positions beyond tokens.Count remain 0 → padding with no attention
 }
 
-// 4. Pass the SAME flat arrays to OnnxRuntime — zero copy
+// 4. Pass the SAME flat arrays to OnnxRuntime; CPU binding may avoid an
+//    intermediate managed copy, while providers may transfer to a device.
 var ortIds = OrtValue.CreateTensorValueFromMemory(idsArray, [batchSize, seqLen]);
 var ortMask = OrtValue.CreateTensorValueFromMemory(maskArray, [batchSize, seqLen]);
 ```
 
 **Why Tensor\<T\> here and not manual indexing?**
-`idsTensor[b, s]` is clearer and less error-prone than `idsArray[b * seqLen + s]`. Since `Tensor.Create` wraps without copying, we get the ergonomics of multi-dimensional indexing AND the zero-copy bridge to OrtValue from the same backing array.
+`idsTensor[b, s]` is clearer and less error-prone than `idsArray[b * seqLen + s]`. Since `Tensor.Create` wraps without copying, we get the ergonomics of multi-dimensional indexing and can offer the same backing array to the CPU ORT bridge; this is not a guarantee that execution avoids native or GPU transfers.
 
 **Why not Tensor\<T\> for the math stages?**
 `Tensor<T>` in .NET 9/10 does NOT have axis-wise reduction — there's no `Tensor.Sum(tensor, dim: 1)`. Mean pooling requires summing across the sequence dimension while preserving the hidden dimension. We'd need to implement the axis reduction manually regardless, so `TensorPrimitives` on flat spans with explicit offset calculation is both simpler and guaranteed SIMD.
@@ -188,6 +189,27 @@ When you call `TensorPrimitives.Add(embedding, tokenEmbed, embedding)`:
 3. For a 384-dim embedding: 384 / 8 = **48 SIMD additions** instead of 384 scalar additions
 4. This is roughly **6-8x faster** than a scalar loop
 
+## Stable Softmax for Finite Logits
+
+Classification, NER, and typed-decision decoding share a finite-logit softmax
+kernel rather than calling `TensorPrimitives.SoftMax` directly. The shared
+policy validates the temperature, restricts the operation to the valid option
+slice, subtracts the maximum logit before exponentiation, and clears padded
+output slots:
+
+```csharp
+var max = logits[..validCount].Max();
+for (int i = 0; i < validCount; i++)
+    probabilities[i] = MathF.Exp((logits[i] / temperature) - max);
+TensorPrimitives.Divide(probabilities[..validCount], probabilities[..validCount].Sum(), probabilities[..validCount]);
+probabilities[validCount..].Clear();
+```
+
+The production helper also rejects non-finite logits and invalid temperatures
+instead of silently returning a uniform distribution. Typed-decision action
+probabilities are already normalized by the graph and are not softmaxed again;
+Noul decoding uses the true-class probability from that two-element output.
+
 The developer writes simple, readable code — the SIMD optimization is automatic.
 
 ### The Offset Calculation
@@ -203,7 +225,7 @@ For batch item 1, sequence position 3, hiddenDim 384:
 offset = (1 × 128 + 3) × 384 = 131 × 384 = 50,304
 ```
 
-The `Slice(offset, hiddenDim)` call creates a `ReadOnlySpan<float>` view of exactly 384 contiguous floats at that position — no allocation, no copy.
+The `Slice(offset, hiddenDim)` call creates a `ReadOnlySpan<float>` view of exactly 384 contiguous floats at that position — no allocation or copy while the native result remains alive. Production code must snapshot values before disposing the result.
 
 ## L2 Normalization
 
@@ -246,7 +268,7 @@ This is useful for validating embedding quality. In the sample app:
 
 ## Summary: Zero-Copy Data Flow
 
-The entire pipeline achieves minimal data movement:
+The pipeline minimizes avoidable managed copies, but it is not universally zero-copy:
 
 ```
 Tokenizer output (List<int>)
@@ -254,13 +276,13 @@ Tokenizer output (List<int>)
     ▼ write through Tensor<T> indexing
 flat long[] arrays (idsArray, maskArray)
     │
-    ▼ OrtValue.CreateTensorValueFromMemory (pins, no copy)
-OrtValue (native tensor referencing managed array)
+    ▼ OrtValue.CreateTensorValueFromMemory (CPU bind/pin where supported)
+OrtValue (native input; providers may transfer to device)
     │
     ▼ InferenceSession.Run()
 OrtValue output (native memory)
     │
-    ▼ GetTensorDataAsSpan<float>() (no copy, span into native memory)
+    ▼ GetTensorDataAsSpan<float>() (borrowed span into native memory)
 ReadOnlySpan<float>
     │
     ▼ Slice() views + TensorPrimitives SIMD math
@@ -270,8 +292,4 @@ float[] embedding (final result)
 Embedding<float> (MEAI) or VBuffer<float> (ML.NET)
 ```
 
-The only allocations are:
-1. The input `long[]` arrays (backing the input tensors)
-2. The output `float[]` arrays (one per embedding)
-
-Everything in between is zero-copy spans, views, and pinned references.
+Typical allocations include input arrays, padding/batch repacking buffers, output snapshots, pooled embeddings, and ML.NET VBuffer/row snapshots. The spans and tensor views avoid additional copies within their lifetime, but they do not outlive the native results they borrow, and GPU execution necessarily involves provider-managed transfers.

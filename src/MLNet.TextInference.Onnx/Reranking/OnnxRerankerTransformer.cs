@@ -87,7 +87,11 @@ public sealed class OnnxRerankerTransformer : ITransformer, IDisposable
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException();
+    {
+        return ((ITransformer)new TransformerChain<ITransformer>(
+            new ITransformer[] { _tokenizer, _scorer, _sigmoid }))
+            .GetRowToRowMapper(inputSchema);
+    }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException();

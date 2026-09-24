@@ -8,27 +8,73 @@ namespace MLNet.TextInference.Onnx;
 
 /// <summary>
 /// Handles saving and loading OnnxTextEmbeddingTransformer to/from a self-contained zip file.
-/// The zip contains: model.onnx, tokenizer.json, config.json, manifest.json.
+/// The zip preserves the original model basename and external-data paths under model/,
+/// tokenizer assets under tokenizer/, and versioned configuration/manifest metadata.
 /// </summary>
 internal static class ModelPackager
 {
     private const string OnnxModelEntry = "model.onnx";
+    private const string OnnxModelDirectory = "model";
     private const string ConfigEntry = "config.json";
     private const string ManifestEntry = "manifest.json";
 
     public static void Save(OnnxTextEmbeddingTransformer transformer, string path)
     {
         var options = transformer.Options;
-        var tokenizerFileName = Path.GetFileName(options.TokenizerPath);
+        var modelPath = Path.GetFullPath(options.ModelPath);
+        var tokenizerPath = Path.GetFullPath(options.TokenizerPath);
+        var tokenizerIsDirectory = Directory.Exists(tokenizerPath);
+        var tokenizerFileName = tokenizerIsDirectory
+            ? "tokenizer"
+            : $"tokenizer/{Path.GetFileName(tokenizerPath)}";
+        var tokenizerFiles = GetTokenizerFiles(tokenizerPath, tokenizerIsDirectory);
+        var modelFileName = $"{OnnxModelDirectory}/{Path.GetFileName(modelPath)}";
 
         using var zipStream = File.Create(path);
         using var archive = new ZipArchive(zipStream, ZipArchiveMode.Create);
 
         // Bundle the ONNX model
-        archive.CreateEntryFromFile(options.ModelPath, OnnxModelEntry, CompressionLevel.SmallestSize);
+        archive.CreateEntryFromFile(
+            modelPath,
+            modelFileName,
+            CompressionLevel.SmallestSize);
 
         // Bundle the tokenizer with its original filename
-        archive.CreateEntryFromFile(options.TokenizerPath, tokenizerFileName, CompressionLevel.SmallestSize);
+        if (tokenizerIsDirectory)
+        {
+            foreach (var file in tokenizerFiles)
+            {
+                var relative = Path.GetRelativePath(tokenizerPath, file)
+                    .Replace('\\', '/');
+                archive.CreateEntryFromFile(
+                    file,
+                    $"tokenizer/{relative}",
+                    CompressionLevel.SmallestSize);
+            }
+        }
+        else
+        {
+            foreach (var file in tokenizerFiles)
+            {
+                archive.CreateEntryFromFile(
+                    file,
+                    $"tokenizer/{Path.GetFileName(file)}",
+                    CompressionLevel.SmallestSize);
+            }
+        }
+
+        var externalData = AssetArchive.DiscoverOnnxExternalDataFiles(modelPath);
+        foreach (var relative in externalData)
+        {
+            var externalPath = AssetArchive.ResolveWithinRoot(
+                Path.GetDirectoryName(modelPath)!,
+                relative,
+                "ONNX external-data location");
+            archive.CreateEntryFromFile(
+                externalPath,
+                $"{OnnxModelDirectory}/{relative}",
+                CompressionLevel.NoCompression);
+        }
 
         // Save config (serializable subset of options)
         var config = new SavedConfig
@@ -43,7 +89,9 @@ internal static class ModelPackager
             AttentionMaskName = options.AttentionMaskName,
             TokenTypeIdsName = options.TokenTypeIdsName,
             OutputTensorName = options.OutputTensorName,
-            TokenizerFileName = tokenizerFileName
+            TokenizerFileName = tokenizerFileName,
+            ModelFileName = modelFileName,
+            ExternalDataFileNames = externalData.ToArray(),
         };
 
         var configEntry = archive.CreateEntry(ConfigEntry);
@@ -76,7 +124,7 @@ internal static class ModelPackager
 
         try
         {
-            ZipFile.ExtractToDirectory(path, extractDir);
+            AssetArchive.ExtractZipSafely(path, extractDir);
 
             var configPath = Path.Combine(extractDir, ConfigEntry);
 
@@ -85,8 +133,26 @@ internal static class ModelPackager
             var config = JsonSerializer.Deserialize(configJson, JsonContext.Default.SavedConfig)
                 ?? throw new InvalidOperationException("Failed to deserialize config from model package.");
 
-            var modelPath = Path.Combine(extractDir, OnnxModelEntry);
-            var tokenizerPath = Path.Combine(extractDir, config.TokenizerFileName);
+            var modelPath = AssetArchive.ResolveWithinRoot(
+                extractDir,
+                config.ModelFileName,
+                "model path");
+            var modelDirectory = Path.GetDirectoryName(modelPath)!;
+            foreach (var external in config.GetExternalDataFileNames())
+            {
+                var externalPath = AssetArchive.ResolveWithinRoot(
+                    modelDirectory,
+                    external,
+                    "ONNX external-data path");
+                if (!File.Exists(externalPath))
+                    throw new FileNotFoundException(
+                        $"Model package is missing external-data file '{external}'.",
+                        externalPath);
+            }
+            var tokenizerPath = AssetArchive.ResolveWithinRoot(
+                extractDir,
+                config.TokenizerFileName,
+                "tokenizer path");
 
             var options = new OnnxTextEmbeddingOptions
             {
@@ -123,7 +189,10 @@ internal static class ModelPackager
                 fitData = dummyData;
             }
 
-            return estimator.Fit(fitData);
+            var transformer = estimator.Fit(fitData);
+            transformer.AttachOwnedAssetDirectory(extractDir);
+            extractDir = string.Empty;
+            return transformer;
         }
         catch
         {
@@ -136,6 +205,58 @@ internal static class ModelPackager
     private sealed class DummyTextRow
     {
         public string Text { get; set; } = "";
+    }
+
+    private static IReadOnlyList<string> GetTokenizerFiles(
+        string tokenizerPath,
+        bool tokenizerIsDirectory)
+    {
+        // Reuse the production loader as the required-asset resolver so a
+        // tokenizer_config.json-only package cannot succeed and fail on load.
+        _ = TextTokenizerEstimator.LoadTokenizer(tokenizerPath);
+
+        var directory = tokenizerIsDirectory
+            ? tokenizerPath
+            : Path.GetDirectoryName(tokenizerPath)
+                ?? throw new InvalidOperationException(
+                    $"Cannot determine tokenizer directory for '{tokenizerPath}'.");
+        var files = EnumerateTokenizerFiles(directory, throwIfEmpty: tokenizerIsDirectory).ToList();
+        if (!tokenizerIsDirectory &&
+            !files.Contains(tokenizerPath, StringComparer.OrdinalIgnoreCase))
+        {
+            files.Add(tokenizerPath);
+        }
+
+        return files;
+    }
+
+    private static IEnumerable<string> EnumerateTokenizerFiles(string tokenizerDirectory, bool throwIfEmpty = true)
+    {
+        var supportedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "tokenizer.json",
+            "tokenizer_config.json",
+            "special_tokens_map.json",
+            "added_tokens.json",
+            "vocab.txt",
+            "vocab.json",
+            "merges.txt",
+            "tokenizer.model",
+            "sentencepiece.bpe.model",
+            "spiece.model",
+            "spm.model"
+        };
+
+        var files = Directory.EnumerateFiles(
+                tokenizerDirectory,
+                "*",
+                SearchOption.TopDirectoryOnly)
+            .Where(file => supportedNames.Contains(Path.GetFileName(file)))
+            .ToArray();
+        if (files.Length == 0 && throwIfEmpty)
+            throw new FileNotFoundException(
+                $"Tokenizer directory '{tokenizerDirectory}' contains no supported tokenizer assets.");
+        return files;
     }
 
     internal sealed class SavedConfig
@@ -151,6 +272,16 @@ internal static class ModelPackager
         public string? TokenTypeIdsName { get; set; }
         public string? OutputTensorName { get; set; }
         public string TokenizerFileName { get; set; } = "vocab.txt";
+        public string ModelFileName { get; set; } = OnnxModelEntry;
+        public string[]? ExternalDataFileNames { get; set; }
+        public string? ExternalDataFileName { get; set; }
+
+        internal IEnumerable<string> GetExternalDataFileNames()
+            => ExternalDataFileNames is { Length: > 0 }
+                ? ExternalDataFileNames
+                : ExternalDataFileName is null
+                    ? []
+                    : [ExternalDataFileName];
     }
 
     internal sealed class Manifest

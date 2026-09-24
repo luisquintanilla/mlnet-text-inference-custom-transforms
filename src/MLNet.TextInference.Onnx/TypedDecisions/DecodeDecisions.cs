@@ -1,4 +1,4 @@
-using System.Numerics.Tensors;
+using MLNet.TextInference.Onnx;
 
 namespace MLNet.TextInference.TypedDecisions;
 
@@ -60,12 +60,8 @@ internal sealed class DecodeDecisions
                     "questions are explicitly unsupported in v1.");
 
             var logits = outputs.Logits.AsSpan(row * outputs.MarkerWidth, optionCount);
-            var probabilities = new float[optionCount];
             var temperature = _temperaturePolicy.For(item.Question.Type, optionCount);
-            var scaled = new float[optionCount];
-            for (int i = 0; i < optionCount; i++)
-                scaled[i] = logits[i] / temperature;
-            TensorPrimitives.SoftMax(scaled, probabilities);
+            var probabilities = StableSoftmax.Create(logits, optionCount, temperature);
 
             var labels = item.OptionLabels;
             var distribution = new DecisionDistribution(labels, probabilities);
@@ -105,7 +101,7 @@ internal sealed class DecodeDecisions
         float confidence,
         float actionProbability)
     {
-        var best = TensorPrimitives.IndexOfMax(probabilities.ToArray());
+        var best = IndexOfMax(probabilities);
         return new ChoiceDecisionResult(
             id,
             labels[best],
@@ -145,5 +141,17 @@ internal sealed class DecodeDecisions
         foreach (var probability in probabilities)
             entropy -= probability * MathF.Log(MathF.Max(probability, 1e-12f));
         return 1 - entropy / MathF.Log(probabilities.Count);
+    }
+
+    private static int IndexOfMax(IReadOnlyList<float> values)
+    {
+        int index = 0;
+        for (int i = 1; i < values.Count; i++)
+        {
+            if (values[i] > values[index])
+                index = i;
+        }
+
+        return index;
     }
 }

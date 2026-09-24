@@ -114,7 +114,7 @@ public sealed class OnnxTypedDecisionsTransformer : ITransformer, IDisposable
     internal OnnxTypedDecisionsTransformer(MLContext mlContext, OnnxTypedDecisionsOptions options)
     {
         _options = options;
-        _engine = new DecisionInferenceEngine(options.ModelAssetsPath);
+        _engine = new DecisionInferenceEngine(mlContext, options.ModelAssetsPath);
     }
 
     /// <summary>
@@ -179,7 +179,11 @@ public sealed class DecisionInputPreparationTransformer : ITransformer, IDisposa
     internal DecisionInputPreparationTransformer(MLContext mlContext, DecisionInputPreparationOptions options)
     {
         _options = options;
-        _bundle = TypedDecisionBundle.Open(options.ModelAssetsPath);
+        _bundle = TypedDecisionBundle.Open(
+            options.ModelAssetsPath,
+            TypedDecisionBundleLoadRequirements.Model |
+            TypedDecisionBundleLoadRequirements.Profile |
+            TypedDecisionBundleLoadRequirements.Tokenizer);
         _preparer = new PrepareDecisionInputs(
             _bundle.Profile,
             _bundle.Tokenizer.Tokenizer,
@@ -230,10 +234,19 @@ public sealed class OnnxDecisionModelScorerTransformer : ITransformer, IDisposab
     internal OnnxDecisionModelScorerTransformer(MLContext mlContext, OnnxDecisionModelScorerOptions options)
     {
         _options = options;
-        _bundle = TypedDecisionBundle.Open(options.ModelAssetsPath);
+        _bundle = TypedDecisionBundle.Open(
+            options.ModelAssetsPath,
+            TypedDecisionBundleLoadRequirements.Model |
+            TypedDecisionBundleLoadRequirements.Tokenizer);
         try
         {
-            _scorer = new ScoreOnnxDecisionModel(_bundle);
+            _scorer = new ScoreOnnxDecisionModel(
+                _bundle,
+                new OnnxExecutionOptions(
+                    mlContext.GpuDeviceId,
+                    mlContext.FallbackToCpu,
+                    static message =>
+                        Console.Error.WriteLine($"[MLNet.TextInference.Onnx] {message}")));
         }
         catch
         {
@@ -287,7 +300,9 @@ public sealed class DecisionDecodingTransformer : ITransformer, IDisposable
     internal DecisionDecodingTransformer(MLContext mlContext, DecisionDecodingOptions options)
     {
         _options = options;
-        _bundle = TypedDecisionBundle.Open(options.ModelAssetsPath);
+        _bundle = TypedDecisionBundle.Open(
+            options.ModelAssetsPath,
+            TypedDecisionBundleLoadRequirements.Profile);
         _decoder = new DecodeDecisions(_bundle.Profile.TemperaturePolicy, _bundle.Manifest.Decoder);
     }
 
@@ -333,16 +348,26 @@ internal sealed class DecisionInferenceEngine : IDisposable
     private readonly DecodeDecisions _decoder;
     private bool _disposed;
 
-    internal DecisionInferenceEngine(string bundlePath)
+    internal DecisionInferenceEngine(MLContext mlContext, string bundlePath)
     {
-        _bundle = TypedDecisionBundle.Open(bundlePath);
+        _bundle = TypedDecisionBundle.Open(
+            bundlePath,
+            TypedDecisionBundleLoadRequirements.Model |
+            TypedDecisionBundleLoadRequirements.Profile |
+            TypedDecisionBundleLoadRequirements.Tokenizer);
         try
         {
             _preparer = new PrepareDecisionInputs(
                 _bundle.Profile,
                 _bundle.Tokenizer.Tokenizer,
                 _bundle.Tokenizer.Metadata);
-            _scorer = new ScoreOnnxDecisionModel(_bundle);
+            _scorer = new ScoreOnnxDecisionModel(
+                _bundle,
+                new OnnxExecutionOptions(
+                    mlContext.GpuDeviceId,
+                    mlContext.FallbackToCpu,
+                    static message =>
+                        Console.Error.WriteLine($"[MLNet.TextInference.Onnx] {message}")));
             _decoder = new DecodeDecisions(_bundle.Profile.TemperaturePolicy, _bundle.Manifest.Decoder);
         }
         catch

@@ -15,7 +15,6 @@ internal abstract class DecisionDataViewBase : IDataView
         Input = input;
         Schema = schema;
     }
-
     public DataViewSchema Schema { get; }
     public bool CanShuffle => false;
     public long? GetRowCount() => Input.GetRowCount();
@@ -26,13 +25,14 @@ internal abstract class DecisionDataViewBase : IDataView
         Random? rand)
     {
         var names = columnsNeeded
-            .Where(column => Input.Schema.GetColumnOrNull(column.Name) is not null)
-            .Select(column => Input.Schema[column.Name])
+            .Where(column => column.Index >= 0 && column.Index < Input.Schema.Count)
+            .Select(column => Input.Schema[column.Index])
             .Concat(required
                 .Select(name => Input.Schema.GetColumnOrNull(name))
                 .Where(static column => column is not null)
                 .Select(static column => column!.Value))
-            .Distinct();
+            .GroupBy(static column => column.Index)
+            .Select(static group => group.First());
         return Input.GetRowCursor(names, rand);
     }
 
@@ -49,8 +49,8 @@ internal abstract class DecisionDataViewBase : IDataView
 
 internal abstract class DecisionCursorBase : DataViewRowCursor
 {
-    private readonly Dictionary<string, CachedColumn> _cachedColumns = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _activeColumns;
+    private readonly Dictionary<int, CachedColumn> _cachedColumns = [];
+    private readonly HashSet<int> _activeColumns;
     private readonly ValueGetter<DataViewRowId> _idGetter;
 
     protected DecisionCursorBase(
@@ -61,8 +61,8 @@ internal abstract class DecisionCursorBase : DataViewRowCursor
         Parent = parent;
         InputCursor = inputCursor;
         _activeColumns = columnsNeeded
-            .Select(static column => column.Name)
-            .ToHashSet(StringComparer.Ordinal);
+            .Select(static column => column.Index)
+            .ToHashSet();
         _idGetter = inputCursor.GetIdGetter();
     }
 
@@ -70,11 +70,17 @@ internal abstract class DecisionCursorBase : DataViewRowCursor
     protected DataViewRowCursor InputCursor { get; }
     protected List<Action> Readers { get; } = [];
     protected DataViewRowId CurrentId;
-    protected bool IsRequested(string columnName) => _activeColumns.Contains(columnName);
+    protected long CurrentBatch = -1;
+    protected bool IsRequested(int columnIndex) => _activeColumns.Contains(columnIndex);
 
     protected void EnsureColumnActive(DataViewSchema.Column column)
     {
-        if (!_activeColumns.Contains(column.Name))
+        if (column.Index < 0 || column.Index >= Parent.Schema.Count ||
+            !Parent.Schema[column.Index].Equals(column))
+            throw new ArgumentException(
+                $"Column '{column.Name}' does not belong to this row schema.",
+                nameof(column));
+        if (!_activeColumns.Contains(column.Index))
             throw new InvalidOperationException(
                 $"Column '{column.Name}' was not requested by this cursor.");
     }
@@ -85,9 +91,8 @@ internal abstract class DecisionCursorBase : DataViewRowCursor
     {
         foreach (var column in columnsNeeded)
         {
-            var upstream = InputCursor.Schema.GetColumnOrNull(column.Name);
-            if (upstream is not null)
-                register(upstream.Value);
+            if (column.Index >= 0 && column.Index < InputCursor.Schema.Count)
+                register(InputCursor.Schema[column.Index]);
         }
     }
 
@@ -109,7 +114,7 @@ internal abstract class DecisionCursorBase : DataViewRowCursor
 
     public override DataViewSchema Schema => Parent.Schema;
     public override long Position => InputCursor.Position;
-    public override long Batch => InputCursor.Batch;
+    public override long Batch => CurrentBatch;
 
     protected void ReadCachedColumns()
     {
@@ -118,14 +123,20 @@ internal abstract class DecisionCursorBase : DataViewRowCursor
         _idGetter(ref CurrentId);
     }
 
+    protected DataViewRowId ReadCurrentInputId()
+    {
+        var id = default(DataViewRowId);
+        _idGetter(ref id);
+        return id;
+    }
+
     protected ValueGetter<TValue> GetCachedUpstreamGetter<TValue>(
         DataViewSchema.Column column)
     {
-        if (!_cachedColumns.TryGetValue(column.Name, out var cached))
+        if (!_cachedColumns.TryGetValue(column.Index, out var cached))
         {
             var value = new CachedValue<TValue>();
-            var getter = InputCursor.GetGetter<TValue>(
-                InputCursor.Schema[column.Name]);
+            var getter = InputCursor.GetGetter<TValue>(column);
             cached = new CachedColumn(
                 value,
                 () =>
@@ -134,7 +145,7 @@ internal abstract class DecisionCursorBase : DataViewRowCursor
                     getter(ref current);
                     value.Value = DecisionDataViewUtils.CopyValue(current);
                 });
-            _cachedColumns.Add(column.Name, cached);
+            _cachedColumns.Add(column.Index, cached);
             Readers.Add(cached.Reader);
         }
 
@@ -150,7 +161,7 @@ internal abstract class DecisionCursorBase : DataViewRowCursor
         => (ref DataViewRowId value) => value = CurrentId;
 
     public override bool IsColumnActive(DataViewSchema.Column column)
-        => _activeColumns.Contains(column.Name);
+        => _activeColumns.Contains(column.Index);
 
     protected override void Dispose(bool disposing)
     {
@@ -186,16 +197,22 @@ internal sealed class DecisionPreparationDataView : DecisionDataViewBase
         Random? rand = null)
     {
         var requested = columnsNeeded.ToArray();
+        var needsPreparation = requested.Any(column =>
+            column.Index >= Input.Schema.Count &&
+            _options.ColumnNames().Any(item => item.Name == column.Name));
         return new Cursor(
             this,
-            OpenInputCursor(requested, [_options.StateColumnName], rand),
+            OpenInputCursor(
+                requested,
+                needsPreparation ? [_options.StateColumnName] : [],
+                rand),
             requested);
     }
 
     private sealed class Cursor : DecisionCursorBase
     {
         private readonly DecisionPreparationDataView _parent;
-        private readonly ValueGetter<ReadOnlyMemory<char>> _stateGetter;
+        private readonly ValueGetter<ReadOnlyMemory<char>>? _stateGetter;
         private DecisionInputBatch? _batch;
         private readonly bool _needsPreparation;
 
@@ -206,10 +223,14 @@ internal sealed class DecisionPreparationDataView : DecisionDataViewBase
             : base(parent, inputCursor, columnsNeeded)
         {
             _parent = parent;
-            _stateGetter = inputCursor.GetGetter<ReadOnlyMemory<char>>(
-                inputCursor.Schema[parent._options.StateColumnName]);
             _needsPreparation = columnsNeeded.Any(column =>
+                IsAddedColumn(column) &&
                 parent._options.ColumnNames().Any(item => item.Name == column.Name));
+            if (_needsPreparation)
+            {
+                _stateGetter = inputCursor.GetGetter<ReadOnlyMemory<char>>(
+                    inputCursor.Schema[parent._options.StateColumnName]);
+            }
             InitializeActiveUpstreamColumns(columnsNeeded, RegisterActiveUpstreamColumn);
         }
 
@@ -217,11 +238,19 @@ internal sealed class DecisionPreparationDataView : DecisionDataViewBase
         {
             if (!InputCursor.MoveNext())
                 return false;
-            ReadOnlyMemory<char> state = default;
-            _stateGetter(ref state);
-            _batch = _needsPreparation
-                ? _parent._preparer.Prepare(state.ToString(), _parent._options.Questions)
-                : null;
+            CurrentBatch = InputCursor.Batch;
+            if (_needsPreparation)
+            {
+                ReadOnlyMemory<char> state = default;
+                _stateGetter!(ref state);
+                _batch = _parent._preparer.Prepare(
+                    state.ToString(),
+                    _parent._options.Questions);
+            }
+            else
+            {
+                _batch = null;
+            }
             ReadCachedColumns();
             return true;
         }
@@ -229,28 +258,30 @@ internal sealed class DecisionPreparationDataView : DecisionDataViewBase
         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
         {
             EnsureColumnActive(column);
-            if (column.Name == _parent._options.InputIdsColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.InputIdsColumnName)
                 return VectorGetter<TValue, long>(() => _batch?.InputIds ?? []);
-            if (column.Name == _parent._options.AttentionMaskColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.AttentionMaskColumnName)
                 return VectorGetter<TValue, long>(() => _batch?.AttentionMask ?? []);
-            if (column.Name == _parent._options.MarkerPositionsColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.MarkerPositionsColumnName)
                 return VectorGetter<TValue, long>(() => _batch?.MarkerPositions ?? []);
-            if (column.Name == _parent._options.MarkerMaskColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.MarkerMaskColumnName)
                 return VectorGetter<TValue, bool>(() => _batch?.MarkerMask ?? []);
-            if (column.Name == _parent._options.QuestionTypesColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.QuestionTypesColumnName)
                 return VectorGetter<TValue, long>(() => _batch?.QuestionTypes ?? []);
-            if (column.Name == _parent._options.BatchSizeColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.BatchSizeColumnName)
                 return ScalarGetter<TValue, int>(() => _batch?.BatchSize ?? 0);
-            if (column.Name == _parent._options.SequenceLengthColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.SequenceLengthColumnName)
                 return ScalarGetter<TValue, int>(() => _batch?.SequenceLength ?? 0);
-            if (column.Name == _parent._options.MarkerWidthColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.MarkerWidthColumnName)
                 return ScalarGetter<TValue, int>(() => _batch?.MarkerWidth ?? 0);
 
-            var upstream = InputCursor.Schema.GetColumnOrNull(column.Name);
-            if (upstream is null)
+            if (column.Index >= InputCursor.Schema.Count)
                 throw new InvalidOperationException($"Unknown column '{column.Name}'.");
-            return GetCachedUpstreamGetter<TValue>(upstream.Value);
+            return GetCachedUpstreamGetter<TValue>(InputCursor.Schema[column.Index]);
         }
+
+        private bool IsAddedColumn(DataViewSchema.Column column)
+            => column.Index >= _parent.Input.Schema.Count;
 
         private void RegisterActiveUpstreamColumn(DataViewSchema.Column column)
             => InvokeGenericRegistration(this, nameof(RegisterActiveUpstreamColumnTyped), column);
@@ -280,20 +311,27 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
         Random? rand = null)
     {
         var requested = columnsNeeded.ToArray();
+        var needsScoring = requested.Any(column =>
+            column.Index >= Input.Schema.Count &&
+            (column.Name == _options.LogitsColumnName ||
+             column.Name == _options.ActionProbabilitiesColumnName));
         return new Cursor(
             this,
             OpenInputCursor(
                 requested,
-                [
-                    _options.InputIdsColumnName,
-                    _options.AttentionMaskColumnName,
-                    _options.MarkerPositionsColumnName,
-                    _options.MarkerMaskColumnName,
-                    _options.QuestionTypesColumnName,
-                    _options.BatchSizeColumnName,
-                    _options.SequenceLengthColumnName,
-                    _options.MarkerWidthColumnName
-                ],
+                needsScoring
+                    ?
+                    [
+                        _options.InputIdsColumnName,
+                        _options.AttentionMaskColumnName,
+                        _options.MarkerPositionsColumnName,
+                        _options.MarkerMaskColumnName,
+                        _options.QuestionTypesColumnName,
+                        _options.BatchSizeColumnName,
+                        _options.SequenceLengthColumnName,
+                        _options.MarkerWidthColumnName
+                    ]
+                    : [],
                 rand),
             requested);
     }
@@ -301,17 +339,18 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
     private sealed class Cursor : DecisionCursorBase
     {
         private readonly DecisionScoringDataView _parent;
-        private readonly ValueGetter<VBuffer<long>> _inputIdsGetter;
-        private readonly ValueGetter<VBuffer<long>> _attentionGetter;
-        private readonly ValueGetter<VBuffer<long>> _markerPositionsGetter;
-        private readonly ValueGetter<VBuffer<bool>> _markerMaskGetter;
-        private readonly ValueGetter<VBuffer<long>> _questionTypesGetter;
-        private readonly ValueGetter<int> _batchSizeGetter;
-        private readonly ValueGetter<int> _sequenceLengthGetter;
-        private readonly ValueGetter<int> _markerWidthGetter;
-        private readonly Dictionary<string, object> _cachedValues = new(StringComparer.Ordinal);
+        private readonly ValueGetter<VBuffer<long>>? _inputIdsGetter;
+        private readonly ValueGetter<VBuffer<long>>? _attentionGetter;
+        private readonly ValueGetter<VBuffer<long>>? _markerPositionsGetter;
+        private readonly ValueGetter<VBuffer<bool>>? _markerMaskGetter;
+        private readonly ValueGetter<VBuffer<long>>? _questionTypesGetter;
+        private readonly ValueGetter<int>? _batchSizeGetter;
+        private readonly ValueGetter<int>? _sequenceLengthGetter;
+        private readonly ValueGetter<int>? _markerWidthGetter;
+        private readonly Dictionary<int, object> _cachedValues = [];
         private readonly List<Action<int>> _readers = [];
         private readonly List<DataViewRowId> _ids = [];
+        private readonly List<long> _batches = [];
         private readonly List<PreparedRow> _preparedRows = [];
         private ScoredRow[] _scoredRows = [];
         private readonly int _lookahead;
@@ -328,24 +367,28 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
             _parent = parent;
             _lookahead = parent._options.BatchSize;
             _needsScoring = columnsNeeded.Any(column =>
-                column.Name == parent._options.LogitsColumnName ||
-                column.Name == parent._options.ActionProbabilitiesColumnName);
-            _inputIdsGetter = inputCursor.GetGetter<VBuffer<long>>(
-                inputCursor.Schema[parent._options.InputIdsColumnName]);
-            _attentionGetter = inputCursor.GetGetter<VBuffer<long>>(
-                inputCursor.Schema[parent._options.AttentionMaskColumnName]);
-            _markerPositionsGetter = inputCursor.GetGetter<VBuffer<long>>(
-                inputCursor.Schema[parent._options.MarkerPositionsColumnName]);
-            _markerMaskGetter = inputCursor.GetGetter<VBuffer<bool>>(
-                inputCursor.Schema[parent._options.MarkerMaskColumnName]);
-            _questionTypesGetter = inputCursor.GetGetter<VBuffer<long>>(
-                inputCursor.Schema[parent._options.QuestionTypesColumnName]);
-            _batchSizeGetter = inputCursor.GetGetter<int>(
-                inputCursor.Schema[parent._options.BatchSizeColumnName]);
-            _sequenceLengthGetter = inputCursor.GetGetter<int>(
-                inputCursor.Schema[parent._options.SequenceLengthColumnName]);
-            _markerWidthGetter = inputCursor.GetGetter<int>(
-                inputCursor.Schema[parent._options.MarkerWidthColumnName]);
+                IsAddedColumn(column) &&
+                (column.Name == parent._options.LogitsColumnName ||
+                 column.Name == parent._options.ActionProbabilitiesColumnName));
+            if (_needsScoring)
+            {
+                _inputIdsGetter = inputCursor.GetGetter<VBuffer<long>>(
+                    inputCursor.Schema[parent._options.InputIdsColumnName]);
+                _attentionGetter = inputCursor.GetGetter<VBuffer<long>>(
+                    inputCursor.Schema[parent._options.AttentionMaskColumnName]);
+                _markerPositionsGetter = inputCursor.GetGetter<VBuffer<long>>(
+                    inputCursor.Schema[parent._options.MarkerPositionsColumnName]);
+                _markerMaskGetter = inputCursor.GetGetter<VBuffer<bool>>(
+                    inputCursor.Schema[parent._options.MarkerMaskColumnName]);
+                _questionTypesGetter = inputCursor.GetGetter<VBuffer<long>>(
+                    inputCursor.Schema[parent._options.QuestionTypesColumnName]);
+                _batchSizeGetter = inputCursor.GetGetter<int>(
+                    inputCursor.Schema[parent._options.BatchSizeColumnName]);
+                _sequenceLengthGetter = inputCursor.GetGetter<int>(
+                    inputCursor.Schema[parent._options.SequenceLengthColumnName]);
+                _markerWidthGetter = inputCursor.GetGetter<int>(
+                    inputCursor.Schema[parent._options.MarkerWidthColumnName]);
+            }
             InitializeActiveUpstreamColumns(columnsNeeded, RegisterActiveUpstreamColumn);
         }
 
@@ -357,6 +400,7 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
             {
                 _index++;
                 _position++;
+                CurrentBatch = _batches[_index];
                 return true;
             }
 
@@ -364,8 +408,10 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
             _scoredRows = [];
             _index = -1;
             _ids.Clear();
-            while (_preparedRows.Count < _lookahead && InputCursor.MoveNext())
+            _batches.Clear();
+            while (_ids.Count < _lookahead && InputCursor.MoveNext())
             {
+                var bufferedIndex = _ids.Count;
                 VBuffer<long> inputIds = default;
                 VBuffer<long> attention = default;
                 VBuffer<long> markerPositions = default;
@@ -374,37 +420,40 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
                 var batchSize = 0;
                 var sequenceLength = 0;
                 var markerWidth = 0;
-                _inputIdsGetter(ref inputIds);
-                _attentionGetter(ref attention);
-                _markerPositionsGetter(ref markerPositions);
-                _markerMaskGetter(ref markerMask);
-                _questionTypesGetter(ref questionTypes);
-                _batchSizeGetter(ref batchSize);
-                _sequenceLengthGetter(ref sequenceLength);
-                _markerWidthGetter(ref markerWidth);
-                _preparedRows.Add(new PreparedRow(
-                    inputIds.DenseValues().ToArray(),
-                    attention.DenseValues().ToArray(),
-                    markerPositions.DenseValues().ToArray(),
-                    markerMask.DenseValues().ToArray(),
-                    questionTypes.DenseValues().ToArray(),
-                    batchSize,
-                    sequenceLength,
-                    markerWidth));
-                var id = default(DataViewRowId);
-                InputCursor.GetIdGetter()(ref id);
-                _ids.Add(id);
+                if (_needsScoring)
+                {
+                    _inputIdsGetter!(ref inputIds);
+                    _attentionGetter!(ref attention);
+                    _markerPositionsGetter!(ref markerPositions);
+                    _markerMaskGetter!(ref markerMask);
+                    _questionTypesGetter!(ref questionTypes);
+                    _batchSizeGetter!(ref batchSize);
+                    _sequenceLengthGetter!(ref sequenceLength);
+                    _markerWidthGetter!(ref markerWidth);
+                    _preparedRows.Add(new PreparedRow(
+                        inputIds.DenseValues().ToArray(),
+                        attention.DenseValues().ToArray(),
+                        markerPositions.DenseValues().ToArray(),
+                        markerMask.DenseValues().ToArray(),
+                        questionTypes.DenseValues().ToArray(),
+                        batchSize,
+                        sequenceLength,
+                        markerWidth));
+                }
+                _ids.Add(ReadCurrentInputId());
+                _batches.Add(InputCursor.Batch);
                 foreach (var reader in _readers)
-                    reader(_preparedRows.Count - 1);
+                    reader(bufferedIndex);
             }
 
-            if (_preparedRows.Count == 0)
+            if (_ids.Count == 0)
                 return false;
 
             _scoredRows = _needsScoring
                 ? ScoreRows(_preparedRows)
-                : new ScoredRow[_preparedRows.Count];
+                : new ScoredRow[_ids.Count];
             _index = 0;
+            CurrentBatch = _batches[0];
             _position++;
             return true;
         }
@@ -412,16 +461,18 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
         {
             EnsureColumnActive(column);
-            if (column.Name == _parent._options.LogitsColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.LogitsColumnName)
                 return VectorGetter<TValue, float>(() => _scoredRows[_index].Logits);
-            if (column.Name == _parent._options.ActionProbabilitiesColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.ActionProbabilitiesColumnName)
                 return VectorGetter<TValue, float>(() => _scoredRows[_index].ActionProbabilities);
 
-            var upstream = InputCursor.Schema.GetColumnOrNull(column.Name);
-            if (upstream is null)
+            if (column.Index >= InputCursor.Schema.Count)
                 throw new InvalidOperationException($"Unknown column '{column.Name}'.");
-            return GetCachedBatchGetter<TValue>(upstream.Value);
+            return GetCachedBatchGetter<TValue>(InputCursor.Schema[column.Index]);
         }
+
+        private bool IsAddedColumn(DataViewSchema.Column column)
+            => column.Index >= _parent.Input.Schema.Count;
 
         private void RegisterActiveUpstreamColumn(DataViewSchema.Column column)
             => InvokeGenericRegistration(this, nameof(RegisterActiveUpstreamColumnTyped), column);
@@ -521,7 +572,7 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
 
         private ValueGetter<TValue> GetCachedBatchGetter<TValue>(DataViewSchema.Column column)
         {
-            if (!_cachedValues.TryGetValue(column.Name, out var cachedObject))
+            if (!_cachedValues.TryGetValue(column.Index, out var cachedObject))
             {
                 var values = new TValue[_lookahead];
                 var getter = InputCursor.GetGetter<TValue>(column);
@@ -532,7 +583,7 @@ internal sealed class DecisionScoringDataView : DecisionDataViewBase
                     values[row] = CopyValue(value);
                 });
                 cachedObject = values;
-                _cachedValues.Add(column.Name, cachedObject);
+                _cachedValues.Add(column.Index, cachedObject);
             }
 
             return (ref TValue value) => value = ((TValue[])cachedObject)[_index];
@@ -572,22 +623,35 @@ internal sealed class DecisionDecodingDataView : DecisionDataViewBase
         Random? rand = null)
     {
         var requested = columnsNeeded.ToArray();
+        var needsDecoding = requested.Any(column =>
+            column.Index >= Input.Schema.Count &&
+            (column.Name == _options.ResultsColumnName ||
+             _options.OutputNames.ById.Values.Any(output =>
+                 column.Name == output.PredictedLabel ||
+                 column.Name == output.Score ||
+                 column.Name == output.Probability ||
+                 column.Name == output.Probabilities ||
+                 column.Name == output.Confidence ||
+                 column.Name == output.ActionProbability)));
         return new Cursor(
             this,
             OpenInputCursor(
                 requested,
-                [
-                    _options.InputIdsColumnName,
-                    _options.AttentionMaskColumnName,
-                    _options.MarkerPositionsColumnName,
-                    _options.MarkerMaskColumnName,
-                    _options.QuestionTypesColumnName,
-                    _options.BatchSizeColumnName,
-                    _options.SequenceLengthColumnName,
-                    _options.MarkerWidthColumnName,
-                    _options.LogitsColumnName,
-                    _options.ActionProbabilitiesColumnName
-                ],
+                needsDecoding
+                    ?
+                    [
+                        _options.InputIdsColumnName,
+                        _options.AttentionMaskColumnName,
+                        _options.MarkerPositionsColumnName,
+                        _options.MarkerMaskColumnName,
+                        _options.QuestionTypesColumnName,
+                        _options.BatchSizeColumnName,
+                        _options.SequenceLengthColumnName,
+                        _options.MarkerWidthColumnName,
+                        _options.LogitsColumnName,
+                        _options.ActionProbabilitiesColumnName
+                    ]
+                    : [],
                 rand),
             requested);
     }
@@ -595,16 +659,16 @@ internal sealed class DecisionDecodingDataView : DecisionDataViewBase
     private sealed class Cursor : DecisionCursorBase
     {
         private readonly DecisionDecodingDataView _parent;
-        private readonly ValueGetter<VBuffer<long>> _inputIdsGetter;
-        private readonly ValueGetter<VBuffer<long>> _attentionGetter;
-        private readonly ValueGetter<VBuffer<long>> _markerPositionsGetter;
-        private readonly ValueGetter<VBuffer<bool>> _markerMaskGetter;
-        private readonly ValueGetter<VBuffer<long>> _questionTypesGetter;
-        private readonly ValueGetter<int> _batchSizeGetter;
-        private readonly ValueGetter<int> _sequenceLengthGetter;
-        private readonly ValueGetter<int> _markerWidthGetter;
-        private readonly ValueGetter<VBuffer<float>> _logitsGetter;
-        private readonly ValueGetter<VBuffer<float>> _actionProbabilitiesGetter;
+        private readonly ValueGetter<VBuffer<long>>? _inputIdsGetter;
+        private readonly ValueGetter<VBuffer<long>>? _attentionGetter;
+        private readonly ValueGetter<VBuffer<long>>? _markerPositionsGetter;
+        private readonly ValueGetter<VBuffer<bool>>? _markerMaskGetter;
+        private readonly ValueGetter<VBuffer<long>>? _questionTypesGetter;
+        private readonly ValueGetter<int>? _batchSizeGetter;
+        private readonly ValueGetter<int>? _sequenceLengthGetter;
+        private readonly ValueGetter<int>? _markerWidthGetter;
+        private readonly ValueGetter<VBuffer<float>>? _logitsGetter;
+        private readonly ValueGetter<VBuffer<float>>? _actionProbabilitiesGetter;
         private DecisionResponse? _response;
         private readonly bool _needsDecoding;
 
@@ -615,31 +679,35 @@ internal sealed class DecisionDecodingDataView : DecisionDataViewBase
             : base(parent, inputCursor, columnsNeeded)
         {
             _parent = parent;
-            _inputIdsGetter = inputCursor.GetGetter<VBuffer<long>>(
-                inputCursor.Schema[parent._options.InputIdsColumnName]);
-            _attentionGetter = inputCursor.GetGetter<VBuffer<long>>(
-                inputCursor.Schema[parent._options.AttentionMaskColumnName]);
-            _markerPositionsGetter = inputCursor.GetGetter<VBuffer<long>>(
-                inputCursor.Schema[parent._options.MarkerPositionsColumnName]);
-            _markerMaskGetter = inputCursor.GetGetter<VBuffer<bool>>(
-                inputCursor.Schema[parent._options.MarkerMaskColumnName]);
-            _questionTypesGetter = inputCursor.GetGetter<VBuffer<long>>(
-                inputCursor.Schema[parent._options.QuestionTypesColumnName]);
-            _batchSizeGetter = inputCursor.GetGetter<int>(
-                inputCursor.Schema[parent._options.BatchSizeColumnName]);
-            _sequenceLengthGetter = inputCursor.GetGetter<int>(
-                inputCursor.Schema[parent._options.SequenceLengthColumnName]);
-            _markerWidthGetter = inputCursor.GetGetter<int>(
-                inputCursor.Schema[parent._options.MarkerWidthColumnName]);
-            _logitsGetter = inputCursor.GetGetter<VBuffer<float>>(
-                inputCursor.Schema[parent._options.LogitsColumnName]);
-            _actionProbabilitiesGetter = inputCursor.GetGetter<VBuffer<float>>(
-                inputCursor.Schema[parent._options.ActionProbabilitiesColumnName]);
             _needsDecoding = columnsNeeded.Any(column =>
-                column.Name == parent._options.ResultsColumnName ||
-                parent._options.Questions
-                    .Select((question, index) => (question, index))
-                    .Any(item => IsQuestionColumn(item.question, item.index, column.Name)));
+                IsAddedColumn(column) &&
+                (column.Name == parent._options.ResultsColumnName ||
+                 parent._options.Questions
+                     .Select((question, index) => (question, index))
+                     .Any(item => IsQuestionColumn(item.question, item.index, column.Name))));
+            if (_needsDecoding)
+            {
+                _inputIdsGetter = inputCursor.GetGetter<VBuffer<long>>(
+                    inputCursor.Schema[parent._options.InputIdsColumnName]);
+                _attentionGetter = inputCursor.GetGetter<VBuffer<long>>(
+                    inputCursor.Schema[parent._options.AttentionMaskColumnName]);
+                _markerPositionsGetter = inputCursor.GetGetter<VBuffer<long>>(
+                    inputCursor.Schema[parent._options.MarkerPositionsColumnName]);
+                _markerMaskGetter = inputCursor.GetGetter<VBuffer<bool>>(
+                    inputCursor.Schema[parent._options.MarkerMaskColumnName]);
+                _questionTypesGetter = inputCursor.GetGetter<VBuffer<long>>(
+                    inputCursor.Schema[parent._options.QuestionTypesColumnName]);
+                _batchSizeGetter = inputCursor.GetGetter<int>(
+                    inputCursor.Schema[parent._options.BatchSizeColumnName]);
+                _sequenceLengthGetter = inputCursor.GetGetter<int>(
+                    inputCursor.Schema[parent._options.SequenceLengthColumnName]);
+                _markerWidthGetter = inputCursor.GetGetter<int>(
+                    inputCursor.Schema[parent._options.MarkerWidthColumnName]);
+                _logitsGetter = inputCursor.GetGetter<VBuffer<float>>(
+                    inputCursor.Schema[parent._options.LogitsColumnName]);
+                _actionProbabilitiesGetter = inputCursor.GetGetter<VBuffer<float>>(
+                    inputCursor.Schema[parent._options.ActionProbabilitiesColumnName]);
+            }
             InitializeActiveUpstreamColumns(columnsNeeded, RegisterActiveUpstreamColumn);
         }
 
@@ -647,6 +715,7 @@ internal sealed class DecisionDecodingDataView : DecisionDataViewBase
         {
             if (!InputCursor.MoveNext())
                 return false;
+            CurrentBatch = InputCursor.Batch;
 
             VBuffer<long> inputIds = default;
             VBuffer<long> attention = default;
@@ -658,23 +727,23 @@ internal sealed class DecisionDecodingDataView : DecisionDataViewBase
             var batchSize = 0;
             var sequenceLength = 0;
             var markerWidth = 0;
-            _inputIdsGetter(ref inputIds);
-            _attentionGetter(ref attention);
-            _markerPositionsGetter(ref markerPositions);
-            _markerMaskGetter(ref markerMask);
-            _questionTypesGetter(ref questionTypes);
-            _batchSizeGetter(ref batchSize);
-            _sequenceLengthGetter(ref sequenceLength);
-            _markerWidthGetter(ref markerWidth);
-            _logitsGetter(ref logits);
-            _actionProbabilitiesGetter(ref actionProbabilities);
-
             if (!_needsDecoding)
             {
                 _response = null;
                 ReadCachedColumns();
                 return true;
             }
+
+            _inputIdsGetter!(ref inputIds);
+            _attentionGetter!(ref attention);
+            _markerPositionsGetter!(ref markerPositions);
+            _markerMaskGetter!(ref markerMask);
+            _questionTypesGetter!(ref questionTypes);
+            _batchSizeGetter!(ref batchSize);
+            _sequenceLengthGetter!(ref sequenceLength);
+            _markerWidthGetter!(ref markerWidth);
+            _logitsGetter!(ref logits);
+            _actionProbabilitiesGetter!(ref actionProbabilities);
 
             var inputs = DecisionDataViewUtils.CreateInputBatch(
                 inputIds.DenseValues().ToArray(),
@@ -701,21 +770,26 @@ internal sealed class DecisionDecodingDataView : DecisionDataViewBase
         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
         {
             EnsureColumnActive(column);
-            if (column.Name == _parent._options.ResultsColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.ResultsColumnName)
                 return TextGetter<TValue>(() => DecisionJsonCodec.SerializeResponse(_response!));
 
-            var questionIndex = _parent._options.Questions
-                .Select((question, index) => (question, index))
-                .FirstOrDefault(item =>
-                    IsQuestionColumn(item.question, item.index, column.Name));
-            if (questionIndex.question is not null)
-                return QuestionGetter<TValue>(questionIndex.index, column.Name, () => _response!);
+            if (IsAddedColumn(column))
+            {
+                var questionIndex = _parent._options.Questions
+                    .Select((question, index) => (question, index))
+                    .FirstOrDefault(item =>
+                        IsQuestionColumn(item.question, item.index, column.Name));
+                if (questionIndex.question is not null)
+                    return QuestionGetter<TValue>(questionIndex.index, column.Name, () => _response!);
+            }
 
-            var upstream = InputCursor.Schema.GetColumnOrNull(column.Name);
-            if (upstream is null)
+            if (column.Index >= InputCursor.Schema.Count)
                 throw new InvalidOperationException($"Unknown column '{column.Name}'.");
-            return GetCachedUpstreamGetter<TValue>(upstream.Value);
+            return GetCachedUpstreamGetter<TValue>(InputCursor.Schema[column.Index]);
         }
+
+        private bool IsAddedColumn(DataViewSchema.Column column)
+            => column.Index >= _parent.Input.Schema.Count;
 
         private void RegisterActiveUpstreamColumn(DataViewSchema.Column column)
             => InvokeGenericRegistration(this, nameof(RegisterActiveUpstreamColumnTyped), column);
@@ -786,9 +860,22 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
         Random? rand = null)
     {
         var requested = columnsNeeded.ToArray();
+        var needsInference = requested.Any(column =>
+            column.Index >= Input.Schema.Count &&
+            (column.Name == _options.ResultsColumnName ||
+             _options.OutputNames.ById.Values.Any(output =>
+                 column.Name == output.PredictedLabel ||
+                 column.Name == output.Score ||
+                 column.Name == output.Probability ||
+                 column.Name == output.Probabilities ||
+                 column.Name == output.Confidence ||
+                 column.Name == output.ActionProbability)));
         return new Cursor(
             this,
-            OpenInputCursor(requested, [_options.StateColumnName], rand),
+            OpenInputCursor(
+                requested,
+                needsInference ? [_options.StateColumnName] : [],
+                rand),
             _options.BatchSize,
             requested);
     }
@@ -797,11 +884,12 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
     {
         private readonly TypedDecisionDataView _parent;
         private readonly int _batchSize;
-        private readonly ValueGetter<ReadOnlyMemory<char>> _stateGetter;
+        private readonly ValueGetter<ReadOnlyMemory<char>>? _stateGetter;
         private readonly bool _needsInference;
         private readonly List<Action<int>> _readers = [];
-        private readonly Dictionary<string, object> _cachedValues = new(StringComparer.Ordinal);
+        private readonly Dictionary<int, object> _cachedValues = [];
         private readonly List<DataViewRowId> _ids = [];
+        private readonly List<long> _batches = [];
         private string[] _states;
         private DecisionResponse[] _responses = [];
         private int _count;
@@ -818,13 +906,17 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
             _parent = parent;
             _batchSize = batchSize;
             _states = new string[batchSize];
-            _stateGetter = inputCursor.GetGetter<ReadOnlyMemory<char>>(
-                inputCursor.Schema[parent._options.StateColumnName]);
             _needsInference = columnsNeeded.Any(column =>
-                column.Name == parent._options.ResultsColumnName ||
-                parent._options.Questions
-                    .Select((question, index) => (question, index))
-                    .Any(item => IsQuestionColumn(item.question, column.Name)));
+                IsAddedColumn(column) &&
+                (column.Name == parent._options.ResultsColumnName ||
+                 parent._options.Questions
+                     .Select((question, index) => (question, index))
+                     .Any(item => IsQuestionColumn(item.question, column.Name))));
+            if (_needsInference)
+            {
+                _stateGetter = inputCursor.GetGetter<ReadOnlyMemory<char>>(
+                    inputCursor.Schema[parent._options.StateColumnName]);
+            }
             InitializeActiveUpstreamColumns(columnsNeeded, RegisterActiveUpstreamColumn);
         }
 
@@ -836,20 +928,24 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
             {
                 _index++;
                 _position++;
+                CurrentBatch = _batches[_index];
                 return true;
             }
 
             _count = 0;
             _index = -1;
             _ids.Clear();
+            _batches.Clear();
             while (_count < _batchSize && InputCursor.MoveNext())
             {
-                ReadOnlyMemory<char> state = default;
-                _stateGetter(ref state);
-                _states[_count] = state.ToString();
-                var id = default(DataViewRowId);
-                InputCursor.GetIdGetter()(ref id);
-                _ids.Add(id);
+                if (_needsInference)
+                {
+                    ReadOnlyMemory<char> state = default;
+                    _stateGetter!(ref state);
+                    _states[_count] = state.ToString();
+                }
+                _ids.Add(ReadCurrentInputId());
+                _batches.Add(InputCursor.Batch);
                 foreach (var reader in _readers)
                     reader(_count);
                 _count++;
@@ -865,6 +961,7 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
                     _parent._options.BatchSize).ToArray()
                 : [];
             _index = 0;
+            CurrentBatch = _batches[0];
             _position++;
             return true;
         }
@@ -872,23 +969,28 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
         public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
         {
             EnsureColumnActive(column);
-            if (column.Name == _parent._options.ResultsColumnName)
+            if (IsAddedColumn(column) && column.Name == _parent._options.ResultsColumnName)
                 return TextGetter<TValue>(() => DecisionJsonCodec.SerializeResponse(_responses[_index]));
 
-            var questionIndex = _parent._options.Questions
-                .Select((question, index) => (question, index))
-                .FirstOrDefault(item => IsQuestionColumn(item.question, column.Name));
-            if (questionIndex.question is not null)
-                return QuestionGetter<TValue>(questionIndex.index, column.Name);
+            if (IsAddedColumn(column))
+            {
+                var questionIndex = _parent._options.Questions
+                    .Select((question, index) => (question, index))
+                    .FirstOrDefault(item => IsQuestionColumn(item.question, column.Name));
+                if (questionIndex.question is not null)
+                    return QuestionGetter<TValue>(questionIndex.index, column.Name);
+            }
 
-            var upstream = InputCursor.Schema.GetColumnOrNull(column.Name);
-            if (upstream is null)
+            if (column.Index >= InputCursor.Schema.Count)
                 throw new InvalidOperationException($"Unknown column '{column.Name}'.");
-            return GetCachedGetter<TValue>(upstream.Value);
+            return GetCachedGetter<TValue>(InputCursor.Schema[column.Index]);
         }
 
         public override ValueGetter<DataViewRowId> GetIdGetter()
             => (ref DataViewRowId value) => value = _ids[_index];
+
+        private bool IsAddedColumn(DataViewSchema.Column column)
+            => column.Index >= _parent.Input.Schema.Count;
 
         private bool IsQuestionColumn(DecisionQuestion question, string name)
         {
@@ -900,7 +1002,7 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
 
         private ValueGetter<TValue> GetCachedGetter<TValue>(DataViewSchema.Column column)
         {
-            if (!_cachedValues.TryGetValue(column.Name, out var cachedObject))
+            if (!_cachedValues.TryGetValue(column.Index, out var cachedObject))
             {
                 var values = new TValue[_batchSize];
                 var getter = InputCursor.GetGetter<TValue>(column);
@@ -911,7 +1013,7 @@ internal sealed class TypedDecisionDataView : DecisionDataViewBase
                     values[row] = DecisionDataViewUtils.CopyValue(value);
                 });
                 cachedObject = values;
-                _cachedValues.Add(column.Name, cachedObject);
+                _cachedValues.Add(column.Index, cachedObject);
             }
 
             var typedValues = (TValue[])cachedObject;

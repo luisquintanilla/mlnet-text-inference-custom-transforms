@@ -1,4 +1,5 @@
 using Microsoft.ML.OnnxRuntime;
+using MLNet.TextInference.Onnx;
 
 namespace MLNet.TextInference.TypedDecisions;
 
@@ -8,23 +9,41 @@ namespace MLNet.TextInference.TypedDecisions;
 internal sealed class ScoreOnnxDecisionModel : IDisposable
 {
     private readonly InferenceSession _session;
+    private readonly Func<int>? _padTokenIdProvider;
     private bool _disposed;
-    internal int PadTokenId { get; }
+    internal int PadTokenId => _padTokenIdProvider?.Invoke() ?? 0;
 
-    public ScoreOnnxDecisionModel(string modelPath)
+    public ScoreOnnxDecisionModel(
+        string modelPath,
+        OnnxExecutionOptions? executionOptions = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
         if (!File.Exists(modelPath))
             throw new FileNotFoundException("Decision ONNX model was not found.", modelPath);
 
-        _session = new InferenceSession(modelPath);
-        ValidateModelContract(_session);
+        var session = OnnxSessionFactory.Create(
+            modelPath,
+            executionOptions);
+        try
+        {
+            ValidateModelContract(session);
+            _session = session;
+        }
+        catch
+        {
+            session.Dispose();
+            throw;
+        }
     }
 
-    public ScoreOnnxDecisionModel(TypedDecisionBundle bundle)
-        : this(bundle?.ModelPath ?? throw new ArgumentNullException(nameof(bundle)))
+    public ScoreOnnxDecisionModel(
+        TypedDecisionBundle bundle,
+        OnnxExecutionOptions? executionOptions = null)
+        : this(
+            bundle?.ModelPath ?? throw new ArgumentNullException(nameof(bundle)),
+            executionOptions)
     {
-        PadTokenId = bundle.Tokenizer.Metadata.PadTokenId;
+        _padTokenIdProvider = () => bundle.TokenizerMetadata.PadTokenId;
     }
 
     public DecisionModelOutputs Score(DecisionInputBatch batch)
@@ -32,51 +51,70 @@ internal sealed class ScoreOnnxDecisionModel : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(batch);
         batch.Validate();
+        return ScoreTensors(
+            batch.InputIds,
+            batch.AttentionMask,
+            batch.MarkerPositions,
+            batch.MarkerMask,
+            batch.QuestionTypes,
+            batch.BatchSize,
+            batch.SequenceLength,
+            batch.MarkerWidth);
+    }
 
-        var inputs = new Dictionary<string, OrtValue>
-        {
-            ["input_ids"] = OrtValue.CreateTensorValueFromMemory(
-                batch.InputIds, [batch.BatchSize, batch.SequenceLength]),
-            ["attention_mask"] = OrtValue.CreateTensorValueFromMemory(
-                batch.AttentionMask, [batch.BatchSize, batch.SequenceLength]),
-            ["marker_pos"] = OrtValue.CreateTensorValueFromMemory(
-                batch.MarkerPositions, [batch.BatchSize, batch.MarkerWidth]),
-            ["marker_mask"] = OrtValue.CreateTensorValueFromMemory(
-                batch.MarkerMask, [batch.BatchSize, batch.MarkerWidth]),
-            ["qtype"] = OrtValue.CreateTensorValueFromMemory(
-                batch.QuestionTypes, [batch.BatchSize])
-        };
+    private DecisionModelOutputs ScoreTensors(
+        long[] inputIds,
+        long[] attentionMask,
+        long[] markerPositions,
+        bool[] markerMask,
+        long[] questionTypes,
+        int batchSize,
+        int sequenceLength,
+        int markerWidth)
+    {
+        ValidateTensorLengths(
+            inputIds,
+            attentionMask,
+            markerPositions,
+            markerMask,
+            questionTypes,
+            batchSize,
+            sequenceLength,
+            markerWidth);
+
+        var inputs = new Dictionary<string, OrtValue>(StringComparer.Ordinal);
 
         try
         {
+            inputs["input_ids"] = OrtValue.CreateTensorValueFromMemory(
+                inputIds, [batchSize, sequenceLength]);
+            inputs["attention_mask"] = OrtValue.CreateTensorValueFromMemory(
+                attentionMask, [batchSize, sequenceLength]);
+            inputs["marker_pos"] = OrtValue.CreateTensorValueFromMemory(
+                markerPositions, [batchSize, markerWidth]);
+            inputs["marker_mask"] = OrtValue.CreateTensorValueFromMemory(
+                markerMask, [batchSize, markerWidth]);
+            inputs["qtype"] = OrtValue.CreateTensorValueFromMemory(
+                questionTypes, [batchSize]);
+
+            using var runOptions = new RunOptions();
             using var results = _session.Run(
-                new RunOptions(),
+                runOptions,
                 inputs,
                 ["logits", "act_probs"]);
 
             if (results.Count != 2)
                 throw new InvalidDataException("The decision graph must return logits and act_probs.");
 
-            var logits = results[0].GetTensorDataAsSpan<float>().ToArray();
-            var actionProbabilities = results[1].GetTensorDataAsSpan<float>().ToArray();
-            if (logits.Length != batch.BatchSize * batch.MarkerWidth)
-            {
-                throw new InvalidDataException(
-                    $"The logits output has {logits.Length} values; expected " +
-                    $"[{batch.BatchSize},{batch.MarkerWidth}].");
-            }
-
-            if (actionProbabilities.Length != batch.BatchSize * 2)
-            {
-                throw new InvalidDataException(
-                    $"The act_probs output has {actionProbabilities.Length} values; expected " +
-                    $"[{batch.BatchSize},2].");
-            }
+            var logits = ReadOutput(
+                results[0], "logits", batchSize, markerWidth);
+            var actionProbabilities = ReadOutput(
+                results[1], "act_probs", batchSize, 2);
 
             var output = new DecisionModelOutputs
             {
-                BatchSize = batch.BatchSize,
-                MarkerWidth = batch.MarkerWidth,
+                BatchSize = batchSize,
+                MarkerWidth = markerWidth,
                 Logits = logits,
                 ActionProbabilities = actionProbabilities
             };
@@ -100,6 +138,7 @@ internal sealed class ScoreOnnxDecisionModel : IDisposable
         int sequenceLength,
         int markerWidth)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         ArgumentNullException.ThrowIfNull(inputIds);
         ArgumentNullException.ThrowIfNull(attentionMask);
         ArgumentNullException.ThrowIfNull(markerPositions);
@@ -107,27 +146,15 @@ internal sealed class ScoreOnnxDecisionModel : IDisposable
         ArgumentNullException.ThrowIfNull(questionTypes);
         if (batchSize <= 0 || sequenceLength <= 0 || markerWidth <= 0)
             throw new ArgumentOutOfRangeException(nameof(batchSize));
-
-        var items = Enumerable.Range(0, batchSize)
-            .Select(static _ => new DecisionInputItem(
-                0,
-                DecisionQuestion.Noul("internal", "internal"),
-                Enumerable.Range(0, 2).ToArray(),
-                Enumerable.Range(0, 2).Select(static value => value.ToString()).ToArray(),
-                (long)DecisionQuestionType.Noul))
-            .ToArray();
-        return Score(new DecisionInputBatch
-        {
-            BatchSize = batchSize,
-            SequenceLength = sequenceLength,
-            MarkerWidth = markerWidth,
-            InputIds = inputIds,
-            AttentionMask = attentionMask,
-            MarkerPositions = markerPositions,
-            MarkerMask = markerMask,
-            QuestionTypes = questionTypes,
-            Items = items
-        });
+        return ScoreTensors(
+            inputIds,
+            attentionMask,
+            markerPositions,
+            markerMask,
+            questionTypes,
+            batchSize,
+            sequenceLength,
+            markerWidth);
     }
 
     public void Dispose()
@@ -179,4 +206,69 @@ internal sealed class ScoreOnnxDecisionModel : IDisposable
                     $"{metadata.ElementType?.Name ?? "unknown"}.");
         }
     }
-}
+
+    private static void ValidateTensorLengths(
+        long[] inputIds,
+        long[] attentionMask,
+        long[] markerPositions,
+        bool[] markerMask,
+        long[] questionTypes,
+        int batchSize,
+        int sequenceLength,
+        int markerWidth)
+    {
+        if (batchSize <= 0 || sequenceLength <= 0 || markerWidth <= 0)
+            throw new ArgumentOutOfRangeException(nameof(batchSize));
+        int sequenceElements;
+        int markerElements;
+        try
+        {
+            sequenceElements = checked(batchSize * sequenceLength);
+            markerElements = checked(batchSize * markerWidth);
+        }
+        catch (OverflowException exception)
+        {
+            throw new ArgumentException(
+                "Decision tensor dimensions exceed the supported managed array size.",
+                nameof(batchSize),
+                exception);
+        }
+
+        if (inputIds.Length != sequenceElements ||
+            attentionMask.Length != sequenceElements)
+        {
+            throw new ArgumentException(
+                "input_ids and attention_mask lengths must equal batch_size * sequence_length.");
+        }
+        if (markerPositions.Length != markerElements ||
+            markerMask.Length != markerElements)
+        {
+            throw new ArgumentException(
+                "marker_pos and marker_mask lengths must equal batch_size * marker_width.");
+        }
+        if (questionTypes.Length != batchSize)
+            throw new ArgumentException(
+                "qtype length must equal batch_size.",
+                nameof(questionTypes));
+    }
+
+        private static float[] ReadOutput(
+            OrtValue output,
+            string name,
+            int expectedBatchSize,
+            int expectedWidth)
+        {
+            var shape = output.GetTensorTypeAndShape();
+            var dimensions = shape.Shape;
+            if (dimensions.Length != 2 ||
+                dimensions[0] != expectedBatchSize ||
+                dimensions[1] != expectedWidth)
+            {
+                throw new InvalidDataException(
+                    $"The {name} output has shape [{string.Join(",", dimensions)}]; " +
+                    $"expected [{expectedBatchSize},{expectedWidth}].");
+            }
+
+            return output.GetTensorDataAsSpan<float>().ToArray();
+        }
+    }

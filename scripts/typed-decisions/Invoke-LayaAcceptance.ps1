@@ -3,7 +3,14 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $ModelAssetsPath,
 
-    [ValidateSet("direct", "facade", "stages", "composed")]
+    [ValidateSet(
+        "direct",
+        "facade",
+        "stages",
+        "composed",
+        "prediction-engine",
+        "prediction-engine-stages",
+        "prediction-engine-composed")]
     [string] $Mode = "facade"
 )
 

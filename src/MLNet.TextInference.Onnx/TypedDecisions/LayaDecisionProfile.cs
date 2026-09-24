@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MLNet.TextInference.Onnx;
 
 namespace MLNet.TextInference.TypedDecisions;
 
@@ -18,7 +19,7 @@ internal sealed class LayaDecisionProfile
     public required DecisionTemperaturePolicy TemperaturePolicy { get; init; }
     public required string ModelFile { get; init; }
     public required string TokenizerDirectory { get; init; }
-    public IReadOnlyList<TypedDecisionDiagnostic> Diagnostics { get; init; } = [];
+    internal IReadOnlyList<TypedDecisionDiagnostic> Diagnostics { get; init; } = [];
 
     public static LayaDecisionProfile EnglishFp32 => new()
     {
@@ -111,7 +112,7 @@ internal sealed class DecisionTemperaturePolicy
     public required float Minimum { get; init; }
     public required float Maximum { get; init; }
     public required IReadOnlyDictionary<string, float> Temperatures { get; init; }
-    public required IReadOnlyList<TypedDecisionDiagnostic> Diagnostics { get; init; }
+    internal IReadOnlyList<TypedDecisionDiagnostic> Diagnostics { get; init; } = [];
 
     internal static DecisionTemperaturePolicy FromProfile(
         IReadOnlyDictionary<string, float> source,
@@ -221,11 +222,5 @@ internal sealed class TypedDecisionBundleManifest
     }
 
     internal static void ValidateRelativePath(string path, string property)
-    {
-        if (string.IsNullOrWhiteSpace(path) || Path.IsPathRooted(path) ||
-            path.Split('/', '\\').Any(static part => part is "." or ".."))
-        {
-            throw new InvalidDataException($"{property} contains an unsafe relative path.");
-        }
-    }
+        => AssetArchive.NormalizeRelativePath(path, property);
 }

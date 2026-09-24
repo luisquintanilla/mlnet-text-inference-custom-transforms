@@ -237,6 +237,63 @@ public sealed class TypedDecisionNativeDataViewTests
     }
 
     [TestMethod]
+    public void Facade_PassthroughOnlyProjectionDoesNotReadStateOrInferenceInputs()
+    {
+        using var fixture = NativeBundleFixture.Create();
+        var ml = new MLContext(seed: 1);
+        var data = new ReusedBufferDataView(rowCount: 3);
+        var options = new OnnxTypedDecisionsOptions
+        {
+            ModelAssetsPath = fixture.ModelAssetsPath,
+            Questions = [Noul("risk", "Can it be acted on?")],
+            BatchSize = 2
+        };
+
+        using var transformer = ml.Transforms.OnnxTypedDecisions(options).Fit(data);
+        var output = transformer.Transform(data);
+        var features = output.Schema["Features"];
+        using var cursor = output.GetRowCursor([features]);
+        var getter = cursor.GetGetter<VBuffer<float>>(features);
+
+        while (cursor.MoveNext())
+        {
+            VBuffer<float> value = default;
+            getter(ref value);
+        }
+
+        Assert.AreEqual(0, data.StateReadCount);
+    }
+
+    [TestMethod]
+    public void Facade_PreservesUpstreamRowIdsAcrossLookaheadBatches()
+    {
+        using var fixture = NativeBundleFixture.Create();
+        var ml = new MLContext(seed: 1);
+        var data = new ReusedBufferDataView(rowCount: 5);
+        using var transformer = ml.Transforms.OnnxTypedDecisions(
+            new OnnxTypedDecisionsOptions
+            {
+                ModelAssetsPath = fixture.ModelAssetsPath,
+                Questions = [Noul("risk", "Can it be acted on?")],
+                BatchSize = 2
+            }).Fit(data);
+
+        var output = transformer.Transform(data);
+        var features = output.Schema["Features"];
+        using var cursor = output.GetRowCursor([features]);
+        var idGetter = cursor.GetIdGetter();
+        for (var index = 0; index < 5; index++)
+        {
+            Assert.IsTrue(cursor.MoveNext());
+            DataViewRowId id = default;
+            idGetter(ref id);
+            Assert.AreEqual((ulong)index, id.Low);
+            Assert.AreEqual(index / 2, cursor.Batch);
+        }
+        Assert.IsFalse(cursor.MoveNext());
+    }
+
+    [TestMethod]
     public void TypedCursors_RejectGettersForInactiveColumns()
     {
         using var fixture = NativeBundleFixture.Create();
@@ -334,6 +391,57 @@ public sealed class TypedDecisionNativeDataViewTests
                     .Select(static value => value.ToString())
                     .ToArray());
         }
+    }
+
+    [TestMethod]
+    public void StagedScoring_PassthroughProjectionDoesNotReadInferenceInputsAndPreservesBatches()
+    {
+        using var fixture = NativeBundleFixture.Create();
+        var ml = new MLContext(seed: 1);
+        var data = new ReusedBufferDataView(rowCount: 5);
+        var question = Noul("risk", "Can it be acted on?");
+        var preparedOptions = new DecisionInputPreparationOptions
+        {
+            ModelAssetsPath = fixture.ModelAssetsPath,
+            Questions = [question]
+        };
+
+        using var preparation = ml.Transforms.PrepareDecisionInputs(preparedOptions).Fit(data);
+        var prepared = preparation.Transform(data);
+        using var scorer = ml.Transforms.ScoreOnnxDecisionModel(
+                new OnnxDecisionModelScorerOptions
+                {
+                    ModelAssetsPath = fixture.ModelAssetsPath,
+                    BatchSize = 2
+                })
+            .Fit(prepared);
+        var scored = scorer.Transform(prepared);
+        var state = scored.Schema["State"];
+        var features = scored.Schema["Features"];
+        var logits = scored.Schema["DecisionLogits"];
+        using var cursor = scored.GetRowCursor([state, features]);
+        Assert.ThrowsExactly<InvalidOperationException>(
+            () => cursor.GetGetter<VBuffer<float>>(logits));
+        var stateGetter = cursor.GetGetter<ReadOnlyMemory<char>>(state);
+        var featureGetter = cursor.GetGetter<VBuffer<float>>(features);
+        var batches = new List<long>();
+        for (var index = 0; index < 5; index++)
+        {
+            Assert.IsTrue(cursor.MoveNext());
+            batches.Add(cursor.Batch);
+            ReadOnlyMemory<char> stateValue = default;
+            VBuffer<float> featureValue = default;
+            stateGetter(ref stateValue);
+            featureGetter(ref featureValue);
+            Assert.AreEqual($"state-{index}", stateValue.ToString());
+            CollectionAssert.AreEqual(
+                new[] { (float)index, index + 0.5f, index + 1f },
+                featureValue.DenseValues().ToArray());
+        }
+
+        Assert.IsFalse(cursor.MoveNext());
+        CollectionAssert.AreEqual(new long[] { 0, 0, 1, 1, 2 }, batches);
+        Assert.AreEqual(5, data.StateReadCount);
     }
 
     [TestMethod]
@@ -957,6 +1065,7 @@ public sealed class TypedDecisionNativeDataViewTests
     private sealed class ReusedBufferDataView : IDataView
     {
         private readonly int _rowCount;
+        public int StateReadCount { get; private set; }
 
         public ReusedBufferDataView(int rowCount)
         {
@@ -1013,7 +1122,7 @@ public sealed class TypedDecisionNativeDataViewTests
 
             public override DataViewSchema Schema => _parent.Schema;
             public override long Position => _index;
-            public override long Batch => 0;
+            public override long Batch => Math.Max(0, _index / 2);
 
             public override bool MoveNext()
             {
@@ -1059,7 +1168,11 @@ public sealed class TypedDecisionNativeDataViewTests
                 return column.Name switch
                 {
                     "State" => Cast<ReadOnlyMemory<char>, TValue>(
-                        (ref ReadOnlyMemory<char> value) => value = _state),
+                        (ref ReadOnlyMemory<char> value) =>
+                        {
+                            _parent.StateReadCount++;
+                            value = _state;
+                        }),
                     "Features" => Cast<VBuffer<float>, TValue>(
                         (ref VBuffer<float> value) => value = _features),
                     "DoubleFeatures" => Cast<VBuffer<double>, TValue>(

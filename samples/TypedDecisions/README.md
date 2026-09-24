@@ -11,9 +11,10 @@ model scores the alternatives supplied by the caller:
 - **Noul (Boolean)** returns `true` when `pTrue >= pFalse` and exposes `pTrue`.
 
 The primary and only file-based sample is
-[MLNetPipeline](MLNetPipeline/README.md). It uses the same ML.NET package for
-the direct convenience API, the schema-aware facade, the native preparation /
-scoring / decoding stages, and an append-composable second facade.
+[MLNetPipeline](MLNetPipeline/README.md). It uses the existing
+`MLNet.TextInference.Onnx` package through the direct fitted transformer path,
+the schema-aware facade, the native preparation / scoring / decoding stages,
+and an append-composable second facade.
 
 ## Inputs
 

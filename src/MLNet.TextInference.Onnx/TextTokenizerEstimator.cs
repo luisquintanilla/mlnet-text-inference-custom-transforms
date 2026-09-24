@@ -105,6 +105,10 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
         if (options.Tokenizer == null && options.TokenizerPath == null)
             throw new ArgumentException(
                 "Either Tokenizer or TokenizerPath must be provided.", nameof(options));
+        if (options.MaxTokenLength <= 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(options.MaxTokenLength),
+                "MaxTokenLength must be positive for the fixed-length text transform.");
 
         if (options.Tokenizer == null)
         {
@@ -343,7 +347,7 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
 
         return modelType switch
         {
-            "BPE" => LoadBpeFromTokenizerJson(model, path),
+            "BPE" => HuggingFaceBpeTokenizerLoader.Load(path),
             "WordPiece" => LoadWordPieceFromTokenizerJson(model, root, path),
             "Unigram" => throw new NotSupportedException(
                 $"Unigram tokenizer.json is not directly supported. " +
@@ -353,42 +357,6 @@ public sealed class TextTokenizerEstimator : IEstimator<TextTokenizerTransformer
                 $"Unsupported tokenizer model type '{modelType}' in '{path}'. " +
                 $"Supported types: BPE, WordPiece.")
         };
-    }
-
-    private static Tokenizer LoadBpeFromTokenizerJson(JsonElement model, string path)
-    {
-        if (!model.TryGetProperty("vocab", out var vocabElement))
-            throw new InvalidOperationException(
-                $"BPE model in '{path}' has no 'vocab' property.");
-
-        // model.vocab is a JSON dict (same format as vocab.json) — pass raw JSON directly
-        var vocabJson = vocabElement.GetRawText();
-        using var vocabStream = new MemoryStream(Encoding.UTF8.GetBytes(vocabJson));
-
-        MemoryStream? mergesStream = null;
-        if (model.TryGetProperty("merges", out var mergesElement)
-            && mergesElement.ValueKind == JsonValueKind.Array
-            && mergesElement.GetArrayLength() > 0)
-        {
-            var sb = new StringBuilder();
-            foreach (var merge in mergesElement.EnumerateArray())
-            {
-                var mergeString = merge.GetString()
-                    ?? throw new InvalidOperationException(
-                        $"BPE model in '{path}' has a null entry in 'merges', which is not allowed.");
-                sb.AppendLine(mergeString);
-            }
-            mergesStream = new MemoryStream(Encoding.UTF8.GetBytes(sb.ToString()));
-        }
-
-        try
-        {
-            return BpeTokenizer.Create(vocabStream, mergesStream);
-        }
-        finally
-        {
-            mergesStream?.Dispose();
-        }
     }
 
     private static Tokenizer LoadWordPieceFromTokenizerJson(JsonElement model, JsonElement root, string path)

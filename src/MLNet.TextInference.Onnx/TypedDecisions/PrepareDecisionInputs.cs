@@ -1,3 +1,4 @@
+using MLNet.TextInference.Onnx;
 using Microsoft.ML.Tokenizers;
 
 namespace MLNet.TextInference.TypedDecisions;
@@ -179,21 +180,7 @@ internal sealed class PrepareDecisionInputs
     }
 
     private IReadOnlyList<int> Encode(string text, int maxTokenCount)
-    {
-        ArgumentNullException.ThrowIfNull(text);
-        if (maxTokenCount < 0)
-            throw new ArgumentOutOfRangeException(nameof(maxTokenCount));
-        if (maxTokenCount == 0)
-            return [];
-
-        return _tokenizer.EncodeToIds(
-            text,
-            maxTokenCount,
-            out _,
-            out _,
-            considerPreTokenization: true,
-            considerNormalization: true);
-    }
+        => TokenizerEncoding.EncodeIds(_tokenizer, text, maxTokenCount);
 
     private static string QuestionTypeName(DecisionQuestionType type)
         => type switch

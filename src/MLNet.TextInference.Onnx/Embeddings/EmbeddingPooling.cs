@@ -125,7 +125,7 @@ internal static class EmbeddingPooling
         return embedding;
     }
 
-    private static void L2Normalize(Span<float> embedding)
+    internal static void L2Normalize(Span<float> embedding)
     {
         float norm = TensorPrimitives.Norm(embedding);
         if (norm > 0)

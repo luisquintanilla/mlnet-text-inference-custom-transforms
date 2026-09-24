@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using MLNet.TextInference.Onnx;
 
 namespace MLNet.TextInference.TypedDecisions;
 
@@ -13,6 +14,9 @@ internal sealed class TypedDecisionBundle : IDisposable
     public const string ManifestFileName = "typed-decision-bundle.json";
 
     private readonly bool _ownsRoot;
+    private readonly Lazy<LayaDecisionProfile> _profile;
+    private readonly Lazy<LayaTokenizerMetadata> _tokenizerMetadata;
+    private readonly Lazy<LayaTokenizer> _tokenizer;
     private bool _disposed;
 
     private TypedDecisionBundle(string rootPath, bool ownsRoot, TypedDecisionBundleManifest manifest)
@@ -20,22 +24,33 @@ internal sealed class TypedDecisionBundle : IDisposable
         RootPath = rootPath;
         _ownsRoot = ownsRoot;
         Manifest = manifest;
-        Profile = LayaDecisionProfile.Load(rootPath, manifest);
-        Tokenizer = LayaTokenizer.Load(Path.Combine(rootPath, manifest.TokenizerDirectory));
+        _profile = new Lazy<LayaDecisionProfile>(
+            () => LayaDecisionProfile.Load(RootPath, Manifest),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+        _tokenizerMetadata = new Lazy<LayaTokenizerMetadata>(
+            () => LayaTokenizer.LoadMetadata(Path.Combine(RootPath, Manifest.TokenizerDirectory)),
+            LazyThreadSafetyMode.ExecutionAndPublication);
+        _tokenizer = new Lazy<LayaTokenizer>(
+            () => LayaTokenizer.Load(Path.Combine(RootPath, Manifest.TokenizerDirectory)),
+            LazyThreadSafetyMode.ExecutionAndPublication);
     }
 
     public string RootPath { get; }
     public TypedDecisionBundleManifest Manifest { get; }
-    public LayaDecisionProfile Profile { get; }
-    public LayaTokenizer Tokenizer { get; }
+    public LayaDecisionProfile Profile => _profile.Value;
+    public LayaTokenizerMetadata TokenizerMetadata => _tokenizerMetadata.Value;
+    public LayaTokenizer Tokenizer => _tokenizer.Value;
     public string ModelPath => Path.Combine(RootPath, Manifest.ModelFile);
 
-    public static TypedDecisionBundle Open(string path)
+    public static TypedDecisionBundle Open(
+        string path,
+        TypedDecisionBundleLoadRequirements requirements =
+            TypedDecisionBundleLoadRequirements.All)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
         path = Path.GetFullPath(path);
         if (Directory.Exists(path))
-            return OpenDirectory(path, ownsRoot: false);
+            return OpenDirectory(path, ownsRoot: false, requirements);
         if (!File.Exists(path))
             throw new FileNotFoundException("Typed-decision bundle was not found.", path);
         if (!string.Equals(Path.GetExtension(path), ".zip", StringComparison.OrdinalIgnoreCase))
@@ -48,8 +63,8 @@ internal sealed class TypedDecisionBundle : IDisposable
         Directory.CreateDirectory(extractionRoot);
         try
         {
-            ExtractZipSafely(path, extractionRoot);
-            return OpenDirectory(extractionRoot, ownsRoot: true);
+            AssetArchive.ExtractZipSafely(path, extractionRoot);
+            return OpenDirectory(extractionRoot, ownsRoot: true, requirements);
         }
         catch
         {
@@ -59,7 +74,11 @@ internal sealed class TypedDecisionBundle : IDisposable
         }
     }
 
-    public static TypedDecisionBundle OpenDirectory(string directory, bool ownsRoot = false)
+    public static TypedDecisionBundle OpenDirectory(
+        string directory,
+        bool ownsRoot = false,
+        TypedDecisionBundleLoadRequirements requirements =
+            TypedDecisionBundleLoadRequirements.All)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
         directory = Path.GetFullPath(directory);
@@ -71,7 +90,7 @@ internal sealed class TypedDecisionBundle : IDisposable
         if (manifest is null)
             throw new InvalidDataException($"Could not parse {ManifestFileName}.");
         manifest.Validate();
-        ValidateFiles(directory, manifest);
+        ValidateFiles(directory, manifest, requirements);
         return new TypedDecisionBundle(directory, ownsRoot, manifest);
     }
 
@@ -134,37 +153,21 @@ internal sealed class TypedDecisionBundle : IDisposable
             Directory.Delete(RootPath, recursive: true);
     }
 
-    private static void ExtractZipSafely(string zipPath, string destination)
+    private static void ValidateFiles(
+        string directory,
+        TypedDecisionBundleManifest manifest,
+        TypedDecisionBundleLoadRequirements requirements)
     {
-        using var archive = ZipFile.OpenRead(zipPath);
-        var root = Path.GetFullPath(destination) + Path.DirectorySeparatorChar;
-        foreach (var entry in archive.Entries)
+        var required = new List<string>();
+        if (requirements.HasFlag(TypedDecisionBundleLoadRequirements.Model))
         {
-            var relative = entry.FullName.Replace('/', Path.DirectorySeparatorChar);
-            TypedDecisionBundleManifest.ValidateRelativePath(relative, "archive entry");
-            var target = Path.GetFullPath(Path.Combine(destination, relative));
-            if (!target.StartsWith(root, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException($"Archive entry '{entry.FullName}' escapes the extraction directory.");
-            if (string.IsNullOrEmpty(entry.Name))
-            {
-                Directory.CreateDirectory(target);
-                continue;
-            }
-
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            entry.ExtractToFile(target, overwrite: false);
+            required.Add(manifest.ModelFile);
+            required.AddRange(manifest.ExternalDataFiles);
         }
-    }
-
-    private static void ValidateFiles(string directory, TypedDecisionBundleManifest manifest)
-    {
-        var required = new List<string>
-        {
-            manifest.ModelFile,
-            "laya_config.json",
-            Path.Combine(manifest.TokenizerDirectory, "tokenizer.json")
-        };
-        required.AddRange(manifest.ExternalDataFiles);
+        if (requirements.HasFlag(TypedDecisionBundleLoadRequirements.Profile))
+            required.Add("laya_config.json");
+        if (requirements.HasFlag(TypedDecisionBundleLoadRequirements.Tokenizer))
+            required.Add(Path.Combine(manifest.TokenizerDirectory, "tokenizer.json"));
         foreach (var relative in required)
         {
             TypedDecisionBundleManifest.ValidateRelativePath(relative, "bundle file");
@@ -173,7 +176,7 @@ internal sealed class TypedDecisionBundle : IDisposable
                 throw new FileNotFoundException($"Typed-decision bundle is missing '{relative}'.", path);
             if (manifest.FileSha256.TryGetValue(relative.Replace('\\', '/'), out var expected))
             {
-                var actual = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+                var actual = ComputeSha256(path);
                 if (!string.Equals(expected, actual, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException($"SHA-256 mismatch for bundle file '{relative}'.");
             }
@@ -185,8 +188,18 @@ internal sealed class TypedDecisionBundle : IDisposable
         var path = Path.Combine(directory, relative);
         if (!File.Exists(path))
             throw new FileNotFoundException($"Cannot write a bundle manifest; '{relative}' is missing.", path);
-        hashes[relative.Replace('\\', '/')] =
-            Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+        hashes[relative.Replace('\\', '/')] = ComputeSha256(path);
+    }
+
+    private static string ComputeSha256(string path)
+    {
+        using var stream = File.OpenRead(path);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[1024 * 1024];
+        int read;
+        while ((read = stream.Read(buffer, 0, buffer.Length)) > 0)
+            hash.AppendData(buffer, 0, read);
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -199,4 +212,13 @@ internal sealed class TypedDecisionBundle : IDisposable
     {
         WriteIndented = true
     };
+}
+
+[Flags]
+internal enum TypedDecisionBundleLoadRequirements
+{
+    Model = 1,
+    Profile = 2,
+    Tokenizer = 4,
+    All = Model | Profile | Tokenizer
 }

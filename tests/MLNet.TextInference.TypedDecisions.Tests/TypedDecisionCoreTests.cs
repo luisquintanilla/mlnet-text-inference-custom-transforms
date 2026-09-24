@@ -461,6 +461,37 @@ public sealed class TypedDecisionCoreTests
         Assert.ThrowsException<InvalidDataException>(() => TypedDecisionBundle.Open(zipPath));
     }
 
+    [TestMethod]
+    public void TypedDecisionBundle_HonorsSelectiveLoadRequirements()
+    {
+        using var fixture = TinyTokenizerFixture.Create();
+        var bundleDirectory = Path.Combine(fixture.Root, "selective");
+        Directory.CreateDirectory(bundleDirectory);
+        File.WriteAllText(
+            Path.Combine(bundleDirectory, TypedDecisionBundle.ManifestFileName),
+            """{"modelFile":"missing.onnx","externalDataFiles":["missing.data"],"tokenizerDirectory":"tokenizer","profile":{"name":"test","revision":"test"}}""");
+        File.WriteAllText(
+            Path.Combine(bundleDirectory, "laya_config.json"),
+            """{"max_len":64,"head_max_len":16,"temperature":[1,1,1]}""");
+
+        using (var profileOnly = TypedDecisionBundle.OpenDirectory(
+            bundleDirectory,
+            requirements: TypedDecisionBundleLoadRequirements.Profile))
+        {
+            Assert.AreEqual(64, profileOnly.Profile.MaxLength);
+        }
+
+        var tokenizerDirectory = Path.Combine(bundleDirectory, "tokenizer");
+        Directory.CreateDirectory(tokenizerDirectory);
+        File.Copy(
+            Path.Combine(fixture.Root, "tokenizer", "tokenizer.json"),
+            Path.Combine(tokenizerDirectory, "tokenizer.json"));
+        using var tokenizerOnly = TypedDecisionBundle.OpenDirectory(
+            bundleDirectory,
+            requirements: TypedDecisionBundleLoadRequirements.Tokenizer);
+        Assert.IsTrue(tokenizerOnly.TokenizerMetadata.PadTokenId >= 0);
+    }
+
     private sealed class TinyTokenizerFixture : IDisposable
     {
         private TinyTokenizerFixture(string root, LayaTokenizer tokenizer)

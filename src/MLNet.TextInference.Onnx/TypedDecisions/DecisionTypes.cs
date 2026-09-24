@@ -175,10 +175,10 @@ internal sealed class DecisionInputBatch
         if (InputIds is null || AttentionMask is null ||
             MarkerPositions is null || MarkerMask is null ||
             QuestionTypes is null || Items is null ||
-            InputIds.Length != BatchSize * SequenceLength ||
-            AttentionMask.Length != BatchSize * SequenceLength ||
-            MarkerPositions.Length != BatchSize * MarkerWidth ||
-            MarkerMask.Length != BatchSize * MarkerWidth ||
+            InputIds.Length != checked(BatchSize * SequenceLength) ||
+            AttentionMask.Length != checked(BatchSize * SequenceLength) ||
+            MarkerPositions.Length != checked(BatchSize * MarkerWidth) ||
+            MarkerMask.Length != checked(BatchSize * MarkerWidth) ||
             QuestionTypes.Length != BatchSize ||
             Items.Count != BatchSize)
         {
