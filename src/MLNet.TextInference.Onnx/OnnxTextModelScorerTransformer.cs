@@ -102,20 +102,32 @@ public sealed class OnnxTextModelScorerTransformer : ITransformer, IDisposable
                 Array.Copy(tokenTypeIds[startIdx + b], 0, typeIdsArray, b * seqLen, seqLen);
         }
 
-        var inputs = new Dictionary<string, OrtValue>
-        {
-            [_metadata.InputIdsName] = OrtValue.CreateTensorValueFromMemory(idsArray, [batchSize, seqLen]),
-            [_metadata.AttentionMaskName] = OrtValue.CreateTensorValueFromMemory(maskArray, [batchSize, seqLen])
-        };
-
-        if (_metadata.TokenTypeIdsName != null && typeIdsArray != null)
-            inputs[_metadata.TokenTypeIdsName] = OrtValue.CreateTensorValueFromMemory(typeIdsArray, [batchSize, seqLen]);
-
+        var inputs = new Dictionary<string, OrtValue>();
         try
         {
-            using var results = _session.Run(new RunOptions(), inputs, [_metadata.OutputTensorName]);
+            inputs[_metadata.InputIdsName] =
+                OrtValue.CreateTensorValueFromMemory(idsArray, [batchSize, seqLen]);
+            inputs[_metadata.AttentionMaskName] =
+                OrtValue.CreateTensorValueFromMemory(maskArray, [batchSize, seqLen]);
+            if (_metadata.TokenTypeIdsName != null && typeIdsArray != null)
+            {
+                inputs[_metadata.TokenTypeIdsName] =
+                    OrtValue.CreateTensorValueFromMemory(typeIdsArray, [batchSize, seqLen]);
+            }
+
+            using var runOptions = new RunOptions();
+            using var results = _session.Run(runOptions, inputs, [_metadata.OutputTensorName]);
             var output = results[0];
-            var outputSpan = output.GetTensorDataAsSpan<float>();
+            var outputSpan = GetValidatedOutputSpan(
+                output,
+                _metadata.OutputTensorName,
+                batchSize,
+                seqLen,
+                _metadata.OutputRank,
+                _metadata.OutputRank == 2
+                    ? _metadata.HiddenDim
+                    : checked(seqLen * _metadata.HiddenDim),
+                _metadata.HiddenDim);
 
             var batchOutputs = new float[batchSize][];
 
@@ -160,22 +172,25 @@ public sealed class OnnxTextModelScorerTransformer : ITransformer, IDisposable
                 Array.Copy(tokenTypeIds[startIdx + b], 0, typeIdsArray, b * seqLen, seqLen);
         }
 
-        var inputs = new Dictionary<string, OrtValue>
-        {
-            [_metadata.InputIdsName] = OrtValue.CreateTensorValueFromMemory(idsArray, [batchSize, seqLen]),
-            [_metadata.AttentionMaskName] = OrtValue.CreateTensorValueFromMemory(maskArray, [batchSize, seqLen])
-        };
-
-        if (_metadata.TokenTypeIdsName != null && typeIdsArray != null)
-            inputs[_metadata.TokenTypeIdsName] = OrtValue.CreateTensorValueFromMemory(typeIdsArray, [batchSize, seqLen]);
-
+        var inputs = new Dictionary<string, OrtValue>();
         var outputNames = new List<string> { _metadata.OutputTensorName };
         if (_metadata.AdditionalOutputNames != null)
             outputNames.AddRange(_metadata.AdditionalOutputNames);
 
         try
         {
-            using var results = _session.Run(new RunOptions(), inputs, outputNames);
+            inputs[_metadata.InputIdsName] =
+                OrtValue.CreateTensorValueFromMemory(idsArray, [batchSize, seqLen]);
+            inputs[_metadata.AttentionMaskName] =
+                OrtValue.CreateTensorValueFromMemory(maskArray, [batchSize, seqLen]);
+            if (_metadata.TokenTypeIdsName != null && typeIdsArray != null)
+            {
+                inputs[_metadata.TokenTypeIdsName] =
+                    OrtValue.CreateTensorValueFromMemory(typeIdsArray, [batchSize, seqLen]);
+            }
+
+            using var runOptions = new RunOptions();
+            using var results = _session.Run(runOptions, inputs, outputNames);
 
             int numOutputs = outputNames.Count;
             var allOutputs = new float[numOutputs][][];
@@ -183,8 +198,36 @@ public sealed class OnnxTextModelScorerTransformer : ITransformer, IDisposable
             for (int outIdx = 0; outIdx < numOutputs; outIdx++)
             {
                 var output = results[outIdx];
-                var outputSpan = output.GetTensorDataAsSpan<float>();
-                int perRowSize = outputSpan.Length / batchSize;
+                int outputRank;
+                int expectedWidth;
+                if (outIdx == 0)
+                {
+                    outputRank = _metadata.OutputRank;
+                    expectedWidth = outputRank == 2
+                        ? _metadata.HiddenDim
+                        : checked(seqLen * _metadata.HiddenDim);
+                }
+                else
+                {
+                    outputRank = _metadata.AdditionalOutputRanks?[outIdx - 1]
+                        ?? throw new InvalidOperationException(
+                            "Additional output rank metadata is missing.");
+                    expectedWidth = _metadata.AdditionalOutputDims?[outIdx - 1]
+                        ?? throw new InvalidOperationException(
+                            "Additional output dimension metadata is missing.");
+                }
+
+                var outputSpan = GetValidatedOutputSpan(
+                    output,
+                    outputNames[outIdx],
+                    batchSize,
+                    seqLen,
+                    outputRank,
+                    expectedWidth,
+                    outputRank == 3
+                        ? _metadata.HiddenDim
+                        : expectedWidth);
+                int perRowSize = checked(outputSpan.Length / batchSize);
 
                 var batchOutputs = new float[batchSize][];
                 for (int b = 0; b < batchSize; b++)
@@ -200,6 +243,42 @@ public sealed class OnnxTextModelScorerTransformer : ITransformer, IDisposable
             foreach (var ortValue in inputs.Values)
                 ortValue.Dispose();
         }
+    }
+
+    private static ReadOnlySpan<float> GetValidatedOutputSpan(
+        OrtValue output,
+        string outputName,
+        int batchSize,
+        int sequenceLength,
+        int expectedRank,
+        int expectedRowWidth,
+        int expectedLastDim)
+    {
+        var dimensions = output.GetTensorTypeAndShape().Shape;
+        if (dimensions.Length != expectedRank ||
+            dimensions.Length < 2 ||
+            dimensions[0] != batchSize ||
+            (dimensions.Length == 2 && dimensions[1] != expectedRowWidth) ||
+            (dimensions.Length == 3 &&
+             (dimensions[1] != sequenceLength ||
+              dimensions[2] != expectedLastDim)))
+        {
+            throw new InvalidDataException(
+                $"The ONNX output '{outputName}' has shape " +
+                $"[{string.Join(",", dimensions)}]; expected " +
+                (expectedRank == 2
+                    ? $"[{batchSize},{expectedRowWidth}]"
+                    : $"[{batchSize},{sequenceLength},{expectedLastDim}]."));
+        }
+
+        var outputSpan = output.GetTensorDataAsSpan<float>();
+        var expectedElements = checked(batchSize * expectedRowWidth);
+        if (outputSpan.Length != expectedElements)
+            throw new InvalidDataException(
+                $"The ONNX output '{outputName}' contains {outputSpan.Length} values, " +
+                $"but its validated shape requires {expectedElements}.");
+
+        return outputSpan;
     }
 
     /// <summary>
@@ -268,12 +347,20 @@ public sealed class OnnxTextModelScorerTransformer : ITransformer, IDisposable
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException();
+        => new OnnxTextModelScorerRowToRowMapper(inputSchema, this);
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException();
 
-    public void Dispose() => _session.Dispose();
+    private bool _disposed;
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+        _session.Dispose();
+    }
 }
 
 /// <summary>
@@ -288,6 +375,9 @@ internal sealed class ScorerDataView : IDataView
     public DataViewSchema Schema { get; }
     public bool CanShuffle => false;
     public long? GetRowCount() => _input.GetRowCount();
+    internal int InputColumnCount => _input.Schema.Count;
+    internal int OutputColumnIndex { get; }
+    internal IReadOnlyDictionary<int, int> AdditionalOutputIndices { get; }
 
     internal ScorerDataView(IDataView input, OnnxTextModelScorerTransformer scorer)
     {
@@ -303,16 +393,20 @@ internal sealed class ScorerDataView : IDataView
 
         builder.AddColumn(scorer.Options.OutputColumnName,
             new VectorDataViewType(NumberDataViewType.Single, outputSize));
+        OutputColumnIndex = input.Schema.Count;
 
+        var additionalIndices = new Dictionary<int, int>();
         if (scorer.Options.AdditionalOutputColumnNames != null && scorer.Metadata.AdditionalOutputDims != null)
         {
             for (int i = 0; i < scorer.Options.AdditionalOutputColumnNames.Length; i++)
             {
                 builder.AddColumn(scorer.Options.AdditionalOutputColumnNames[i],
                     new VectorDataViewType(NumberDataViewType.Single, scorer.Metadata.AdditionalOutputDims[i]));
+                additionalIndices[input.Schema.Count + 1 + i] = i;
             }
         }
 
+        AdditionalOutputIndices = additionalIndices;
         Schema = builder.ToSchema();
     }
 
@@ -320,26 +414,36 @@ internal sealed class ScorerDataView : IDataView
     {
         var options = _scorer.Options;
         var upstreamCols = new List<DataViewSchema.Column>();
+        var requestedColumns = columnsNeeded.ToArray();
+        bool inferenceRequired = requestedColumns.Any(column =>
+            column.Index == OutputColumnIndex || AdditionalOutputIndices.ContainsKey(column.Index));
 
-        foreach (var col in columnsNeeded)
+        foreach (var col in requestedColumns)
         {
-            var inputCol = _input.Schema.GetColumnOrNull(col.Name);
-            if (inputCol != null)
-                upstreamCols.Add(inputCol.Value);
+            if (col.Index < _input.Schema.Count)
+                upstreamCols.Add(_input.Schema[col.Index]);
         }
 
-        // Always need token columns for ONNX inference
-        upstreamCols.Add(_input.Schema[options.TokenIdsColumnName]);
-        upstreamCols.Add(_input.Schema[options.AttentionMaskColumnName]);
-        if (options.TokenTypeIdsColumnName != null)
+        if (inferenceRequired)
         {
-            var typeIdCol = _input.Schema.GetColumnOrNull(options.TokenTypeIdsColumnName);
-            if (typeIdCol != null)
-                upstreamCols.Add(typeIdCol.Value);
+            upstreamCols.Add(_input.Schema[options.TokenIdsColumnName]);
+            upstreamCols.Add(_input.Schema[options.AttentionMaskColumnName]);
+            if (options.TokenTypeIdsColumnName != null)
+            {
+                var typeIdCol = _input.Schema.GetColumnOrNull(options.TokenTypeIdsColumnName);
+                if (typeIdCol != null)
+                    upstreamCols.Add(typeIdCol.Value);
+            }
         }
 
         var inputCursor = _input.GetRowCursor(upstreamCols.Distinct(), rand);
-        return new ScorerCursor(this, inputCursor, _scorer);
+        return new ScorerCursor(
+            this,
+            inputCursor,
+            _scorer,
+            inferenceRequired,
+            upstreamCols.Select(column => column.Index).ToHashSet(),
+            requestedColumns.Select(column => column.Index).ToHashSet());
     }
 
     public DataViewRowCursor[] GetRowCursorSet(
@@ -359,6 +463,10 @@ internal sealed class ScorerCursor : DataViewRowCursor
     private readonly ScorerDataView _parent;
     private readonly DataViewRowCursor _inputCursor;
     private readonly OnnxTextModelScorerTransformer _scorer;
+    private readonly bool _inferenceRequired;
+    private readonly HashSet<int> _cachedColumnIndices;
+    private readonly HashSet<int> _requestedColumnIndices;
+    private readonly ValueGetter<DataViewRowId> _inputIdGetter;
 
     // Lookahead batch state
     private float[][]? _batchResults;
@@ -373,16 +481,26 @@ internal sealed class ScorerCursor : DataViewRowCursor
 
     public override DataViewSchema Schema => _parent.Schema;
     public override long Position => _position;
-    public override long Batch => 0;
+    public override long Batch =>
+        _batchIndex >= 0 && _batchIndex < _batchRows.Count
+            ? _batchRows[_batchIndex].Batch
+            : -1;
 
     internal ScorerCursor(
         ScorerDataView parent,
         DataViewRowCursor inputCursor,
-        OnnxTextModelScorerTransformer scorer)
+        OnnxTextModelScorerTransformer scorer,
+        bool inferenceRequired,
+        HashSet<int> cachedColumnIndices,
+        HashSet<int> requestedColumnIndices)
     {
         _parent = parent;
         _inputCursor = inputCursor;
         _scorer = scorer;
+        _inferenceRequired = inferenceRequired;
+        _cachedColumnIndices = cachedColumnIndices;
+        _requestedColumnIndices = requestedColumnIndices;
+        _inputIdGetter = inputCursor.GetIdGetter();
     }
 
     public override bool MoveNext()
@@ -413,17 +531,21 @@ internal sealed class ScorerCursor : DataViewRowCursor
         var typeIdsBatch = new List<long[]>();
         _batchRows.Clear();
 
-        var tokenIdsGetter = _inputCursor.GetGetter<VBuffer<long>>(
-            _inputCursor.Schema[options.TokenIdsColumnName]);
-        var attMaskGetter = _inputCursor.GetGetter<VBuffer<long>>(
-            _inputCursor.Schema[options.AttentionMaskColumnName]);
-
+        ValueGetter<VBuffer<long>>? tokenIdsGetter = null;
+        ValueGetter<VBuffer<long>>? attMaskGetter = null;
         ValueGetter<VBuffer<long>>? typeIdsGetter = null;
-        if (options.TokenTypeIdsColumnName != null)
+        if (_inferenceRequired)
         {
-            var typeIdCol = _inputCursor.Schema.GetColumnOrNull(options.TokenTypeIdsColumnName);
-            if (typeIdCol != null)
-                typeIdsGetter = _inputCursor.GetGetter<VBuffer<long>>(typeIdCol.Value);
+            tokenIdsGetter = _inputCursor.GetGetter<VBuffer<long>>(
+                _inputCursor.Schema[options.TokenIdsColumnName]);
+            attMaskGetter = _inputCursor.GetGetter<VBuffer<long>>(
+                _inputCursor.Schema[options.AttentionMaskColumnName]);
+            if (options.TokenTypeIdsColumnName != null)
+            {
+                var typeIdCol = _inputCursor.Schema.GetColumnOrNull(options.TokenTypeIdsColumnName);
+                if (typeIdCol != null)
+                    typeIdsGetter = _inputCursor.GetGetter<VBuffer<long>>(typeIdCol.Value);
+            }
         }
 
         VBuffer<long> tokenIdsBuffer = default;
@@ -438,25 +560,35 @@ internal sealed class ScorerCursor : DataViewRowCursor
                 break;
             }
 
-            tokenIdsGetter(ref tokenIdsBuffer);
-            attMaskGetter(ref attMaskBuffer);
-            tokenIdsBatch.Add(tokenIdsBuffer.DenseValues().ToArray());
-            attMaskBatch.Add(attMaskBuffer.DenseValues().ToArray());
-
-            if (typeIdsGetter != null)
+            DataViewRowId rowId = default;
+            _inputIdGetter(ref rowId);
+            if (_inferenceRequired)
             {
-                typeIdsGetter(ref typeIdsBuffer);
-                typeIdsBatch.Add(typeIdsBuffer.DenseValues().ToArray());
+                tokenIdsGetter!(ref tokenIdsBuffer);
+                attMaskGetter!(ref attMaskBuffer);
+                tokenIdsBatch.Add(tokenIdsBuffer.DenseValues().ToArray());
+                attMaskBatch.Add(attMaskBuffer.DenseValues().ToArray());
+
+                if (typeIdsGetter != null)
+                {
+                    typeIdsGetter(ref typeIdsBuffer);
+                    typeIdsBatch.Add(typeIdsBuffer.DenseValues().ToArray());
+                }
             }
 
             // Cache all upstream column values for this row
-            _batchRows.Add(CacheCurrentRow());
+            _batchRows.Add(CacheCurrentRow(rowId, _inputCursor.Batch));
         }
 
-        if (tokenIdsBatch.Count == 0)
+        if (_batchRows.Count == 0)
             return false;
 
-        if (_scorer.Options.AdditionalOutputTensorNames != null)
+        if (!_inferenceRequired)
+        {
+            _batchResults = Array.Empty<float[]>();
+            _batchAdditionalResults = null;
+        }
+        else if (_scorer.Options.AdditionalOutputTensorNames != null)
         {
             var multiResults = _scorer.RunOnnxBatchMulti(
                 tokenIdsBatch.ToArray(),
@@ -484,63 +616,86 @@ internal sealed class ScorerCursor : DataViewRowCursor
         }
 
         _batchIndex = 0;
-        _batchCount = tokenIdsBatch.Count;
+        _batchCount = _batchRows.Count;
         return true;
     }
 
     /// <summary>
-    /// Caches all column values from the upstream cursor for the current row.
-    /// Needed because lookahead advances the upstream cursor past these rows.
+    /// Caches requested upstream values from the current row. Lookahead advances
+    /// the upstream cursor past these rows, so the mapped row must own snapshots.
     /// </summary>
-    private CachedRow CacheCurrentRow()
+    private CachedRow CacheCurrentRow(DataViewRowId rowId, long batch)
     {
-        var cached = new CachedRow();
+        var cached = new CachedRow(rowId, batch);
 
         foreach (var col in _inputCursor.Schema)
         {
-            if (col.IsHidden) continue;
+            if (!_cachedColumnIndices.Contains(col.Index))
+                continue;
 
-            try
+            if (col.Type is VectorDataViewType vectorType)
             {
-                if (col.Type is TextDataViewType)
-                {
-                    var getter = _inputCursor.GetGetter<ReadOnlyMemory<char>>(col);
-                    ReadOnlyMemory<char> val = default;
-                    getter(ref val);
-                    cached.Values[col.Name] = val.ToString();
-                }
-                else if (col.Type is VectorDataViewType vecType && vecType.ItemType == NumberDataViewType.Int64)
-                {
-                    var getter = _inputCursor.GetGetter<VBuffer<long>>(col);
-                    VBuffer<long> val = default;
-                    getter(ref val);
-                    cached.Values[col.Name] = val.DenseValues().ToArray();
-                }
-                else if (col.Type is VectorDataViewType vecTypeF && vecTypeF.ItemType == NumberDataViewType.Single)
-                {
-                    var getter = _inputCursor.GetGetter<VBuffer<float>>(col);
-                    VBuffer<float> val = default;
-                    getter(ref val);
-                    cached.Values[col.Name] = val.DenseValues().ToArray();
-                }
+                CacheVector(col, vectorType.ItemType.RawType, cached);
             }
-            catch
+            else
             {
-                // Skip columns that can't be cached
+                CacheScalar(col, col.Type.RawType, cached);
             }
         }
 
         return cached;
     }
 
+    private void CacheScalar(DataViewSchema.Column column, Type rawType, CachedRow cached)
+    {
+        var method = GetType().GetMethod(
+            nameof(CacheScalarValue),
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        method.MakeGenericMethod(rawType).Invoke(this, [column, cached]);
+    }
+
+    private void CacheScalarValue<T>(DataViewSchema.Column column, CachedRow cached)
+    {
+        var getter = _inputCursor.GetGetter<T>(column);
+        T value = default!;
+        getter(ref value);
+        cached.Values[column.Index] = new CachedScalar<T>(
+            DecisionDataViewUtils.CopyValue(value));
+    }
+
+    private void CacheVector(DataViewSchema.Column column, Type rawType, CachedRow cached)
+    {
+        var method = GetType().GetMethod(
+            nameof(CacheVectorValue),
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        method.MakeGenericMethod(rawType).Invoke(this, [column, cached]);
+    }
+
+    private void CacheVectorValue<T>(DataViewSchema.Column column, CachedRow cached)
+    {
+        var getter = _inputCursor.GetGetter<VBuffer<T>>(column);
+        VBuffer<T> value = default;
+        getter(ref value);
+        cached.Values[column.Index] = new CachedVector<T>(
+            DecisionDataViewUtils.CopyValue(value));
+    }
+
     public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
     {
+        if (!_requestedColumnIndices.Contains(column.Index))
+            throw new InvalidOperationException(
+                $"Column '{column.Name}' was not requested for this cursor.");
+
         // For the raw output column, return the cached ONNX result
-        if (column.Name == _scorer.Options.OutputColumnName)
+        if (column.Index == _parent.OutputColumnIndex)
         {
+            EnsureGetterType<TValue>(column, typeof(VBuffer<float>));
             ValueGetter<VBuffer<float>> getter = (ref VBuffer<float> value) =>
             {
-                var data = _batchResults![_batchIndex];
+                var results = _batchResults
+                    ?? throw new InvalidOperationException(
+                        "The cursor has not advanced to a row.");
+                var data = results[_batchIndex];
                 var editor = VBufferEditor.Create(ref value, data.Length);
                 data.AsSpan().CopyTo(editor.Values);
                 value = editor.Commit();
@@ -549,20 +704,21 @@ internal sealed class ScorerCursor : DataViewRowCursor
         }
 
         // For additional output columns
-        if (_scorer.Options.AdditionalOutputColumnNames != null)
+        if (_parent.AdditionalOutputIndices.TryGetValue(column.Index, out int additionalIdx))
         {
-            int additionalIdx = Array.IndexOf(_scorer.Options.AdditionalOutputColumnNames, column.Name);
-            if (additionalIdx >= 0)
+            EnsureGetterType<TValue>(column, typeof(VBuffer<float>));
+
+            ValueGetter<VBuffer<float>> getter = (ref VBuffer<float> value) =>
             {
-                ValueGetter<VBuffer<float>> getter = (ref VBuffer<float> value) =>
-                {
-                    var data = _batchAdditionalResults![additionalIdx][_batchIndex];
-                    var editor = VBufferEditor.Create(ref value, data.Length);
-                    data.AsSpan().CopyTo(editor.Values);
-                    value = editor.Commit();
-                };
-                return (ValueGetter<TValue>)(object)getter;
-            }
+                var additionalResults = _batchAdditionalResults
+                    ?? throw new InvalidOperationException(
+                        "The cursor has not advanced to a row.");
+                var data = additionalResults[additionalIdx][_batchIndex];
+                var editor = VBufferEditor.Create(ref value, data.Length);
+                data.AsSpan().CopyTo(editor.Values);
+                value = editor.Commit();
+            };
+            return (ValueGetter<TValue>)(object)getter;
         }
 
         // For passthrough columns, return cached upstream values
@@ -571,60 +727,70 @@ internal sealed class ScorerCursor : DataViewRowCursor
 
     private ValueGetter<TValue> GetCachedUpstreamGetter<TValue>(DataViewSchema.Column column)
     {
-        if (typeof(TValue) == typeof(ReadOnlyMemory<char>))
+        if (column.Index >= _parent.InputColumnCount)
+            throw new InvalidOperationException(
+                $"Column '{column.Name}' is not a passthrough input column.");
+
+        var expectedType = column.Type is VectorDataViewType columnVectorType
+            ? typeof(VBuffer<>).MakeGenericType(columnVectorType.ItemType.RawType)
+            : column.Type.RawType;
+        EnsureGetterType<TValue>(column, expectedType);
+
+        if (column.Type is VectorDataViewType vectorType)
         {
-            ValueGetter<ReadOnlyMemory<char>> getter = (ref ReadOnlyMemory<char> value) =>
-            {
-                var row = _batchRows[_batchIndex];
-                if (row.Values.TryGetValue(column.Name, out var cached) && cached is string s)
-                    value = s.AsMemory();
-                else
-                    value = ReadOnlyMemory<char>.Empty;
-            };
-            return (ValueGetter<TValue>)(object)getter;
+            var method = GetType().GetMethod(
+                nameof(CreateVectorGetter),
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            return (ValueGetter<TValue>)method.MakeGenericMethod(vectorType.ItemType.RawType)
+                .Invoke(this, [column])!;
         }
 
-        if (typeof(TValue) == typeof(VBuffer<long>))
-        {
-            ValueGetter<VBuffer<long>> getter = (ref VBuffer<long> value) =>
-            {
-                var row = _batchRows[_batchIndex];
-                if (row.Values.TryGetValue(column.Name, out var cached) && cached is long[] arr)
-                {
-                    var editor = VBufferEditor.Create(ref value, arr.Length);
-                    arr.AsSpan().CopyTo(editor.Values);
-                    value = editor.Commit();
-                }
-            };
-            return (ValueGetter<TValue>)(object)getter;
-        }
+        var scalarMethod = GetType().GetMethod(
+            nameof(CreateScalarGetter),
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        return (ValueGetter<TValue>)scalarMethod.MakeGenericMethod(typeof(TValue))
+            .Invoke(this, [column])!;
+    }
 
-        if (typeof(TValue) == typeof(VBuffer<float>))
+    private ValueGetter<T> CreateScalarGetter<T>(DataViewSchema.Column column)
+    {
+        return (ref T value) =>
         {
-            ValueGetter<VBuffer<float>> getter = (ref VBuffer<float> value) =>
-            {
-                var row = _batchRows[_batchIndex];
-                if (row.Values.TryGetValue(column.Name, out var cached) && cached is float[] arr)
-                {
-                    var editor = VBufferEditor.Create(ref value, arr.Length);
-                    arr.AsSpan().CopyTo(editor.Values);
-                    value = editor.Commit();
-                }
-            };
-            return (ValueGetter<TValue>)(object)getter;
-        }
+            var row = _batchRows[_batchIndex];
+            value = ((CachedScalar<T>)row.Values[column.Index]).Value;
+        };
+    }
 
-        throw new InvalidOperationException(
-            $"Unsupported column type for passthrough caching: {column.Name} ({typeof(TValue).Name})");
+    private ValueGetter<VBuffer<T>> CreateVectorGetter<T>(DataViewSchema.Column column)
+    {
+        return (ref VBuffer<T> value) =>
+        {
+            var row = _batchRows[_batchIndex];
+            value = DecisionDataViewUtils.CopyValue(
+                ((CachedVector<T>)row.Values[column.Index]).Value);
+        };
+    }
+
+    private static void EnsureGetterType<TValue>(DataViewSchema.Column column, Type expectedType)
+    {
+        if (typeof(TValue) != expectedType)
+            throw new InvalidOperationException(
+                $"Column '{column.Name}' has type {column.Type}, " +
+                $"but getter requested {typeof(TValue).Name}; expected {expectedType.Name}.");
     }
 
     public override ValueGetter<DataViewRowId> GetIdGetter()
     {
         return (ref DataViewRowId value) =>
-            value = new DataViewRowId((ulong)_position, 0);
+        {
+            if (_batchIndex < 0 || _batchIndex >= _batchRows.Count)
+                throw new InvalidOperationException("The cursor has not advanced to a row.");
+            value = _batchRows[_batchIndex].Id;
+        };
     }
 
-    public override bool IsColumnActive(DataViewSchema.Column column) => true;
+    public override bool IsColumnActive(DataViewSchema.Column column)
+        => _requestedColumnIndices.Contains(column.Index);
 
     protected override void Dispose(bool disposing)
     {
@@ -638,6 +804,28 @@ internal sealed class ScorerCursor : DataViewRowCursor
     /// </summary>
     private sealed class CachedRow
     {
-        public Dictionary<string, object> Values { get; } = new();
+        public DataViewRowId Id { get; }
+        public long Batch { get; }
+        public Dictionary<int, object> Values { get; } = new();
+
+        public CachedRow(DataViewRowId id, long batch)
+        {
+            Id = id;
+            Batch = batch;
+        }
+    }
+
+    private sealed class CachedScalar<T>
+    {
+        public T Value { get; }
+
+        public CachedScalar(T value) => Value = value;
+    }
+
+    private sealed class CachedVector<T>
+    {
+        public VBuffer<T> Value { get; }
+
+        public CachedVector(VBuffer<T> value) => Value = value;
     }
 }

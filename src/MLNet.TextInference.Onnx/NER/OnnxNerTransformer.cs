@@ -17,6 +17,8 @@ public sealed class OnnxNerTransformer : ITransformer, IDisposable
 
     public bool IsRowToRowMapper => true;
 
+    internal OnnxNerOptions Options => _options;
+
     internal OnnxNerTransformer(
         MLContext mlContext,
         OnnxNerOptions options,
@@ -62,7 +64,11 @@ public sealed class OnnxNerTransformer : ITransformer, IDisposable
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException();
+    {
+        return ((ITransformer)new TransformerChain<ITransformer>(
+            new ITransformer[] { _tokenizer, _scorer, _nerDecoder }))
+            .GetRowToRowMapper(inputSchema);
+    }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException();

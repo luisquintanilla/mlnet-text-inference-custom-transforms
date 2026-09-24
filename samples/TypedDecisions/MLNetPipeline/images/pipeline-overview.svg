@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1325" viewBox="0 0 900 1325" role="img" aria-labelledby="title desc">
+  <title id="title">Typed-decision inference pipeline</title>
+  <desc id="desc">A vertical flow from caller state and configured questions through C sharp preparation, five tensors, an ONNX graph executed by ONNX Runtime, two independent output-head decoding branches, and direct or ML.NET results.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#38556f"/>
+    </marker>
+    <style>
+      .title { font: 700 28px Arial, Helvetica, sans-serif; fill: #142b40; }
+      .subtitle { font: 18px Arial, Helvetica, sans-serif; fill: #52677b; }
+      .heading { font: 700 20px Arial, Helvetica, sans-serif; fill: #142b40; }
+      .body { font: 18px Arial, Helvetica, sans-serif; fill: #20384d; }
+      .small { font: 16px Arial, Helvetica, sans-serif; fill: #365066; }
+      .tiny { font: 14px Arial, Helvetica, sans-serif; fill: #52677b; }
+      .card { stroke-width: 2; rx: 16; }
+      .arrow { stroke: #38556f; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="900" height="1325" fill="#fbfcfe"/>
+  <text x="40" y="45" class="title">Typed-decision inference, end to end</text>
+  <text x="40" y="76" class="subtitle">One existing package; explicit C# preparation and decoding around a pretrained graph.</text>
+
+  <rect x="40" y="105" width="820" height="135" class="card" fill="#e6f1fb" stroke="#4f86b5"/>
+  <text x="70" y="145" class="heading">1. Caller input</text>
+  <text x="70" y="180" class="body">State text, one row or a bulk request</text>
+  <text x="70" y="212" class="small">Fixed questions, instructions, and option order are configured at Fit.</text>
+
+  <path d="M450 240 V270" class="arrow"/>
+
+  <rect x="40" y="270" width="820" height="155" class="card" fill="#e5f4f0" stroke="#23827a"/>
+  <text x="70" y="310" class="heading">2. Prepare in C#</text>
+  <text x="70" y="346" class="body">Microsoft.ML.Tokenizers BPE + Laya sequence layout</text>
+  <text x="70" y="379" class="small">special tokens, option markers, truncation, padding, and qtype</text>
+  <text x="70" y="407" class="tiny">Preprocessing remains explicit C#; it is not hidden in the graph.</text>
+
+  <path d="M450 425 V455" class="arrow"/>
+
+  <rect x="40" y="455" width="820" height="160" class="card" fill="#fff4d6" stroke="#b7791f"/>
+  <text x="70" y="495" class="heading">3. Five tensors</text>
+  <text x="70" y="532" class="body">input_ids / attention_mask: Int64 [B,L]</text>
+  <text x="70" y="565" class="body">marker_pos / marker_mask: Int64 / Bool [B,K]</text>
+  <text x="70" y="598" class="body">qtype: Int64 [B]</text>
+
+  <path d="M450 615 V645" class="arrow"/>
+
+  <rect x="40" y="645" width="820" height="160" class="card" fill="#efe8fb" stroke="#6b4e9b"/>
+  <text x="70" y="685" class="heading">4. Pretrained graph + ONNX Runtime</text>
+  <text x="70" y="722" class="body">ONNX weights and adjacent external data are executed by ORT.</text>
+  <text x="70" y="757" class="body">Outputs: logits [B,K] and act_probs [B,2]</text>
+  <text x="70" y="790" class="tiny">Forward inference scores the supplied options; it exposes no reasoning trace.</text>
+
+  <path d="M450 805 V845 M450 845 H235 V875" class="arrow"/>
+  <path d="M450 845 H665 V875" class="arrow"/>
+
+  <rect x="40" y="875" width="390" height="205" class="card" fill="#fff0e3" stroke="#c96c25"/>
+  <text x="68" y="915" class="heading">5a. Logits branch</text>
+  <text x="68" y="950" class="body">Valid slots only</text>
+  <text x="68" y="981" class="small">temperature + max-subtracted softmax</text>
+  <text x="68" y="1012" class="body">Choice / Score / Noul</text>
+  <text x="68" y="1045" class="tiny">option probabilities and entropy confidence</text>
+
+  <rect x="470" y="875" width="390" height="205" class="card" fill="#fdecec" stroke="#b34040"/>
+  <text x="498" y="915" class="heading">5b. Action branch</text>
+  <text x="498" y="950" class="body">act_probs is already normalized</text>
+  <text x="498" y="981" class="small">select the configured channel directly</text>
+  <text x="498" y="1012" class="body">ActionProbability</text>
+  <text x="498" y="1045" class="tiny">no second softmax; no authorization to act</text>
+
+  <path d="M235 1080 V1110 H450" stroke="#38556f" stroke-width="3" fill="none"/>
+  <path d="M665 1080 V1110 H450" stroke="#38556f" stroke-width="3" fill="none"/>
+  <path d="M450 1110 V1130" class="arrow"/>
+
+  <rect x="40" y="1130" width="820" height="105" class="card" fill="#e7f5e9" stroke="#3b7d4a"/>
+  <text x="70" y="1170" class="heading">6. Application-facing results</text>
+  <text x="70" y="1205" class="body">Direct typed C# objects, or ML.NET columns / DTOs</text>
+  <text x="70" y="1228" class="tiny">Optional diagnostic JSON; model output does not perform an external action.</text>
+
+  <rect x="40" y="1260" width="820" height="45" rx="12" fill="#f2f5f8" stroke="#8aa0b3" stroke-width="2"/>
+  <text x="65" y="1289" class="small">Fit initializes resources; it does not train. Shared kernels stay in the existing package.</text>
+</svg>

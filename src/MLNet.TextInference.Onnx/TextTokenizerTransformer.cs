@@ -64,7 +64,7 @@ public sealed class TextTokenizerTransformer : ITransformer
     /// </summary>
     public IDataView Transform(IDataView input)
     {
-        return new TokenizerDataView(input, _tokenizer, _options);
+        return new MappedDataView(input, GetRowToRowMapper(input.Schema));
     }
 
     /// <summary>
@@ -85,43 +85,80 @@ public sealed class TextTokenizerTransformer : ITransformer
             var tokenIds = new long[seqLen];
             var attentionMask = new long[seqLen];
             var tokenTypeIds = _options.OutputTokenTypeIds ? new long[seqLen] : null;
+            var startOffsets = _options.OutputOffsets ? new long[seqLen] : null;
+            var endOffsets = _options.OutputOffsets ? new long[seqLen] : null;
 
-            if (_options.OutputOffsets)
-            {
-                var startOffsets = new long[seqLen];
-                var endOffsets = new long[seqLen];
-
-                var encodedTokens = _tokenizer.EncodeToTokens(texts[i], out _);
-                int count = Math.Min(encodedTokens.Count, seqLen);
-                for (int s = 0; s < count; s++)
-                {
-                    tokenIds[s] = encodedTokens[s].Id;
-                    attentionMask[s] = 1;
-                    startOffsets[s] = encodedTokens[s].Offset.Start.Value;
-                    endOffsets[s] = encodedTokens[s].Offset.End.Value;
-                }
-
-                allStartOffsets![i] = startOffsets;
-                allEndOffsets![i] = endOffsets;
-            }
-            else
-            {
-                var tokens = _tokenizer.EncodeToIds(texts[i], seqLen, out _, out _);
-                for (int s = 0; s < tokens.Count && s < seqLen; s++)
-                {
-                    tokenIds[s] = tokens[s];
-                    attentionMask[s] = 1;
-                }
-            }
+            TextTokenizerTransformer.TokenizeSingle(
+                _tokenizer,
+                _options,
+                texts[i],
+                tokenIds,
+                attentionMask,
+                tokenTypeIds,
+                startOffsets,
+                endOffsets);
 
             allTokenIds[i] = tokenIds;
             allAttentionMasks[i] = attentionMask;
             if (allTokenTypeIds != null)
                 allTokenTypeIds[i] = tokenTypeIds!;
+            if (allStartOffsets != null)
+                allStartOffsets[i] = startOffsets!;
+            if (allEndOffsets != null)
+                allEndOffsets[i] = endOffsets!;
         }
 
         return new TokenizedBatch(allTokenIds, allAttentionMasks, allTokenTypeIds, seqLen,
             allStartOffsets, allEndOffsets);
+    }
+
+    /// <summary>
+    /// Core single-text tokenization shared by the direct and cursor paths.
+    /// Special-token placement remains the responsibility of task-specific pair/layout helpers.
+    /// </summary>
+    internal static void TokenizeSingle(
+        Tokenizer tokenizer,
+        TextTokenizerOptions options,
+        string text,
+        long[] tokenIds,
+        long[] attentionMask,
+        long[]? tokenTypeIds,
+        long[]? startOffsets,
+        long[]? endOffsets)
+    {
+        int sequenceLength = options.MaxTokenLength;
+        if (tokenIds.Length != sequenceLength ||
+            attentionMask.Length != sequenceLength ||
+            (tokenTypeIds is not null && tokenTypeIds.Length != sequenceLength) ||
+            (startOffsets is not null && startOffsets.Length != sequenceLength) ||
+            (endOffsets is not null && endOffsets.Length != sequenceLength))
+        {
+            throw new ArgumentException(
+                "Single-text tokenization buffers must match MaxTokenLength.");
+        }
+
+        Array.Clear(tokenIds);
+        Array.Clear(attentionMask);
+        if (tokenTypeIds is not null)
+            Array.Clear(tokenTypeIds);
+        if (startOffsets is not null)
+            Array.Clear(startOffsets);
+        if (endOffsets is not null)
+            Array.Clear(endOffsets);
+
+        var encodedTokens = TokenizerEncoding.EncodeTokens(tokenizer, text);
+        int count = Math.Min(encodedTokens.Count, sequenceLength);
+        for (int index = 0; index < count; index++)
+        {
+            var encoded = encodedTokens[index];
+            tokenIds[index] = encoded.Id;
+            attentionMask[index] = 1;
+            if (startOffsets is not null && endOffsets is not null)
+            {
+                startOffsets[index] = encoded.Offset.Start.Value;
+                endOffsets[index] = encoded.Offset.End.Value;
+            }
+        }
     }
 
     /// <summary>
@@ -185,8 +222,8 @@ public sealed class TextTokenizerTransformer : ITransformer
                 "Load the tokenizer from a directory containing tokenizer_config.json.");
 
         // EncodeToTokens never adds special tokens for any tokenizer type
-        var encodedA = tokenizer.EncodeToTokens(textA, out _);
-        var encodedB = tokenizer.EncodeToTokens(textB, out _);
+        var encodedA = TokenizerEncoding.EncodeTokens(tokenizer, textA);
+        var encodedB = TokenizerEncoding.EncodeTokens(tokenizer, textB);
 
         // Build: [BOS] A_tokens [SEP] (SEP if double) B_tokens [SEP]
         var combined = new List<int>(seqLen);
@@ -258,229 +295,8 @@ public sealed class TextTokenizerTransformer : ITransformer
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException();
+        => new TextTokenizerRowToRowMapper(inputSchema, this);
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException();
-}
-
-/// <summary>
-/// Wrapping IDataView that adds tokenized columns to the upstream schema.
-/// No data is materialized — tokenization happens in the cursor.
-/// </summary>
-internal sealed class TokenizerDataView : IDataView
-{
-    private readonly IDataView _input;
-    private readonly Tokenizer _tokenizer;
-    private readonly TextTokenizerOptions _options;
-
-    public DataViewSchema Schema { get; }
-    public bool CanShuffle => false;
-    public long? GetRowCount() => _input.GetRowCount();
-
-    internal TokenizerDataView(IDataView input, Tokenizer tokenizer, TextTokenizerOptions options)
-    {
-        _input = input;
-        _tokenizer = tokenizer;
-        _options = options;
-
-        var builder = new DataViewSchema.Builder();
-        builder.AddColumns(input.Schema);
-
-        int seqLen = options.MaxTokenLength;
-        builder.AddColumn(options.TokenIdsColumnName,
-            new VectorDataViewType(NumberDataViewType.Int64, seqLen));
-        builder.AddColumn(options.AttentionMaskColumnName,
-            new VectorDataViewType(NumberDataViewType.Int64, seqLen));
-        if (options.OutputTokenTypeIds)
-            builder.AddColumn(options.TokenTypeIdsColumnName,
-                new VectorDataViewType(NumberDataViewType.Int64, seqLen));
-        if (options.OutputOffsets)
-        {
-            builder.AddColumn(options.TokenStartOffsetsColumnName,
-                new VectorDataViewType(NumberDataViewType.Int64, seqLen));
-            builder.AddColumn(options.TokenEndOffsetsColumnName,
-                new VectorDataViewType(NumberDataViewType.Int64, seqLen));
-        }
-
-        Schema = builder.ToSchema();
-    }
-
-    public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random? rand = null)
-    {
-        var upstreamColumns = columnsNeeded
-            .Where(c => _input.Schema.GetColumnOrNull(c.Name) != null)
-            .Select(c => _input.Schema[c.Name]);
-
-        // Always need the text column(s) for tokenization
-        var textCol = _input.Schema[_options.InputColumnName];
-        var allUpstream = upstreamColumns.Append(textCol);
-
-        if (_options.SecondInputColumnName != null)
-        {
-            var textCol2 = _input.Schema[_options.SecondInputColumnName];
-            allUpstream = allUpstream.Append(textCol2);
-        }
-
-        var inputCursor = _input.GetRowCursor(allUpstream.Distinct(), rand);
-        return new TokenizerCursor(this, inputCursor, _tokenizer, _options);
-    }
-
-    public DataViewRowCursor[] GetRowCursorSet(
-        IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random? rand = null)
-    {
-        return [GetRowCursor(columnsNeeded, rand)];
-    }
-}
-
-/// <summary>
-/// Cursor that tokenizes one row at a time from the upstream input cursor.
-/// Tokenization is cheap (~microseconds per row), so no batching is needed.
-/// </summary>
-internal sealed class TokenizerCursor : DataViewRowCursor
-{
-    private readonly TokenizerDataView _parent;
-    private readonly DataViewRowCursor _inputCursor;
-    private readonly Tokenizer _tokenizer;
-    private readonly TextTokenizerOptions _options;
-
-    private long[]? _currentTokenIds;
-    private long[]? _currentAttentionMask;
-    private long[]? _currentTokenTypeIds;
-    private long[]? _currentStartOffsets;
-    private long[]? _currentEndOffsets;
-
-    public override DataViewSchema Schema => _parent.Schema;
-    public override long Position => _inputCursor.Position;
-    public override long Batch => _inputCursor.Batch;
-
-    internal TokenizerCursor(
-        TokenizerDataView parent,
-        DataViewRowCursor inputCursor,
-        Tokenizer tokenizer,
-        TextTokenizerOptions options)
-    {
-        _parent = parent;
-        _inputCursor = inputCursor;
-        _tokenizer = tokenizer;
-        _options = options;
-    }
-
-    public override bool MoveNext()
-    {
-        if (!_inputCursor.MoveNext())
-            return false;
-
-        var textCol = _inputCursor.Schema[_options.InputColumnName];
-        var getter = _inputCursor.GetGetter<ReadOnlyMemory<char>>(textCol);
-        ReadOnlyMemory<char> textValue = default;
-        getter(ref textValue);
-        string text = textValue.ToString();
-
-        int seqLen = _options.MaxTokenLength;
-        _currentTokenIds = new long[seqLen];
-        _currentAttentionMask = new long[seqLen];
-        _currentTokenTypeIds = _options.OutputTokenTypeIds ? new long[seqLen] : null;
-
-        if (_options.SecondInputColumnName != null)
-        {
-            // Text-pair tokenization via shared helper
-            var textCol2 = _inputCursor.Schema[_options.SecondInputColumnName];
-            var getter2 = _inputCursor.GetGetter<ReadOnlyMemory<char>>(textCol2);
-            ReadOnlyMemory<char> textValue2 = default;
-            getter2(ref textValue2);
-            string text2 = textValue2.ToString();
-
-            _currentTokenTypeIds ??= new long[seqLen];
-            if (_options.OutputOffsets)
-            {
-                _currentStartOffsets = new long[seqLen];
-                _currentEndOffsets = new long[seqLen];
-            }
-
-            TextTokenizerTransformer.TokenizePair(
-                _tokenizer, _options, text, text2,
-                _currentTokenIds, _currentAttentionMask, _currentTokenTypeIds,
-                _currentStartOffsets, _currentEndOffsets);
-        }
-        else if (_options.OutputOffsets)
-        {
-            _currentStartOffsets = new long[seqLen];
-            _currentEndOffsets = new long[seqLen];
-
-            var encodedTokens = _tokenizer.EncodeToTokens(text, out _);
-            int count = Math.Min(encodedTokens.Count, seqLen);
-            for (int s = 0; s < count; s++)
-            {
-                _currentTokenIds[s] = encodedTokens[s].Id;
-                _currentAttentionMask[s] = 1;
-                _currentStartOffsets[s] = encodedTokens[s].Offset.Start.Value;
-                _currentEndOffsets[s] = encodedTokens[s].Offset.End.Value;
-            }
-        }
-        else
-        {
-            // Single-text tokenization (existing path)
-            var tokens = _tokenizer.EncodeToIds(text, seqLen, out _, out _);
-            for (int s = 0; s < tokens.Count && s < seqLen; s++)
-            {
-                _currentTokenIds[s] = tokens[s];
-                _currentAttentionMask[s] = 1;
-            }
-        }
-
-        return true;
-    }
-
-    public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
-    {
-        // For input passthrough columns, delegate to upstream cursor
-        var inputCol = _inputCursor.Schema.GetColumnOrNull(column.Name);
-        if (inputCol != null && column.Name != _options.TokenIdsColumnName
-            && column.Name != _options.AttentionMaskColumnName
-            && column.Name != _options.TokenTypeIdsColumnName
-            && column.Name != _options.TokenStartOffsetsColumnName
-            && column.Name != _options.TokenEndOffsetsColumnName)
-        {
-            return _inputCursor.GetGetter<TValue>(inputCol.Value);
-        }
-
-        // For tokenized output columns, return computed values
-        if (column.Name == _options.TokenIdsColumnName)
-            return MakeVBufferGetter<TValue>(() => _currentTokenIds!);
-        if (column.Name == _options.AttentionMaskColumnName)
-            return MakeVBufferGetter<TValue>(() => _currentAttentionMask!);
-        if (column.Name == _options.TokenTypeIdsColumnName)
-            return MakeVBufferGetter<TValue>(() => _currentTokenTypeIds ?? new long[_options.MaxTokenLength]);
-        if (column.Name == _options.TokenStartOffsetsColumnName)
-            return MakeVBufferGetter<TValue>(() => _currentStartOffsets ?? new long[_options.MaxTokenLength]);
-        if (column.Name == _options.TokenEndOffsetsColumnName)
-            return MakeVBufferGetter<TValue>(() => _currentEndOffsets ?? new long[_options.MaxTokenLength]);
-
-        throw new InvalidOperationException($"Unknown column: {column.Name}");
-    }
-
-    private static ValueGetter<TValue> MakeVBufferGetter<TValue>(Func<long[]> dataSource)
-    {
-        ValueGetter<VBuffer<long>> getter = (ref VBuffer<long> value) =>
-        {
-            var data = dataSource();
-            var editor = VBufferEditor.Create(ref value, data.Length);
-            data.AsSpan().CopyTo(editor.Values);
-            value = editor.Commit();
-        };
-        return (ValueGetter<TValue>)(object)getter;
-    }
-
-    public override ValueGetter<DataViewRowId> GetIdGetter()
-        => _inputCursor.GetIdGetter();
-
-    public override bool IsColumnActive(DataViewSchema.Column column) => true;
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-            _inputCursor.Dispose();
-        base.Dispose(disposing);
-    }
 }

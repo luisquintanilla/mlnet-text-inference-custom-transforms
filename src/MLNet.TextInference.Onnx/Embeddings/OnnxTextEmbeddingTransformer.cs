@@ -15,6 +15,7 @@ public sealed class OnnxTextEmbeddingTransformer : ITransformer, IDisposable
     private readonly TextTokenizerTransformer _tokenizer;
     private readonly OnnxTextModelScorerTransformer _scorer;
     private readonly EmbeddingPoolingTransformer _pooler;
+    private string? _ownedAssetDirectory;
 
     public bool IsRowToRowMapper => true;
 
@@ -60,9 +61,9 @@ public sealed class OnnxTextEmbeddingTransformer : ITransformer, IDisposable
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
     {
-        throw new NotSupportedException(
-            "Row-to-row mapping is not supported in this prototype. " +
-            "Use Transform() for batch processing.");
+        return ((ITransformer)new TransformerChain<ITransformer>(
+            new ITransformer[] { _tokenizer, _scorer, _pooler }))
+            .GetRowToRowMapper(inputSchema);
     }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
@@ -112,8 +113,22 @@ public sealed class OnnxTextEmbeddingTransformer : ITransformer, IDisposable
     public static OnnxTextEmbeddingTransformer Load(MLContext mlContext, string path)
         => ModelPackager.Load(mlContext, path);
 
+    internal void AttachOwnedAssetDirectory(string directory)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+        if (_ownedAssetDirectory is not null)
+            throw new InvalidOperationException("The transformer already owns an asset directory.");
+        _ownedAssetDirectory = Path.GetFullPath(directory);
+    }
+
     public void Dispose()
     {
         _scorer.Dispose();
+        if (_ownedAssetDirectory is { } directory)
+        {
+            _ownedAssetDirectory = null;
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.ML.OnnxRuntime;
+using MLNet.TextInference.TypedDecisions;
 
 namespace MLNet.TextInference.Onnx;
 
@@ -97,7 +98,8 @@ internal sealed record OnnxModelMetadata(
     bool HasPooledOutput,
     int OutputRank,
     string[]? AdditionalOutputNames = null,
-    int[]? AdditionalOutputDims = null);
+    int[]? AdditionalOutputDims = null,
+    int[]? AdditionalOutputRanks = null);
 
 /// <summary>
 /// ML.NET IEstimator that creates an OnnxTextModelScorerTransformer.
@@ -125,9 +127,16 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
             ValidateColumn(input.Schema, _options.TokenTypeIdsColumnName);
 
         var session = CreateInferenceSession();
-        var metadata = DiscoverModelMetadata(session);
-
-        return new OnnxTextModelScorerTransformer(_mlContext, _options, session, metadata);
+        try
+        {
+            var metadata = DiscoverModelMetadata(session);
+            return new OnnxTextModelScorerTransformer(_mlContext, _options, session, metadata);
+        }
+        catch
+        {
+            session.Dispose();
+            throw;
+        }
     }
 
     public SchemaShape GetOutputSchema(SchemaShape inputSchema)
@@ -224,10 +233,11 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
                 outputName = FindTensorName(outputMeta,
                     ["last_hidden_state", "output", "hidden_states"],
                     outputMeta.Keys.First());
-                hasPooledOutput = false;
+                var dims = outputMeta[outputName].Dimensions;
+                hasPooledOutput = dims.Length == 2 && (int)dims.Last() > 0;
                 hiddenDim = ResolveLastDimension(outputName,
-                    (int)outputMeta[outputName].Dimensions.Last(), allowDynamicFallback: false);
-                outputRank = 3;
+                    (int)dims.Last(), allowDynamicFallback: false);
+                outputRank = dims.Length;
             }
         }
 
@@ -238,6 +248,7 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
         // Discover additional output tensors if configured
         string[]? additionalOutputNames = null;
         int[]? additionalOutputDims = null;
+        int[]? additionalOutputRanks = null;
 
         if (_options.AdditionalOutputTensorNames != null)
         {
@@ -248,6 +259,7 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
 
             additionalOutputNames = new string[_options.AdditionalOutputTensorNames.Length];
             additionalOutputDims = new int[_options.AdditionalOutputTensorNames.Length];
+            additionalOutputRanks = new int[_options.AdditionalOutputTensorNames.Length];
 
             for (int i = 0; i < _options.AdditionalOutputTensorNames.Length; i++)
             {
@@ -259,6 +271,11 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
 
                 additionalOutputNames[i] = name;
                 var dims = outputMeta[name].Dimensions;
+                additionalOutputRanks[i] = dims.Length;
+                if (dims.Length is not (2 or 3))
+                    throw new NotSupportedException(
+                        $"Additional output tensor '{name}' has rank {dims.Length}; " +
+                        "only [batch,width] and [batch,sequence,width] outputs are supported.");
                 int lastDim = (int)dims.Last();
                 if (lastDim <= 0)
                     additionalOutputDims[i] = _options.MaxTokenLength;
@@ -272,7 +289,7 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
         return new OnnxModelMetadata(
             inputIdsName, attentionMaskName, tokenTypeIdsName,
             outputName, hiddenDim, hasPooledOutput, outputRank,
-            additionalOutputNames, additionalOutputDims);
+            additionalOutputNames, additionalOutputDims, additionalOutputRanks);
     }
 
     /// <summary>
@@ -308,48 +325,15 @@ public sealed class OnnxTextModelScorerEstimator : IEstimator<OnnxTextModelScore
     /// If FallbackToCpu is true, catches CUDA failures and retries with CPU-only options.
     /// </summary>
     private InferenceSession CreateInferenceSession()
-    {
-        var (sessionOptions, fallbackToCpu) = CreateSessionOptions();
-
-        try
-        {
-            return new InferenceSession(_options.ModelPath, sessionOptions);
-        }
-        catch (OnnxRuntimeException) when (fallbackToCpu)
-        {
-            // CUDA initialization failed (invalid device, driver mismatch, etc.)
-            // Fall back to CPU-only session.
-            return new InferenceSession(_options.ModelPath, new SessionOptions());
-        }
-    }
-
-    private (SessionOptions options, bool fallbackToCpu) CreateSessionOptions()
-    {
-        // Resolve GPU device: per-estimator option → MLContext.GpuDeviceId → null (CPU)
-        int? deviceId = _options.GpuDeviceId ?? _mlContext.GpuDeviceId;
-        bool fallbackToCpu = _options.FallbackToCpu;
-
-        // If MLContext provides FallbackToCpu and no per-estimator override was set,
-        // inherit the context-level setting.
-        if (_options.GpuDeviceId == null && _mlContext.GpuDeviceId != null)
-            fallbackToCpu = _mlContext.FallbackToCpu;
-
-        var options = new SessionOptions();
-
-        if (deviceId.HasValue)
-        {
-            try
-            {
-                options.AppendExecutionProvider_CUDA(deviceId.Value);
-            }
-            catch (Exception) when (fallbackToCpu)
-            {
-                // CUDA libraries not available — fall back to CPU
-            }
-        }
-
-        return (options, fallbackToCpu);
-    }
+        => OnnxSessionFactory.Create(
+            _options.ModelPath,
+            new OnnxExecutionOptions(
+                _options.GpuDeviceId ?? _mlContext.GpuDeviceId,
+                _options.GpuDeviceId is null
+                    ? _mlContext.FallbackToCpu
+                    : _options.FallbackToCpu,
+                static warning => Console.Error.WriteLine(
+                    $"[MLNet.TextInference.Onnx] {warning}")));
 
     private static string FindTensorName(
         IReadOnlyDictionary<string, NodeMetadata> metadata,

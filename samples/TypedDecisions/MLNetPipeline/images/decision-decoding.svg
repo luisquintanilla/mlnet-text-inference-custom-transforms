@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1160" viewBox="0 0 900 1160" role="img" aria-labelledby="title desc">
+  <title id="title">Decision decoding for the first captured source row</title>
+  <desc id="desc">Proportionally scaled probability bars for priority, quality, and actionable from the first captured source row, with Choice, Score, and Boolean interpretations plus confidence and action-probability callouts.</desc>
+  <defs>
+    <style>
+      .title { font: 700 27px Arial, Helvetica, sans-serif; fill: #142b40; }
+      .subtitle { font: 18px Arial, Helvetica, sans-serif; fill: #52677b; }
+      .heading { font: 700 19px Arial, Helvetica, sans-serif; fill: #142b40; }
+      .body { font: 18px Arial, Helvetica, sans-serif; fill: #20384d; }
+      .small { font: 16px Arial, Helvetica, sans-serif; fill: #365066; }
+      .tiny { font: 14px Arial, Helvetica, sans-serif; fill: #52677b; }
+      .value { font: 700 15px Arial, Helvetica, sans-serif; fill: #20384d; }
+      .card { stroke-width: 2; rx: 16; }
+      .track { fill: #edf2f6; stroke: #8aa0b3; stroke-width: 1; }
+      .grid { stroke: #b8c6d1; stroke-width: 1; stroke-dasharray: 4 4; }
+    </style>
+  </defs>
+
+  <rect width="900" height="1160" fill="#fbfcfe"/>
+  <text x="40" y="45" class="title">Decode the first captured source row</text>
+  <text x="40" y="76" class="subtitle">Observed probabilities use one shared 0..1 scale; bar lengths are proportional.</text>
+
+  <rect x="40" y="110" width="820" height="270" class="card" fill="#e6f1fb" stroke="#4f86b5"/>
+  <text x="68" y="148" class="heading">Choice: priority</text>
+  <text x="68" y="177" class="small">low, high in caller order</text>
+  <text x="68" y="225" class="body">low</text>
+  <rect x="220" y="202" width="440" height="30" rx="5" class="track"/>
+  <line x1="220" y1="198" x2="220" y2="236" class="grid"/>
+  <line x1="440" y1="198" x2="440" y2="236" class="grid"/>
+  <line x1="660" y1="198" x2="660" y2="236" class="grid"/>
+  <rect x="220" y="202" width="50.9108952" height="30" rx="5" fill="#7da9ca"/>
+  <text x="680" y="225" class="value">0.11570658</text>
+  <text x="68" y="285" class="body">high</text>
+  <rect x="220" y="262" width="440" height="30" rx="5" class="track"/>
+  <rect x="220" y="262" width="389.0891136" height="30" rx="5" fill="#3f759b"/>
+  <text x="680" y="285" class="value">0.88429344</text>
+  <text x="68" y="334" class="small">Choice -> high: argmax picks the larger valid probability.</text>
+  <text x="68" y="359" class="tiny">All tracks use the shared probability axis below.</text>
+
+  <rect x="40" y="405" width="820" height="300" class="card" fill="#fff4d6" stroke="#b7791f"/>
+  <text x="68" y="443" class="heading">Score: quality</text>
+  <text x="68" y="472" class="small">weak=0, moderate=1, strong=2; equal-spacing assumption</text>
+  <text x="68" y="520" class="body">weak</text>
+  <rect x="220" y="497" width="440" height="30" rx="5" class="track"/>
+  <line x1="220" y1="493" x2="220" y2="531" class="grid"/>
+  <line x1="440" y1="493" x2="440" y2="531" class="grid"/>
+  <line x1="660" y1="493" x2="660" y2="531" class="grid"/>
+  <rect x="220" y="497" width="39.7554388" height="30" rx="5" fill="#d7b65c"/>
+  <text x="680" y="520" class="value">0.09035327</text>
+  <text x="68" y="580" class="body">moderate</text>
+  <rect x="220" y="557" width="440" height="30" rx="5" class="track"/>
+  <rect x="220" y="557" width="278.80468" height="30" rx="5" fill="#b7791f"/>
+  <text x="680" y="580" class="value">0.633647</text>
+  <text x="68" y="640" class="body">strong</text>
+  <rect x="220" y="617" width="440" height="30" rx="5" class="track"/>
+  <rect x="220" y="617" width="121.439868" height="30" rx="5" fill="#d7b65c"/>
+  <text x="680" y="640" class="value">0.2759997</text>
+  <text x="68" y="679" class="small">Score = 0*0.09035327 + 1*0.633647 + 2*0.2759997 = 1.1856464.</text>
+  <text x="68" y="698" class="tiny">Range 0..2, not a percentage.</text>
+
+  <rect x="40" y="730" width="820" height="270" class="card" fill="#e5f4f0" stroke="#23827a"/>
+  <text x="68" y="768" class="heading">Noul: actionable</text>
+  <text x="68" y="797" class="small">false, true; tie rule is P(true) &gt;= P(false)</text>
+  <text x="68" y="845" class="body">false</text>
+  <rect x="220" y="822" width="440" height="30" rx="5" class="track"/>
+  <line x1="220" y1="818" x2="220" y2="856" class="grid"/>
+  <line x1="440" y1="818" x2="440" y2="856" class="grid"/>
+  <line x1="660" y1="818" x2="660" y2="856" class="grid"/>
+  <rect x="220" y="822" width="65.09195" height="30" rx="5" fill="#75b6ab"/>
+  <text x="680" y="845" class="value">0.14793625</text>
+  <text x="68" y="905" class="body">true</text>
+  <rect x="220" y="882" width="440" height="30" rx="5" class="track"/>
+  <rect x="220" y="882" width="374.908072" height="30" rx="5" fill="#23827a"/>
+  <text x="680" y="905" class="value">0.8520638</text>
+  <text x="68" y="944" class="small">Boolean -> true because 0.8520638 &gt; 0.14793625.</text>
+  <text x="68" y="969" class="tiny">P(true) is the second probability in the two-slot vector.</text>
+
+  <line x1="220" y1="1030" x2="660" y2="1030" class="grid"/>
+  <text x="68" y="1035" class="small">Shared probability axis</text>
+  <text x="214" y="1055" class="tiny">0</text>
+  <text x="430" y="1055" class="tiny">0.5</text>
+  <text x="650" y="1055" class="tiny">1</text>
+  <text x="68" y="1090" class="small">P(high)=0.88429344 is not entropy confidence 0.4831077.</text>
+  <text x="68" y="1116" class="small">Graph ActionProbability=0 is separate and does not override actionable=true.</text>
+</svg>

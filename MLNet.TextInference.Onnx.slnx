@@ -23,4 +23,7 @@
     <Project Path="src/MLNet.TextInference.Onnx/MLNet.TextInference.Onnx.csproj" />
     <Project Path="src/MLNet.TextGeneration.OnnxGenAI/MLNet.TextGeneration.OnnxGenAI.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MLNet.TextInference.TypedDecisions.Tests/MLNet.TextInference.TypedDecisions.Tests.csproj" />
+  </Folder>
 </Solution>

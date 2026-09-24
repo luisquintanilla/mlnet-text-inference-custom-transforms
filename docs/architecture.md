@@ -1,20 +1,29 @@
 # Architecture
 
-This document walks through every component in the `MLNet.TextInference.Onnx` solution and traces the data flow from raw text to task-specific output. The architecture is built on a **shared foundation** of tokenization and ONNX scoring, with task-specific post-processing transforms plugged in for each downstream task (embeddings, classification, NER, reranking, QA).
+This document walks through the components in the `MLNet.TextInference.Onnx` solution and traces the data flow from raw text to task-specific output. The public surface contains distinct task transforms and facades. They share tokenizer, numerical, ONNX-session, asset, batching, and row-mapping foundations, but there is no universal text transform that every task must use.
 
 ## Shared Foundation
 
-The platform is built on two task-agnostic transforms that are shared across **all** encoder transformer tasks:
+The conventional encoder path exposes two reusable task-oriented transforms:
 
 1. **`TextTokenizerTransformer`** — Converts raw text into token IDs, attention masks, and token type IDs. Supports BPE, WordPiece, and SentencePiece via smart resolution from HuggingFace model directories.
 
 2. **`OnnxTextModelScorerTransformer`** — Runs the tokenized input through an ONNX encoder model (BERT, RoBERTa, DeBERTa, MiniLM, etc.) and produces raw model output. Uses lookahead batching for efficient ONNX inference while maintaining lazy cursor-based evaluation.
 
-Each task then adds a **post-processing transform** that interprets the raw model output for a specific purpose (pooling for embeddings, softmax for classification, BIO decoding for NER, etc.), plus a **convenience facade** that chains all three transforms together.
+These are not the implementation of every task. Embeddings, classification, NER, reranking, and QA use them where their model contracts fit, then add task-specific post-processing and facades. Typed decisions have a separate five-input packing/scoring/decoding path because their marker positions, question grouping, action probabilities, and output shapes are not conventional encoder outputs. Typed decisions still reuse the shared tokenizer configuration/encoding, stable numerical kernels, ONNX session/provider setup, asset resolution, and row-mapping/batching helpers.
+
+The shared foundations include `HuggingFaceBpeTokenizerLoader` and
+`TokenizerEncoding` for Microsoft tokenizer configuration and bounded
+encoding, `StableSoftmax` for finite-logit policy, `OnnxSessionFactory` for
+observable provider setup, `AssetArchive` for safe extraction and
+external-data discovery, and schema-aware row snapshot/getter helpers used by
+both conventional and typed adapters. All of these shared kernels and the
+ML.NET-specific adapters are compiled into the existing
+`MLNet.TextInference.Onnx` assembly and package.
 
 ### The Facade Pattern
 
-Each task provides a facade estimator that wraps the full pipeline (tokenizer → scorer → post-processor) in a single call. This preserves a simple API for common use cases while allowing advanced users to compose the transforms directly.
+Conventional encoder tasks that share the text-input contract provide facade estimators that wrap their compatible tokenizer, scorer, and task-specific post-processing stages in a single call. Typed decisions use a separate state/question preparation, decision scorer, and decoder contract rather than being forced through the conventional text transform. Both styles preserve a simple API while allowing advanced users to compose stages directly.
 
 ### The "Two Faces" Pattern
 
@@ -62,7 +71,7 @@ Code references point to the actual source files in `src/MLNet.TextInference.Onn
                │ chains
                ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│             Reusable Foundation (any transformer ONNX model)                  │
+│             Conventional encoder path                                       │
 │                                                                              │
 │  ┌────────────────────┐     ┌──────────────────────────────┐                 │
 │  │ TextTokenizer-     │     │ OnnxTextModelScorer-         │                 │
@@ -102,7 +111,33 @@ Code references point to the actual source files in `src/MLNet.TextInference.Onn
             + OnnxTextGenerationTransformer (text generation — ORT GenAI)
 ```
 
-## IDataView Column Flow
+Typed decisions sit beside this conventional encoder path:
+
+```
+State + question metadata
+        │
+        ▼
+PrepareDecisionInputs
+        │  input_ids, attention_mask, marker_pos, marker_mask, qtype
+        ▼
+ScoreOnnxDecisionModel
+        │  logits [batch, question_count], act_probs [batch, 2]
+        ▼
+DecodeDecisions
+        │  choice/score/Noul results, distributions, entropy confidence
+        ▼
+OnnxTypedDecisionsEstimator facade or composable ML.NET stages
+```
+
+For a reader-first walkthrough of this path, start with
+[`samples/TypedDecisions/README.md`](../samples/TypedDecisions/README.md) and
+continue to the
+[canonical ML.NET tutorial](../samples/TypedDecisions/MLNetPipeline/README.md).
+The tutorial is a repository-checkout sample: its file-based app references
+the local `MLNet.TextInference.Onnx` project rather than assuming a published
+package contains the current PR surface.
+
+## Conventional IDataView Column Flow
 
 ```
 Input IDataView:
@@ -142,6 +177,8 @@ The shared foundation produces raw model output. Each task adds a post-processin
 | Text Gen (MEAI) | `ChatClientTransformer` | Provider-agnostic text generation via `IChatClient` |
 | Text Gen (Local) | `OnnxTextGenerationTransformer` | Autoregressive generation via ORT GenAI (e.g., Phi-3) |
 
+Typed decisions are intentionally not listed as a conventional post-processor: their preparation, model binding, question regrouping, and decoding are model-specific stages described above.
+
 ## Lazy Evaluation via Custom IDataView / Cursor
 
 Each transform returns a **wrapping IDataView** from `Transform()` — no data is materialized. Computation happens lazily when a downstream consumer iterates via a cursor.
@@ -165,9 +202,9 @@ PoolerCursor.MoveNext()
 
 At any given moment, only **one batch** of intermediate data exists in memory (~6 MB for a batch of 32 with a 384-dim model).
 
-### Lookahead Batching (Scorer Only)
+### Lookahead Batching
 
-The tokenizer and pooler are cheap (microseconds per row) — they process row-by-row. The ONNX scorer uses **lookahead batching**: it reads N rows from the upstream tokenizer cursor, packs them into a single ONNX batch, runs inference once, then serves cached results one at a time. This gives batch throughput with lazy memory semantics.
+The conventional ONNX scorer and typed-decision stages use **lookahead batching**: they read at most N rows from an upstream cursor, snapshot the declared dependencies, pack one ONNX batch, run inference once, then serve cached rows one at a time. Task-specific tokenization and decoding remain distinct; the shared behavior is the bounded cursor, dependency, row-identity, and ownership machinery rather than a universal task pipeline.
 
 ## Estimator Lifecycle: What Happens in `Fit()`
 
@@ -206,10 +243,30 @@ The composite `OnnxTextEmbeddingTransformer` saves/loads as a single zip (same a
 
 ```
 embedding-model.mlnet (zip)
-├── model.onnx
-├── vocab.txt              ← tokenizer vocabulary (format varies by model)
-├── config.json            ← includes all options
-└── manifest.json
+├── model/
+│   ├── <original-model-basename>
+│   └── <external-data-relative-paths>
+├── tokenizer/              ← original tokenizer file or directory contents
+├── config.json             ← includes options and relative asset names
+└── manifest.json            ← package format/framework metadata
 ```
 
-Individual transforms don't need standalone save/load — they're reconstructed from the facade's saved state. The `EmbeddingGeneratorTransformer` does NOT support save/load (since `IEmbeddingGenerator` has no save contract).
+Individual transforms don't need standalone save/load — they're reconstructed from the facade's portable package where supported. The package preserves the model's original basename under `model/`, external-data sidecars under their relative paths, and tokenizer files under `tokenizer/`. Native ML.NET chain persistence remains a separate, intentionally unimplemented capability. The `EmbeddingGeneratorTransformer` does NOT support save/load (since `IEmbeddingGenerator` has no save contract).
+
+Typed decisions use a separate versioned portable artifact rather than the
+embedding archive format. `OnnxTypedDecisionsTransformer.Save` and the
+stage-specific methods package fitted questions, column/batching options,
+profile and decoder policy, plus the referenced graph, external-data and
+tokenizer assets. `TypedDecisionPortableModel.SavePipeline` supports the
+demonstrated flat preparation -> scoring -> decoding composition and the
+demonstrated naturally inferred chain of appended typed-decision facades
+(including distinct output prefixes/results columns and per-facade question
+widths). Individual facade and stage archives remain supported. A pipeline
+save requires every source transformer to reference the same complete asset
+payload; separately loaded selective profile-only/scorer-only archives cannot
+currently be recombined into a new pipeline archive and are rejected
+explicitly. The loader
+extracts into an owned temporary root and validates entry hashes and safe
+relative paths; it never restores live native handles, embeds absolute source
+paths, or downloads missing assets. This portable format does not make these
+custom components compatible with native `MLContext.Model.Save`/`Load`.

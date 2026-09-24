@@ -90,8 +90,9 @@ public sealed class OnnxTextClassificationTransformer : ITransformer, IDisposabl
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
     {
-        throw new NotSupportedException(
-            "Row-to-row mapping is not supported. Use Transform() for batch processing.");
+        return ((ITransformer)new TransformerChain<ITransformer>(
+            new ITransformer[] { _tokenizer, _scorer, _classifier }))
+            .GetRowToRowMapper(inputSchema);
     }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)

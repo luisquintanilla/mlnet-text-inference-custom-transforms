@@ -15,6 +15,8 @@ public sealed class NerDecodingTransformer : ITransformer
 
     public bool IsRowToRowMapper => true;
 
+    internal NerDecodingOptions Options => _options;
+
     internal NerDecodingTransformer(MLContext mlContext, NerDecodingOptions options)
     {
         _mlContext = mlContext;
@@ -23,7 +25,7 @@ public sealed class NerDecodingTransformer : ITransformer
 
     public IDataView Transform(IDataView input)
     {
-        return new NerDataView(input, _options);
+        return new MappedDataView(input, GetRowToRowMapper(input.Schema));
     }
 
     /// <summary>
@@ -90,25 +92,14 @@ public sealed class NerDecodingTransformer : ITransformer
 
             var logits = rawOutput.AsSpan(offset, numLabels);
 
-            // Softmax + argmax
-            float maxLogit = float.MinValue;
-            for (int l = 0; l < numLabels; l++)
-                if (logits[l] > maxLogit) maxLogit = logits[l];
-
-            float expSum = 0;
-            for (int l = 0; l < numLabels; l++)
-            {
-                probs[l] = MathF.Exp(logits[l] - maxLogit);
-                expSum += probs[l];
-            }
+            // Softmax + argmax. The stable helper keeps padded labels out of the
+            // slice and rejects malformed finite-logit inputs explicitly.
+            StableSoftmax.Apply(logits, probs, numLabels);
 
             int argmax = 0;
-            float maxProb = 0;
-            for (int l = 0; l < numLabels; l++)
-            {
-                probs[l] /= expSum;
-                if (probs[l] > maxProb) { maxProb = probs[l]; argmax = l; }
-            }
+            for (int l = 1; l < numLabels; l++)
+                if (probs[l] > probs[argmax]) argmax = l;
+            float maxProb = probs[argmax];
 
             string label = _options.Labels[argmax];
             string prefix = label.Length >= 2 && label[1] == '-' ? label[..2] : "";
@@ -208,169 +199,8 @@ public sealed class NerDecodingTransformer : ITransformer
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException();
+        => new NerDecodingRowToRowMapper(inputSchema, this);
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException();
-}
-
-/// <summary>
-/// Wrapping IDataView that adds NER entity column.
-/// </summary>
-internal sealed class NerDataView : IDataView
-{
-    private readonly IDataView _input;
-    private readonly NerDecodingOptions _options;
-
-    public DataViewSchema Schema { get; }
-    public bool CanShuffle => false;
-    public long? GetRowCount() => _input.GetRowCount();
-
-    internal NerDataView(IDataView input, NerDecodingOptions options)
-    {
-        _input = input;
-        _options = options;
-
-        var builder = new DataViewSchema.Builder();
-        builder.AddColumns(input.Schema);
-        builder.AddColumn(options.OutputColumnName, TextDataViewType.Instance);
-        Schema = builder.ToSchema();
-    }
-
-    public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random? rand = null)
-    {
-        var upstreamColumns = columnsNeeded
-            .Where(c => _input.Schema.GetColumnOrNull(c.Name) != null)
-            .Select(c => _input.Schema[c.Name]);
-
-        // Always need input columns for NER decoding
-        var required = new[]
-        {
-            _options.InputColumnName,
-            _options.AttentionMaskColumnName,
-            _options.TokenStartOffsetsColumnName,
-            _options.TokenEndOffsetsColumnName,
-            _options.TextColumnName
-        };
-
-        var allUpstream = upstreamColumns.ToList();
-        foreach (var name in required)
-        {
-            var col = _input.Schema.GetColumnOrNull(name);
-            if (col != null) allUpstream.Add(col.Value);
-        }
-
-        var inputCursor = _input.GetRowCursor(allUpstream.Distinct(), rand);
-        return new NerCursor(this, inputCursor, _options);
-    }
-
-    public DataViewRowCursor[] GetRowCursorSet(
-        IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random? rand = null)
-    {
-        return [GetRowCursor(columnsNeeded, rand)];
-    }
-}
-
-/// <summary>
-/// Cursor that decodes NER entities for each row.
-/// </summary>
-internal sealed class NerCursor : DataViewRowCursor
-{
-    private readonly NerDataView _parent;
-    private readonly DataViewRowCursor _inputCursor;
-    private readonly NerDecodingOptions _options;
-    private readonly NerDecodingTransformer _decoder;
-
-    private string? _currentEntitiesJson;
-
-    public override DataViewSchema Schema => _parent.Schema;
-    public override long Position => _inputCursor.Position;
-    public override long Batch => _inputCursor.Batch;
-
-    internal NerCursor(NerDataView parent, DataViewRowCursor inputCursor, NerDecodingOptions options)
-    {
-        _parent = parent;
-        _inputCursor = inputCursor;
-        _options = options;
-        _decoder = new NerDecodingTransformer(null!, options);
-    }
-
-    public override bool MoveNext()
-    {
-        if (!_inputCursor.MoveNext())
-            return false;
-
-        int numLabels = _options.NumLabels!.Value;
-
-        // Read raw output
-        var rawGetter = _inputCursor.GetGetter<VBuffer<float>>(
-            _inputCursor.Schema[_options.InputColumnName]);
-        VBuffer<float> rawBuffer = default;
-        rawGetter(ref rawBuffer);
-        var rawOutput = rawBuffer.DenseValues().ToArray();
-
-        // Read attention mask
-        var maskGetter = _inputCursor.GetGetter<VBuffer<long>>(
-            _inputCursor.Schema[_options.AttentionMaskColumnName]);
-        VBuffer<long> maskBuffer = default;
-        maskGetter(ref maskBuffer);
-        var attentionMask = maskBuffer.DenseValues().ToArray();
-
-        // Read offsets
-        var startGetter = _inputCursor.GetGetter<VBuffer<long>>(
-            _inputCursor.Schema[_options.TokenStartOffsetsColumnName]);
-        VBuffer<long> startBuffer = default;
-        startGetter(ref startBuffer);
-        var startOffsets = startBuffer.DenseValues().ToArray();
-
-        var endGetter = _inputCursor.GetGetter<VBuffer<long>>(
-            _inputCursor.Schema[_options.TokenEndOffsetsColumnName]);
-        VBuffer<long> endBuffer = default;
-        endGetter(ref endBuffer);
-        var endOffsets = endBuffer.DenseValues().ToArray();
-
-        // Read text
-        var textGetter = _inputCursor.GetGetter<ReadOnlyMemory<char>>(
-            _inputCursor.Schema[_options.TextColumnName]);
-        ReadOnlyMemory<char> textValue = default;
-        textGetter(ref textValue);
-        string text = textValue.ToString();
-
-        // Decode entities
-        var entities = _decoder.DecodeRow(rawOutput, attentionMask, startOffsets, endOffsets, text, numLabels);
-        _currentEntitiesJson = NerDecodingTransformer.SerializeEntities(entities);
-
-        return true;
-    }
-
-    public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
-    {
-        if (column.Name == _options.OutputColumnName)
-        {
-            ValueGetter<ReadOnlyMemory<char>> getter = (ref ReadOnlyMemory<char> value) =>
-            {
-                value = (_currentEntitiesJson ?? "[]").AsMemory();
-            };
-            return (ValueGetter<TValue>)(object)getter;
-        }
-
-        // Passthrough to upstream
-        var inputCol = _inputCursor.Schema.GetColumnOrNull(column.Name);
-        if (inputCol != null)
-            return _inputCursor.GetGetter<TValue>(inputCol.Value);
-
-        throw new InvalidOperationException($"Unknown column: {column.Name}");
-    }
-
-    public override ValueGetter<DataViewRowId> GetIdGetter()
-        => _inputCursor.GetIdGetter();
-
-    public override bool IsColumnActive(DataViewSchema.Column column) => true;
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-            _inputCursor.Dispose();
-        base.Dispose(disposing);
-    }
 }

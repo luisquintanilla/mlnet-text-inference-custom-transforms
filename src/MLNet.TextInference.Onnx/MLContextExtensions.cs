@@ -9,6 +9,54 @@ namespace MLNet.TextInference.Onnx;
 public static class MLContextExtensions
 {
     /// <summary>
+    /// Appends the compiled typed-decision facade to an existing ML.NET estimator chain.
+    /// </summary>
+    public static IEstimator<ITransformer> AppendOnnxTypedDecisions(
+        this IEstimator<ITransformer> pipeline,
+        MLContext mlContext,
+        OnnxTypedDecisionsOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(pipeline);
+        ArgumentNullException.ThrowIfNull(mlContext);
+        return Microsoft.ML.LearningPipelineExtensions.Append(
+            pipeline, new OnnxTypedDecisionsEstimator(mlContext, options));
+    }
+
+    /// <summary>
+    /// Creates a schema-aware, cursor-batched typed-decision transform backed by a local bundle.
+    /// </summary>
+    public static OnnxTypedDecisionsEstimator OnnxTypedDecisions(
+        this TransformsCatalog catalog,
+        OnnxTypedDecisionsOptions options)
+    {
+        return new OnnxTypedDecisionsEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>Creates the preparation stage of a typed-decision pipeline.</summary>
+    public static DecisionInputPreparationEstimator PrepareDecisionInputs(
+        this TransformsCatalog catalog,
+        DecisionInputPreparationOptions options)
+    {
+        return new DecisionInputPreparationEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>Creates the ONNX scoring stage of a typed-decision pipeline.</summary>
+    public static OnnxDecisionModelScorerEstimator ScoreOnnxDecisionModel(
+        this TransformsCatalog catalog,
+        OnnxDecisionModelScorerOptions options)
+    {
+        return new OnnxDecisionModelScorerEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>Creates the typed-decoding stage of a typed-decision pipeline.</summary>
+    public static DecisionDecodingEstimator DecodeDecisions(
+        this TransformsCatalog catalog,
+        DecisionDecodingOptions options)
+    {
+        return new DecisionDecodingEstimator(catalog.GetMLContext(), options);
+    }
+
+    /// <summary>
     /// Creates an estimator that generates text embeddings using a local ONNX model.
     /// Encapsulates tokenization, ONNX inference, pooling, and normalization.
     /// </summary>
@@ -151,14 +199,110 @@ public static class MLContextExtensions
     // context-level settings (e.g. GpuDeviceId) are preserved.
     private static MLContext GetMLContext(this TransformsCatalog catalog)
     {
-        var envProperty = typeof(TransformsCatalog)
-            .GetProperty("Environment", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        ArgumentNullException.ThrowIfNull(catalog);
 
-        // In ML.NET 5.0+, MLContext implements IHostEnvironment directly
-        if (envProperty?.GetValue(catalog) is MLContext mlContext)
-            return mlContext;
+        try
+        {
+            var environmentProperty = typeof(TransformsCatalog)
+                .GetProperties(System.Reflection.BindingFlags.NonPublic |
+                               System.Reflection.BindingFlags.Instance)
+                .FirstOrDefault(static property =>
+                    property.Name.EndsWith(".Environment", StringComparison.Ordinal));
+            var environment = environmentProperty?.GetValue(catalog);
+            if (environment is MLContext mlContext)
+                return mlContext;
+            if (environment is null)
+                throw new InvalidOperationException(
+                    "The ML.NET TransformsCatalog does not expose its host environment.");
 
-        // Fallback: return new MLContext (loses GpuDeviceId, but doesn't crash)
-        return new MLContext();
+            var environmentType = environment.GetType();
+            var seed = ReadRequiredNullableInt(environment, environmentType, "Seed");
+            var gpuDeviceId = ReadRequiredNullableInt(environment, environmentType, "GpuDeviceId");
+            var fallbackToCpu = ReadRequiredBool(environment, environmentType, "FallbackToCpu");
+            var tempFilePath = ReadRequiredString(environment, environmentType, "TempFilePath");
+            var recovered = new MLContext(seed)
+            {
+                GpuDeviceId = gpuDeviceId,
+                FallbackToCpu = fallbackToCpu,
+                TempFilePath = tempFilePath
+            };
+
+            return recovered;
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            throw new InvalidOperationException(
+                "Could not recover MLContext settings from TransformsCatalog. " +
+                "The transform cannot safely preserve provider and seed settings.",
+                exception);
+        }
     }
+
+    private static int? ReadRequiredNullableInt(
+        object environment,
+        Type environmentType,
+        string propertyName)
+    {
+        var property = environmentType.GetProperty(propertyName)
+            ?? throw MissingEnvironmentProperty(environmentType, propertyName);
+        if (property.PropertyType != typeof(int?) &&
+            property.PropertyType != typeof(int))
+        {
+            throw new InvalidOperationException(
+                $"ML.NET environment property '{propertyName}' has unexpected type " +
+                $"'{property.PropertyType.FullName}'.");
+        }
+
+        var value = property.GetValue(environment);
+        if (value is null)
+            return null;
+        if (value is int integer)
+            return integer;
+        throw new InvalidOperationException(
+            $"ML.NET environment property '{propertyName}' returned an unexpected value.");
+    }
+
+    private static bool ReadRequiredBool(
+        object environment,
+        Type environmentType,
+        string propertyName)
+    {
+        var property = environmentType.GetProperty(propertyName)
+            ?? throw MissingEnvironmentProperty(environmentType, propertyName);
+        if (property.PropertyType != typeof(bool))
+            throw new InvalidOperationException(
+                $"ML.NET environment property '{propertyName}' has unexpected type " +
+                $"'{property.PropertyType.FullName}'.");
+        return property.GetValue(environment) is bool value
+            ? value
+            : throw new InvalidOperationException(
+                $"ML.NET environment property '{propertyName}' returned an unexpected value.");
+    }
+
+    private static string ReadRequiredString(
+        object environment,
+        Type environmentType,
+        string propertyName)
+    {
+        var property = environmentType.GetProperty(propertyName)
+            ?? throw MissingEnvironmentProperty(environmentType, propertyName);
+        if (property.PropertyType != typeof(string))
+            throw new InvalidOperationException(
+                $"ML.NET environment property '{propertyName}' has unexpected type " +
+                $"'{property.PropertyType.FullName}'.");
+        return property.GetValue(environment) as string
+            ?? throw new InvalidOperationException(
+                $"ML.NET environment property '{propertyName}' returned null.");
+    }
+
+    private static InvalidOperationException MissingEnvironmentProperty(
+        Type environmentType,
+        string propertyName)
+        => new(
+            $"ML.NET environment type '{environmentType.FullName}' does not expose " +
+            $"required property '{propertyName}'.");
 }

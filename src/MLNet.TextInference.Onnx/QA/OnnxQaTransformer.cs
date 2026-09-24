@@ -17,6 +17,8 @@ public sealed class OnnxQaTransformer : ITransformer, IDisposable
 
     public bool IsRowToRowMapper => true;
 
+    internal OnnxQaOptions Options => _options;
+
     internal OnnxQaTransformer(
         MLContext mlContext,
         OnnxQaOptions options,
@@ -76,7 +78,11 @@ public sealed class OnnxQaTransformer : ITransformer, IDisposable
     }
 
     public IRowToRowMapper GetRowToRowMapper(DataViewSchema inputSchema)
-        => throw new NotSupportedException();
+    {
+        return ((ITransformer)new TransformerChain<ITransformer>(
+            new ITransformer[] { _tokenizer, _scorer, _qaExtractor }))
+            .GetRowToRowMapper(inputSchema);
+    }
 
     void ICanSaveModel.Save(ModelSaveContext ctx)
         => throw new NotSupportedException();
