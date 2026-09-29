@@ -49,3 +49,8 @@ samples/TextGenerationLocal/models/
 # OS
 Thumbs.db
 .DS_Store
+
+# Decision-to-Arrow local study inputs/results (never redistribute messages or models)
+samples/DecisionArrowPredictor/local/
+.testagent/
+tests/MLNet.DecisionArrowPredictor.Tests/TestResults/
