@@ -130,6 +130,9 @@ from that clean source. Their original complete manifest/contract/Arrow bytes
 are preserved; `eng\ImportDecisionArrowFixtures.ps1` verifies the immutable
 producer receipt before importing them. These fixtures exercise short final
 batches and all declared precisions, not real corpus inference.
+`eng\experiments\decision-arrow.fixtures.json` independently pins their
+manifest/contract/data byte hashes, sizes, counts and identities. Import paths
+are derived from the supplied artifact root, not producer-machine absolute paths.
 
 `questions.v1.json` predeclares two Binary semantic questions, a three-level
 Score, a five-option Choice, and a separate Binary direct spam baseline.
