@@ -466,8 +466,37 @@ first-result and inference-and-append measurements are **not summed**.
 Features were extracted once and reused by these learning curves. For a new
 message, semantic/combined heads still require extraction; text does not.
 The stored direct baseline also came from this full five-question export;
-no direct-only extraction benchmark was measured. No full-corpus native
-speedup/parity claim follows from this scalar study.
+no direct-only extraction benchmark was measured. The later producer native
+comparison below is separate from these frozen scalar-trained predictions.
+
+### Completed native16 parity and negative CPU result
+
+After the consumer returned its CPU lease, the producer completed its full
+5,574-row native16 export with the same frozen input, questions, assets,
+runtime source and CPU4/inter-op1 configuration. Its immutable public-reader
+gate passed, and its all-typed-observation parity report passed with maximum
+absolute difference **0** at the unchanged `1e-6` tolerance.
+
+The consumer independently checked both receipt/report pins and all four
+native artifact hashes/sizes. Scalar and native Arrow payloads are
+**byte-identical**: 759,744 bytes, SHA-256
+`fae87f65effbb7cac23f6e9de8af382dd6dc1b145bf843c40001947f159dff46`,
+with the same `72ace...` feature identity. Their manifests differ because
+execution/timing provenance differs. The existing scalar-trained models,
+holdout predictions and aggregate envelope therefore remain unchanged;
+**no retraining, second holdout selection or results rewrite was performed**.
+
+| Producer mode | Data ONNX calls | Separate warmup calls | Writer wall minutes | Peak working set GiB |
+|---|---:|---:|---:|---:|
+| Scalar | 5,574 | 1 | 147.473 | 2.015 |
+| Native16 | 349 | 1 | 214.089 | 9.170 |
+
+The final native batch contained six states. Despite fewer calls, native16
+was **45.17% slower** and used substantially more peak memory in these two
+non-overlapping full-corpus CPU runs. This is a negative batching result,
+not a speedup or benefit claim. It establishes parity for this frozen
+workload/configuration; it is not a repeated benchmark or a claim about
+other hardware, batch sizes or deployment workloads.
 
 ### Immutable receipt chain
 
@@ -487,6 +516,8 @@ its SHA-256 is
 | Producer `manifest.json` | `76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c` |
 | Producer `contract.json` / feature identity | `72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514` |
 | Producer `decisions.arrow` | `fae87f65effbb7cac23f6e9de8af382dd6dc1b145bf843c40001947f159dff46` |
+| `datasets\laya\native16-corpus-915b85b.receipt.json` | `e4187c63b2ff1b10dbc31fd8aaa5fb073dcda40b5ce3e4e4d9941287fff188a6` |
+| `datasets\laya\scalar-native16-corpus-915b85b.parity.json` | `eb54e61eebe4a91cdb3d059251034e7c52491e99553c4ff614405122573d10a0` |
 | `predictors\real-scalar-v1\models\training.freeze.json` | `6ebea3a135c808b31a996f5e31835f7608c78f2c22eaa03d6a3a760a1c5bcd1c` |
 | `predictors\real-scalar-v1\evaluation\evaluation.json` | `780e07e259ee7158390e78af82ea2c7599f1ded45fa3bf764dd4118591b9b753` |
 | `predictors\real-scalar-v1\study.complete.receipt.json` | `3a253ccac138e6db362b2ae1172626d4bfeff9d4c89bf515b0131782bc936b21` |
