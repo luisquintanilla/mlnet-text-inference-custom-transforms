@@ -37,12 +37,25 @@ try
               train  <same import options> --out <new model directory>
               evaluate <same import options> --training-freeze <training.freeze.json>
                        --training-freeze-sha256 <pinned hash> --out <new result directory>
+              Add --storage compact [--numeric-cap-bytes 67108864] to import/train/evaluate.
+              Compact is experimental and requires the independently pinned real identity.
+              control-projection --reference <frozen consumer directory> --out <new measurement.json>
+                                 [--rows 257|4097|65537|1048577] [--batch-size 1|256|4096]
+              control-same-model <same import options> --reference <frozen consumer directory>
+                                 --model <existing .mlnet> --model-receipt <receipt> --out <new receipt.json>
+              control-allocation <same import options> --model <existing .mlnet>
+                                 --model-receipt <receipt> --out <new diagnostic.json>
+              control-interop --fixture-root <pinned fictional Julia fixture root>
+                              --producer-receipt <independently pinned receipt> --questions <frozen questions>
+                              --out <new receipt.json>
+              Control commands require an externally coordinated quiet CPU slot; they never fit/extract a new model.
             The first prepare downloads only the explicitly approved public UCI corpus.
             Review grouping and bundled license/count evidence before the final freeze command.
             """);
         return 0;
     }
-    if (args[0] is not ("prepare" or "import" or "train" or "evaluate" or "smoke"))
+    if (args[0] is not ("prepare" or "import" or "train" or "evaluate" or "smoke" or "control-projection"
+        or "control-same-model" or "control-allocation" or "control-interop"))
         throw new ArgumentException($"Unsupported command: {args[0]}.");
     var options = new Dictionary<string, string>(StringComparer.Ordinal);
     for (int i = 1; i < args.Length; i++)
@@ -62,12 +75,52 @@ try
     {
         "prepare" => ["--download", "--out", "--input", "--acquisition", "--questions", "--groups", "--reviewed-groups-sha256"],
         "smoke" => ["--precision"],
+        "control-projection" => ["--reference", "--out", "--rows", "--batch-size"],
+        "control-same-model" => ["--reference", "--out", "--model", "--model-receipt", "--manifest", "--contract",
+            "--feature-fingerprint", "--preparation", "--split", "--states", "--questions"],
+        "control-allocation" => ["--out", "--model", "--model-receipt", "--manifest", "--contract",
+            "--feature-fingerprint", "--preparation", "--split", "--states", "--questions"],
+        "control-interop" => ["--fixture-root", "--producer-receipt", "--questions", "--out"],
         "evaluate" => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states", "--questions",
-            "--out", "--training-freeze", "--training-freeze-sha256"],
-        _ => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states", "--questions", "--out"]
+            "--out", "--training-freeze", "--training-freeze-sha256", "--storage", "--numeric-cap-bytes"],
+        _ => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states", "--questions",
+            "--out", "--storage", "--numeric-cap-bytes"]
     };
     if (options.Keys.Any(k => !allowed.Contains(k, StringComparer.Ordinal)))
         throw new ArgumentException($"Unknown {args[0]} option.");
+    if (args[0] == "control-interop")
+    {
+        await JuliaFixtureInterop.VerifyAsync(Required("--fixture-root"), Required("--producer-receipt"),
+            Required("--questions"), Required("--out"));
+        Console.WriteLine("Fictional Julia all-precision public-reader/projection interoperability PASS; no inference or real-data import.");
+        return 0;
+    }
+    if (args[0] == "control-projection")
+    {
+        await ConsumerControls.ProjectionAsync(Required("--reference"), Required("--out"),
+            options.TryGetValue("--rows", out var rows) ? int.Parse(rows, System.Globalization.CultureInfo.InvariantCulture) : null,
+            options.TryGetValue("--batch-size", out var batch) ? int.Parse(batch, System.Globalization.CultureInfo.InvariantCulture) : null);
+        Console.WriteLine("Projection controls measured; inspect raw paired receipt before claiming acceptance.");
+        return 0;
+    }
+    if (args[0] == "control-same-model")
+    {
+        await ConsumerControls.SameModelAsync(Required("--reference"),
+            [Required("--manifest"), Required("--contract"), Required("--feature-fingerprint"), Required("--preparation"),
+                Required("--split"), Required("--states"), Required("--questions")],
+            Required("--model"), Required("--model-receipt"), Required("--out"));
+        Console.WriteLine("Same saved-model full-row association and replay PASS; inspect raw paired allocation/time receipt.");
+        return 0;
+    }
+    if (args[0] == "control-allocation")
+    {
+        await ConsumerControls.AllocationDiagnosticsAsync(
+            [Required("--manifest"), Required("--contract"), Required("--feature-fingerprint"), Required("--preparation"),
+                Required("--split"), Required("--states"), Required("--questions")],
+            Required("--model"), Required("--model-receipt"), Required("--out"));
+        Console.WriteLine("Allocation diagnostics recorded; this is not a timing or acceptance run.");
+        return 0;
+    }
     if (args[0] == "smoke")
     {
         string precision = options.GetValueOrDefault("--precision", "HighPrecision");
@@ -87,6 +140,44 @@ try
     string output = Required("--out");
     if (args[0] is "import" or "train" or "evaluate")
     {
+        string storage = options.GetValueOrDefault("--storage", "legacy");
+        if (storage is not ("legacy" or "compact") || storage == "legacy" && options.ContainsKey("--numeric-cap-bytes"))
+            throw new ArgumentException("Use --storage compact for the numeric cache cap; storage must be legacy or compact.");
+        if (storage == "compact")
+        {
+            long cap = options.TryGetValue("--numeric-cap-bytes", out string? value) ?
+                long.Parse(value, System.Globalization.CultureInfo.InvariantCulture) : ProbabilityStore.DefaultNumericCapBytes;
+            using var compact = await ArrowFeatureReader.ImportCompactAsync(Required("--manifest"), Required("--contract"),
+                Required("--feature-fingerprint"), Required("--preparation"), Required("--split"), Required("--states"),
+                Required("--questions"), cap);
+            switch (args[0])
+            {
+                case "import":
+                    ArtifactFiles.Write(output, new
+                    {
+                        version = 1, status = "READY", compact.FeatureFingerprint, compact.DatasetManifestSha256,
+                        compact.SplitSha256, compact.QuestionsSha256, rows = compact.Metadata.Count,
+                        compact.NumericCapacityBytes, compact.NumericCapBytes, numericPayloadBytesPerRow = 48,
+                        conversion = FeatureContract.Conversion, projection = FeatureContract.Projection,
+                        arrowLeasesAfterImport = 0, compact.Extraction
+                    });
+                    Console.WriteLine($"Compact READY: {compact.Metadata.Count} rows, {compact.NumericCapacityBytes} numeric capacity bytes; no Arrow leases.");
+                    break;
+                case "train":
+                    var frozen = CompactStudyWorkflow.Train(compact, output);
+                    Console.WriteLine($"Frozen {frozen.Arms.Length} compact arms/curves; no holdout evaluation. SHA-256=" +
+                        ArtifactFiles.Hash(Path.Combine(output, "training.freeze.json")));
+                    break;
+                case "evaluate":
+                    string path = Required("--training-freeze");
+                    ArtifactFiles.RequireHash(path, Required("--training-freeze-sha256"));
+                    var results = CompactStudyWorkflow.Evaluate(compact, path, output);
+                    Console.WriteLine($"Evaluated {results.Arms.Length} frozen compact arms/curves. SHA-256=" +
+                        ArtifactFiles.Hash(Path.Combine(output, "evaluation.json")));
+                    break;
+            }
+            return 0;
+        }
         var study = await ArrowFeatureReader.ImportAsync(Required("--manifest"), Required("--contract"),
             Required("--feature-fingerprint"), Required("--preparation"), Required("--split"), Required("--states"),
             Required("--questions"));
@@ -130,7 +221,8 @@ try
     }
     return 0;
 }
-catch (Exception error) when (error is ArgumentException or InvalidDataException or IOException or HttpRequestException or JsonException)
+catch (Exception error) when (error is ArgumentException or InvalidDataException or IOException or HttpRequestException or JsonException
+    or FormatException or OverflowException)
 {
     Console.Error.WriteLine($"{error.GetType().Name}: {error.Message}");
     return 1;

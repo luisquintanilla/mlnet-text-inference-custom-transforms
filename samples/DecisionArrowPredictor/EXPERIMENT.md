@@ -4,14 +4,124 @@ Start with the [beginner walkthrough](README.md). This reference preserves the
 full acquisition, reproducibility, split, training, evaluation and acceptance
 details; its commands run from the repository root.
 
-**Study status:** the completed real 5,574-row scalar export has been imported,
-trained and evaluated. [Results and limitations](#real-scalar-study-results)
-include all five arms/three curves; synthetic smoke remains a separate exercise.
+**Historical Laya study status:** the completed real 5,574-row scalar export has
+been imported, trained and evaluated. [Results and limitations](#real-scalar-study-results)
+include all five arms/three curves. The Julia-first follow-up below is blocked;
+synthetic smoke remains a separate exercise.
 
 An experimental, CPU-only **consumer**, not a decision provider. It trains
 ordinary ML.NET 5.0.0 pipelines from persisted decision probabilities. No
 reference to `MLNet.TextInference.Onnx`, local Laya session, tokenizer, ONNX
 Runtime, GPU package, or cloud inference belongs in this process.
+
+## Compact consumer and Julia-first follow-up (in progress)
+
+The historical Laya results below remain unchanged. The dependent Julia-first
+follow-up is **not complete** and does not reuse Laya-trained heads under a
+Julia identity. Its latest public-safe checkpoint is
+[`consumer.optimization.v4.json`](consumer.optimization.v4.json); the earlier
+[`v3 failure checkpoint`](consumer.optimization.v3.json) remains unchanged.
+
+`import`, `train` and `evaluate` accept `--storage compact` and an optional
+`--numeric-cap-bytes` (default 67,108,864). Legacy storage remains the default;
+the beginner `Start.ps1` and fictional smoke route are unchanged. Compact real
+import currently accepts only the independently pinned historical Laya
+identity/modes. Julia is deliberately blocked until its producer-owned
+canonical contract, exact mode and package handoff are integrated.
+
+Compact import validates the entire completed dataset through the public
+sequential reader, joins original IDs to canonical immutable metadata, and
+copies ten checked Single coordinates plus the separate Double direct score
+into 1,024-row segments. The final segment reserves only its actual short
+capacity. Every reservation/allocation is checked against the numeric cap;
+failure disposes partial storage, with no unlimited fallback. Text, metadata,
+trainer state, native memory and process working set are **not** capped by this
+numeric limit. No Arrow/native lease survives import. Selection views share
+ordinals; they do not copy observations or text.
+
+The named IDataView schema is unchanged. Semantic getters populate caller-owned
+reusable VBuffers, active columns avoid unnecessary semantic work, and each
+cursor has independent position/masks/delegates. Store disposal prevents new
+cursors while existing owners can finish. ML.NET 5.0.0 `LoadFromEnumerable`
+uses a non-shuffling StreamingDataView with selection-local DataViewRowId;
+source RowId is a separate column. The compact view preserves that behavior.
+SDCA retains its default shuffle policy and injected RowShufflingTransformer.
+Runtime learner-input/order and bounded independently fitted equivalence
+controls are still required before a fit-parity claim.
+
+Advanced controls require an externally coordinated quiet CPU slot:
+
+```powershell
+dotnet $Cli control-projection --reference "<immutable original consumer directory>" `
+  --out "<new raw measurement.json>" --rows 4097 --batch-size 256
+
+dotnet $Cli control-same-model <same named import options> `
+  --reference "<immutable original consumer directory>" `
+  --model "<existing matching .mlnet>" --model-receipt "<matching receipt>" `
+  --out "<new raw receipt.json>"
+
+dotnet $Cli control-allocation <same named import options> `
+  --model "<existing matching .mlnet>" --model-receipt "<matching receipt>" `
+  --out "<new diagnostic.json>"
+```
+
+The full projection matrix is 257/4,097/65,537/1,048,577 rows at batches
+1/256/4,096, including final short batches and nonzero parent offsets. Controls
+verify an immutable original executable/source closure before using its
+original projection/import/prediction methods. Synthetic Arrow construction
+and IPC roundtrip are outside projection timing; accessor binding and actual
+numeric cache capacity are included. Projection wall time sums measured
+intervals; whole-run CPU/working-set diagnostics also include excluded setup.
+GC managed bytes are not native or whole-process memory. Raw observations and
+failed attempts remain local and immutable; only safe aggregates are committed.
+
+| Checkpoint | Result, not a completion claim |
+|---|---|
+| Focused offline regressions with the new portable pin | 153 passed, no skips; all three precisions, independent Struct/List/primitive offsets and null rejection, cap failure, independent/active cursors, caller buffer ownership and default-off diagnostic trace forwarding |
+| Full v4 twelve-case projection, five balanced pairs/case | All unchanged gates pass: 87.81-89.89% managed reduction; median measured scope 32.32-86.45% faster |
+| Three existing full-training heads on all 5,574 Laya rows | Exact original text/source/groups/labels/feature bits; complete prediction and saved-load replay within 1e-6 |
+| Requested Semantic getter | 0.0761 allocated managed bytes/row, including cursor setup |
+| v4 semantic prediction materialization | 99.71% managed reduction; median measured time 58.51% faster |
+| v4 text prediction materialization | **55.07% reduction and 480.31% median time regression: FAIL** |
+| v4 combined prediction materialization | **59.10% reduction and 396.04% median time regression: FAIL** |
+| New-package fictional Julia interoperability | All three 257-row precisions pass public-reader EOS/independent IDs/exact projection bits and owned standard-batch byte-exact roundtrip |
+| Current-package performance, learner equivalence, real Julia export/study | Pending; no aggregate core PASS or full-study GO |
+
+The v4 execution profile requests exactly one public output cursor through
+`GetRowCursorSet(activeColumns, 1)`. ML.NET's ordinary `GetRowCursor` can
+automatically split/consolidate parallel transform cursors, allocating on
+background threads. Removing that consolidation fixes the semantic allocation
+failure, but also serializes expensive text featurization. The measured text
+and combined tradeoff fails both unchanged gates; it is not an accepted default
+performance claim. Managed allocation measurements remain process-wide.
+The control does not cache predictions, substitute a custom scorer, change
+training shuffle/seed, or exclude text work from the matched prediction scope.
+The v4 timing receipt measures the pre-handoff adapter binary. New-package
+reader/projection and public `WriteBatchesAsync` interoperability pass all three
+producer-owned fictional Julia fixtures; the writer owns each yielded batch.
+[`consumer.interop.v1.json`](consumer.interop.v1.json) records safe package,
+closure and fixture aggregates. Current-package timing remains a separate gate.
+These are not real Julia rows
+or a completed predictor study. `DataViewTrace` is diagnostic-only/default-off:
+it records active-column requests, selection-local IDs/order and feature-bit
+hashes, never raw text, and does not advance supplied Random instances.
+
+```powershell
+dotnet $Cli control-interop --fixture-root "<producer's immutable fictional Julia fixture root>" `
+  --producer-receipt "<pinned fixture receipt>" --questions "samples\DecisionArrowPredictor\questions.v1.json" `
+  --out "<new local receipt.json>"
+```
+
+The producer's explicit CPU fallback remains a runtime qualification decision,
+not consumer-owned CUDA arithmetic or permission to reinterpret a GPU contract.
+No real Julia head is trained or old Laya head relabelled while joined acceptance
+and the completed selected artifact remain unavailable.
+
+Both initial hash-failing test runs and failed harness attempts are preserved.
+The frozen questions were originally CRLF bytes, SHA-256 `9e6e6c5c...0068ea`;
+an inherited `text eol=lf` attribute changed their bytes in new worktrees.
+They are now pinned `-text` like the immutable fixtures, retaining every original
+question string and the original full hash. No identity check was relaxed.
 
 The existing typed-transform portable persistence format is **not** an
 arbitrary ML.NET pipeline serializer. This sample uses `MLContext.Model.Save`
@@ -168,18 +278,22 @@ data. Exact frozen questions were committed before scoring:
 
 ## Feature contract and study
 
-The portable adapter is pinned to clean TypeSafe commit
-`ab4eebf29b9fdca49ce13e3b4afac0ec16b22983`, version
-`0.1.0-exp.decisions.1.gab4eebf29b9f`; Arrow core/scalars use the baseline version
+The current portable adapter is pinned to clean TypeSafe commit
+`65880cdfd33580d23d0e833ac977f79acb18b1b0`, version
+`0.1.0-exp.decisions.1.g65880cdfd335`; Arrow core/scalars use the baseline version
 `23.0.0-exp.decisions.1.g6aafc634d65c`. Exact package byte receipts are committed
 in `eng\experiments\decision-arrow.dependencies.json`. Restore maps only the
 designated experimental IDs to their immutable feeds, uses NuGet's approved
 public v2 endpoint for everything else, and isolates the cache. The unsigned
 exception is explicit and local: hashes identify bytes, **not author signatures**.
 No global trust or root settings are changed. Compute is not a predictor dependency.
+The adapter handoff receipt is independently pinned; its packages are immutable,
+not a full-experiment READY or permission to begin Julia training. Consumer
+builds remain on SDK 10.0.112; the package producer's SDK is separate provenance.
+The historical Laya source/package/results and old artifact kit remain untouched.
 
-Default smoke uses three **synthetic** 257-row, five-question fixtures produced
-from that clean source. Their original complete manifest/contract/Arrow bytes
+Default smoke uses the original three **synthetic** 257-row, five-question
+fixtures produced from clean `ab4eebf29b9f` source. Their original complete manifest/contract/Arrow bytes
 are preserved; `eng\ImportDecisionArrowFixtures.ps1` verifies the immutable
 producer receipt before importing them. These fixtures exercise short final
 batches and all declared precisions, not real corpus inference.

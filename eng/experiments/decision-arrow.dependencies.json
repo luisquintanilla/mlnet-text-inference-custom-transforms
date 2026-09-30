@@ -1,23 +1,24 @@
 {
   "schemaVersion": 1,
   "arrowCommit": "6aafc634d65cf46ff7fe1a665c4c66fd6002b989",
-  "adapterCommit": "ab4eebf29b9fdca49ce13e3b4afac0ec16b22983",
+  "adapterCommit": "65880cdfd33580d23d0e833ac977f79acb18b1b0",
+  "adapterReceiptSha256": "1baa85ce0b1be99d306713d8a19f287b6a8a599bcf5726169c965f842d94b03c",
   "packages": [
     {
       "id": "DecisionInference.Arrow",
-      "version": "0.1.0-exp.decisions.1.gab4eebf29b9f",
-      "feed": "feeds\\decision-adapter\\0.1.0-exp.decisions.1.gab4eebf29b9f",
-      "file": "DecisionInference.Arrow.0.1.0-exp.decisions.1.gab4eebf29b9f.nupkg",
-      "sha256": "6acc213b85879d1a34c8b4c80ba2450f7aeac4a8259e402bb57beffb201b85e9",
-      "sizeBytes": 30356
+      "version": "0.1.0-exp.decisions.1.g65880cdfd335",
+      "feed": "feeds\\decision-adapter\\0.1.0-exp.decisions.1.g65880cdfd335",
+      "file": "DecisionInference.Arrow.0.1.0-exp.decisions.1.g65880cdfd335.nupkg",
+      "sha256": "f44cd8e08de3cfc774fa1315dbfc13e7ed90d999a90f9f65057d235061f0e788",
+      "sizeBytes": 37059
     },
     {
       "id": "DecisionInference.Abstractions",
-      "version": "0.1.0-exp.decisions.1.gab4eebf29b9f",
-      "feed": "feeds\\decision-adapter\\0.1.0-exp.decisions.1.gab4eebf29b9f",
-      "file": "DecisionInference.Abstractions.0.1.0-exp.decisions.1.gab4eebf29b9f.nupkg",
-      "sha256": "fa62a54b4399416df6a7ac5bc5fd0e9fcef8f99964d25a9bbe40c8dc1bbff88e",
-      "sizeBytes": 13869
+      "version": "0.1.0-exp.decisions.1.g65880cdfd335",
+      "feed": "feeds\\decision-adapter\\0.1.0-exp.decisions.1.g65880cdfd335",
+      "file": "DecisionInference.Abstractions.0.1.0-exp.decisions.1.g65880cdfd335.nupkg",
+      "sha256": "a7a8742ea8d35a8732a91531db38c14bb82c0fb9e37f936b3524412fe149cf6e",
+      "sizeBytes": 14532
     },
     {
       "id": "Apache.Arrow",

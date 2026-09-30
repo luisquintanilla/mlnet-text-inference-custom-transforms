@@ -11,10 +11,15 @@ if ($pins.schemaVersion -ne 1) { throw 'Unsupported dependency receipt version.'
 $ArtifactRoot = (Resolve-Path -LiteralPath $ArtifactRoot).Path
 
 foreach ($feed in @($pins.packages.feed | Sort-Object -Unique)) {
-    $receipt = Get-Content -LiteralPath (Join-Path $ArtifactRoot "$feed\receipt.json") -Raw | ConvertFrom-Json
+    $receiptPath = Join-Path $ArtifactRoot "$feed\receipt.json"
+    $receipt = Get-Content -LiteralPath $receiptPath -Raw | ConvertFrom-Json
     $isArrow = $feed -eq 'feeds\arrow-baseline'
     $expectedCommit = if ($isArrow) { $pins.arrowCommit } else { $pins.adapterCommit }
     $expectedRepository = if ($isArrow) { 'https://github.com/luisquintanilla/arrow-dotnet' } else { 'https://github.com/luisquintanilla/typesafe-meai' }
+    if (-not $isArrow -and
+        (Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256).Hash.ToLowerInvariant() -cne $pins.adapterReceiptSha256) {
+        throw 'Portable adapter handoff receipt differs from the independent pin.'
+    }
     if ($receipt.schemaVersion -ne 1 -or $receipt.status -cne 'READY' -or
         $receipt.source.cleanTree -ne $true -or $receipt.source.commit -cne $expectedCommit -or
         $receipt.source.repository -cne $expectedRepository -or $receipt.packaging.immutable -ne $true) {
@@ -58,7 +63,6 @@ $escapedCache = [System.Security.SecurityElement]::Escape($cache)
     <packageSource key="arrow-baseline">
       <package pattern="Apache.Arrow" />
       <package pattern="Apache.Arrow.Scalars" />
-      <package pattern="Apache.Arrow.Compute" />
     </packageSource>
     <packageSource key="nuget.org"><package pattern="*" /></packageSource>
   </packageSourceMapping>

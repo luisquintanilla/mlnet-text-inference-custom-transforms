@@ -6,7 +6,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $assets = Get-Content -LiteralPath $AssetsFile -Raw | ConvertFrom-Json
 $deps = Get-Content -LiteralPath $DepsFile -Raw | ConvertFrom-Json
-$forbidden = '(?i)onnx|cuda|tokeniz|laya|tensorsharp|mlnet\.textinference'
+$forbidden = '(?i)onnx|cuda|tokeniz|laya|julia|tensorsharp|mlnet\.textinference|apache\.arrow\.compute'
 $libraries = @($assets.libraries.PSObject.Properties.Name) + @($deps.libraries.PSObject.Properties.Name)
 $paths = @(
     foreach ($target in $deps.targets.PSObject.Properties) {

@@ -499,6 +499,129 @@ public sealed class ArrowFeatureReaderTests
         return ids.ToArray();
     }
 
+    [TestMethod]
+    [DataRow("HighPrecision")]
+    [DataRow("FourDecimalPlaces")]
+    [DataRow("TwoDecimalPlaces")]
+    public async Task BatchAccessor_CompleteFixtureAndNestedSlicesMatchLegacyBitsWithoutBorrowedOutput(string precision)
+    {
+        using var reader = await DecisionArrowDatasetReader.OpenAsync(Fixture(precision, "manifest.json"), Contract(precision));
+        int count = 0;
+        float[] destination = new float[10];
+        RecordBatch? batch;
+        while ((batch = await reader.ReadNextRecordBatchAsync()) is not null)
+        {
+            using (batch)
+            {
+                foreach (var (offset, length) in new[] { (0, batch.Length), (1, batch.Length - 1), (batch.Length, 0) })
+                {
+                    using var slice = batch.Slice(offset, length);
+                    var accessor = new ProbabilityBatchAccessor(slice);
+                    var oracle = ArrowFeatureReader.Project(slice);
+                    Assert.AreEqual(oracle.Length, accessor.Count);
+                    for (int row = 0; row < length; row++)
+                    {
+                        double direct = accessor.CopyRow(row, destination);
+                        Assert.AreEqual(oracle[row].RowId, accessor.RowId(row));
+                        Assert.AreEqual(BitConverter.DoubleToInt64Bits(oracle[row].SpamBaseline), BitConverter.DoubleToInt64Bits(direct));
+                        CollectionAssert.AreEqual(oracle[row].Semantic.Select(BitConverter.SingleToInt32Bits).ToArray(),
+                            destination.Select(BitConverter.SingleToInt32Bits).ToArray());
+                    }
+                }
+                count += batch.Length;
+            }
+        }
+        Assert.AreEqual(257, count);
+        Assert.AreEqual(10, destination.Length, "The caller-owned copied output remains valid after batch disposal.");
+    }
+
+    [TestMethod]
+    public async Task BatchAccessor_DistinctCoordinatesAndNestedNonzeroOffsetsMatchIndependentValues()
+    {
+        using var reader = await DecisionArrowDatasetReader.OpenAsync(Fixture("HighPrecision", "manifest.json"), Contract());
+        using var template = await reader.ReadNextRecordBatchAsync();
+        Assert.IsNotNull(template);
+        using var authored = DistinctBatch(template);
+        using var parent = authored.Slice(1, 3);
+        using var slice = parent.Slice(1, 2);
+        var accessor = new ProbabilityBatchAccessor(slice);
+        float[] destination = new float[10];
+        for (int row = 0; row < 2; row++)
+        {
+            Assert.AreEqual(1003 + row, accessor.RowId(row));
+            Assert.AreEqual(.91 - .01 * (row + 2), accessor.CopyRow(row, destination));
+            CollectionAssert.AreEqual(DistinctVector(row + 2).Select(v => (float)v).ToArray(), destination);
+        }
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => accessor.RowId(2));
+        Assert.ThrowsExactly<ArgumentException>(() => accessor.CopyRow(0, new float[9]));
+    }
+
+    [TestMethod]
+    [DataRow("valid")]
+    [DataRow("child-null")]
+    [DataRow("list-null")]
+    [DataRow("struct-null")]
+    public async Task BatchAccessor_IndependentStructListAndDoubleOffsetsRetainBitsAndRejectNestedNulls(string kind)
+    {
+        using var reader = await DecisionArrowDatasetReader.OpenAsync(Fixture("HighPrecision", "manifest.json"), Contract());
+        using var template = await reader.ReadNextRecordBatchAsync();
+        Assert.IsNotNull(template);
+        using var authored = DistinctBatch(template);
+        var pressure = (StructArray)authored.Column(3);
+        var oldTime = (FixedSizeListArray)pressure.Fields[4];
+        var builder = new DoubleArray.Builder().Append(.999).Append(.998);
+        for (int row = 0; row < 4; row++)
+            for (int j = 0; j < 3; j++)
+                if (kind == "child-null" && row == 1 && j == 0) builder.AppendNull();
+                else builder.Append(DistinctVector(row)[2 + j]);
+        using var prefixed = builder.Build();
+        using var offsetValues = (DoubleArray)prefixed.Slice(2, 12);
+        Assert.AreEqual(2, offsetValues.Offset);
+        var validity = new ArrowBuffer.BitmapBuilder();
+        for (int row = 0; row < 4; row++) validity.Append(row != 1);
+        var time = new FixedSizeListArray(oldTime.Data.DataType, 4, offsetValues,
+            kind == "list-null" ? validity.Build() : ArrowBuffer.Empty, kind == "list-null" ? 1 : 0);
+        var replaced = new StructArray(pressure.Data.DataType, 4,
+            [.. pressure.Fields.Take(4).Select(Clone), time],
+            kind == "struct-null" ? validity.Build() : ArrowBuffer.Empty, kind == "struct-null" ? 1 : 0);
+        using var batch = new RecordBatch(authored.Schema,
+        [
+            Clone(authored.Column(0)), Clone(authored.Column(1)), Clone(authored.Column(2)),
+            replaced, Clone(authored.Column(4)), Clone(authored.Column(5))
+        ], 4);
+        using var slice = batch.Slice(1, 2);
+        var accessor = new ProbabilityBatchAccessor(slice);
+        float[] destination = new float[10];
+        if (kind != "valid")
+        {
+            Assert.ThrowsExactly<InvalidDataException>(() => accessor.CopyRow(0, destination));
+            return;
+        }
+        for (int row = 0; row < 2; row++)
+        {
+            Assert.AreEqual(1002 + row, accessor.RowId(row));
+            Assert.AreEqual(.91 - .01 * (row + 1), accessor.CopyRow(row, destination));
+            CollectionAssert.AreEqual(DistinctVector(row + 1).Select(v => BitConverter.SingleToInt32Bits((float)v)).ToArray(),
+                destination.Select(BitConverter.SingleToInt32Bits).ToArray());
+        }
+    }
+
+    [TestMethod]
+    public async Task ImportCompact_SyntheticWithForgedRealModeStillFailsTrustedRealIdentityGate()
+    {
+        using var temp = new TempDirectory();
+        var input = ImportInputs(temp, "HighPrecision");
+        var manifest = ReadManifest(input.Manifest);
+        WriteManifest(input.Manifest, manifest with
+        {
+            Provenance = manifest.Provenance with { ExecutionMode = "scalar-cpu" }
+        });
+        var error = await Assert.ThrowsExactlyAsync<InvalidDataException>(() =>
+            ArrowFeatureReader.ImportCompactAsync(input.Manifest, temp.FilePath("contract.json"),
+                Fingerprint("HighPrecision"), input.PreparationPath, input.Split, input.States, Questions));
+        StringAssert.Contains(error.Message, "historical Laya identity/mode");
+    }
+
     private static DecisionArrowManifest ReadManifest(string path) =>
         JsonSerializer.Deserialize<DecisionArrowManifest>(File.ReadAllText(path), DecisionArrowManifest.JsonOptions)!;
 

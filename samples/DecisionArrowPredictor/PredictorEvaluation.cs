@@ -13,7 +13,31 @@ public static class PredictorEvaluation
     public const int BootstrapResamples = 1000;
     public const double LogLossEpsilon = 1e-15;
 
-    public static Metrics Calculate(IReadOnlyList<Prediction> predictions, double threshold)
+    private sealed class PredictionValues(IReadOnlyList<Prediction> predictions) : IReadOnlyList<PredictionValue>
+    {
+        public int Count => predictions.Count;
+        public PredictionValue this[int index]
+        {
+            get
+            {
+                var row = predictions[index];
+                return new(row.RowId, row.GroupId, row.Label, row.Probability);
+            }
+        }
+        public IEnumerator<PredictionValue> GetEnumerator()
+        {
+            for (int i = 0; i < Count; i++) yield return this[i];
+        }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    public static Metrics Calculate(IReadOnlyList<Prediction> predictions, double threshold) =>
+        CalculateValues(new PredictionValues(predictions), threshold);
+
+    public static Metrics Calculate(PredictionBuffer predictions, double threshold) =>
+        CalculateValues(predictions.Values, threshold);
+
+    private static Metrics CalculateValues(IReadOnlyList<PredictionValue> predictions, double threshold)
     {
         if (predictions.Count == 0 || !double.IsFinite(threshold) ||
             predictions.Any(p => !double.IsFinite(p.Probability) || p.Probability < 0 || p.Probability > 1))
@@ -46,12 +70,18 @@ public static class PredictorEvaluation
             negative == 0 ? null : (double)fp / negative);
     }
 
-    public static double SelectThreshold(IReadOnlyList<Prediction> validation, bool falsePositiveBudget)
+    public static double SelectThreshold(IReadOnlyList<Prediction> validation, bool falsePositiveBudget) =>
+        SelectThresholdValues(new PredictionValues(validation), falsePositiveBudget);
+
+    public static double SelectThreshold(PredictionBuffer validation, bool falsePositiveBudget) =>
+        SelectThresholdValues(validation.Values, falsePositiveBudget);
+
+    private static double SelectThresholdValues(IReadOnlyList<PredictionValue> validation, bool falsePositiveBudget)
     {
         if (!validation.Any(p => p.Label) || !validation.Any(p => !p.Label))
             throw new InvalidDataException("Threshold selection requires both validation classes.");
         var candidates = validation.Select(p => p.Probability).Append(Math.BitIncrement(1d)).Distinct();
-        var metrics = candidates.Select(t => Calculate(validation, t));
+        var metrics = candidates.Select(t => CalculateValues(validation, t));
         if (falsePositiveBudget)
             return metrics.Where(m => m.FalsePositiveRate <= 0.01).OrderByDescending(m => m.Recall)
                 .ThenBy(m => m.FalsePositiveRate).ThenByDescending(m => m.Threshold).First().Threshold;
