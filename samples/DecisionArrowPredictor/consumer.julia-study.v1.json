@@ -1,0 +1,2462 @@
+{
+  "schemaVersion": 1,
+  "status": "FULL_CPU_JULIA_STUDY_COMPLETE",
+  "measuredConsumerSourceCommit": "d0397ca74e6ddb7e92ae57cbc17cf45be78e93de",
+  "sourceAssemblySha256": "1ed49c4c7523c4154324aad896acf6340836d94c430e2087c2b7a31852d1cf6b",
+  "executableReceiptSha256": "09c0e049173995bd652fa24720ce0b9ce522f145b4cf3e8e648ec667b659951c",
+  "producerHandoffSha256": "da74c2042366d295c0a05897aff8ea09c37c346778717e43a58c3c8f445553d1",
+  "producerRuntimeSourceCommit": "fd14d3b1caf89886a5f6cc29fa6c01dcef199e01",
+  "portableSourceCommit": "65880cdfd33580d23d0e833ac977f79acb18b1b0",
+  "featureFingerprint": "78ed3dc0344f71f1d8515f5923dc2c1de3604e59e6b4a1c9cb89851e2b3cf05d",
+  "datasetManifestSha256": "179b944431d5fd6054adada0827c4ec708fd50b6e97b0ac2ef45f3feeaa8bd16",
+  "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+  "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+  "selectedMode": "scalar-cpu",
+  "cuda": "REJECTED_UNCHANGED_1e-6",
+  "originalSourceRows": 5574,
+  "duplicateGroups": 5102,
+  "partitions": {
+    "train": 3344,
+    "holdout": 1114,
+    "validation": 1116
+  },
+  "numericCapacityBytes": 267552,
+  "numericCapBytes": 67108864,
+  "arrowNativeLeasesAfterImport": 0,
+  "importerReceiptSha256": "9aaa2b6197238e8e9c063419e120004837a2a9777f93eccf21b210528afd3448",
+  "importMeasurement": {
+    "wallMilliseconds": 792.9465,
+    "managedBytes": 18821104,
+    "cpuMilliseconds": 500,
+    "workingSetBytes": 60190720,
+    "peakWorkingSetBytes": 60190720,
+    "scope": "First import in this process: full authorization/input validation, IO/public-reader full scan/EOS, metadata and compact projection/cache allocation. Not filesystem-cold or isolated projection timing; managed GC bytes exclude native/process memory. No fitting or prediction."
+  },
+  "boundedJuliaControls": {
+    "rawSha256": "9047a04c21c3fb8e33cfbc1f4dd42762f5bf2161a580f3d3e0058d7e49b4221e",
+    "candidates": 9,
+    "trainingRows": 32,
+    "validationRows": 32,
+    "sameFittedModelMaximumDifference": 0,
+    "independentTraceObserverSlotsThresholdMetricsAndSixWinningReplaysPass": true,
+    "originalProjectionReferenceReceiptSha256": "dab8a851b981a8c772a7dac3012d99a8bdb91b6406b4ebc02009168f5ee424dc"
+  },
+  "focusedTests": {
+    "passed": 262,
+    "failed": 0,
+    "skipped": 0,
+    "trxSha256": "dc3f4b91cb3a1c6e4024bb763b9d8c6413358282179374d9cba6d069a7bb83c9",
+    "retainedFailures": [
+      "v20 test-friend build failure",
+      "v21 two native Struct offset positives; fixed without tolerance change"
+    ]
+  },
+  "trainingFreezeSha256": "5588ac9187e5975948b3b4fcbfdd2826cf89c22bd1cc28a46c525db3bba58245",
+  "evaluationSha256": "41302e7583cf62b86dbe5582bbb15f38267a705fdd57c7d96ac50a9ef2be3bd3",
+  "learnedModels": 9,
+  "evaluatedEntries": 15,
+  "tuningCandidates": 27,
+  "settings": "ML.NET5/seed1/thread1/max100/L2[.0001,.001,.01]",
+  "selection": "Train seed1, single-thread SDCA max100, L2[0.0001,0.001,0.01]; validation tie-aware AP then log loss; F1 threshold and maximum recall at <=1% validation FPR, ties by lower FPR then higher threshold. No holdout selection.",
+  "learningSubsetPolicy": "SHA256(seed1:groupId) order, whole groups until target and both classes; matched learned-arm IDs. Prior uses each matched subset prevalence; direct baseline is stored spam probability.",
+  "holdoutRows": 1114,
+  "holdoutGroups": 1020,
+  "bootstrapSeed": 1729,
+  "bootstrapResamples": 1000,
+  "freezeBeforeHoldout": true,
+  "noPostHoldoutTuningOrModelChanges": true,
+  "independentSavedPredictionVerification": {
+    "entries": 15,
+    "exactIdsGroupsLabelsCounts": true,
+    "maximumAbsoluteMetricDifference": 0.0,
+    "tolerance": 1e-12
+  },
+  "extraction": {
+    "executionMode": "scalar-cpu",
+    "rows": 5574,
+    "measurements": {
+      "loadMilliseconds": 4644.8617,
+      "warmupMilliseconds": 999.6235,
+      "extractionAndValidationMilliseconds": 1778147.246
+    },
+    "scope": "Producer runtime receipt: load and warmup are separate; extractionAndValidationMilliseconds includes preparation/synchronized Run and transfers/Double decode/builder/IPC/full validation. Excludes runtime receipt/module hashing; manifest writer stages overlap and must not be summed."
+  },
+  "models": [
+    {
+      "arm": "text",
+      "targetRows": 100,
+      "actualRows": 100,
+      "modelSha256": "aeef873ba1ffcafa9feb676aeb4178e7dc86716dac859b89c6448d8784013ad5",
+      "modelBytes": 71379,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.217556431889534,
+      "budgetThreshold": 0.3935244083404541,
+      "trainingMilliseconds": 1487.6382,
+      "tuningAndValidationMilliseconds": 2267.1896,
+      "warmHeadMillisecondsPerRow": 0.01572046594982079,
+      "modelReceiptSha256": "4e867e70d90067381317a45756f6684179dad0d222e269dcfe35976cb89c3f07"
+    },
+    {
+      "arm": "semantic",
+      "targetRows": 100,
+      "actualRows": 100,
+      "modelSha256": "e97db970463d0a1d08578fe29f662224b8209da67e451847cb2e168c8c3767fc",
+      "modelBytes": 3213,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.35303860902786255,
+      "budgetThreshold": 0.6614291071891785,
+      "trainingMilliseconds": 80.36,
+      "tuningAndValidationMilliseconds": 104.7493,
+      "warmHeadMillisecondsPerRow": 0.00016530465949820788,
+      "modelReceiptSha256": "3a458c662bd7d696efd42f040f74693fac45ef79e9b1fd32dbc0dae2ffa64bee"
+    },
+    {
+      "arm": "combined",
+      "targetRows": 100,
+      "actualRows": 100,
+      "modelSha256": "0cc2e05758ece361f10aceb64fb9dc1dcf31763451bc598f6386590916d293ac",
+      "modelBytes": 100828,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.28998398780822754,
+      "budgetThreshold": 0.5141431093215942,
+      "trainingMilliseconds": 382.9517,
+      "tuningAndValidationMilliseconds": 606.3067,
+      "warmHeadMillisecondsPerRow": 0.01597152329749104,
+      "modelReceiptSha256": "39574ec72762180ee58a37054c0b96f1245675120392bfb1fa4bfb8628deb332"
+    },
+    {
+      "arm": "text",
+      "targetRows": 500,
+      "actualRows": 500,
+      "modelSha256": "c05c277068b0280e09e8bc205a9eb18f8f54367a9dbe6bf6739e4a44bfc1d680",
+      "modelBytes": 196373,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.5196351408958435,
+      "budgetThreshold": 0.5688080191612244,
+      "trainingMilliseconds": 224.7351,
+      "tuningAndValidationMilliseconds": 363.9112,
+      "warmHeadMillisecondsPerRow": 0.01478720430107527,
+      "modelReceiptSha256": "1845f72e05b2ccac91ff0be697b12d7d2bca0c789316ffcab9170c1618150873"
+    },
+    {
+      "arm": "semantic",
+      "targetRows": 500,
+      "actualRows": 500,
+      "modelSha256": "8ae8f81796664f84818c3317bb976c9b6bec01bd2ce0f290a30854377bc78639",
+      "modelBytes": 3213,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.353270947933197,
+      "budgetThreshold": 0.5969641208648682,
+      "trainingMilliseconds": 63.5714,
+      "tuningAndValidationMilliseconds": 74.9105,
+      "warmHeadMillisecondsPerRow": 0.00015258064516129034,
+      "modelReceiptSha256": "053e4967264a3a1de12e7694201854c7bb691452de05d2014022ca4477ce76b3"
+    },
+    {
+      "arm": "combined",
+      "targetRows": 500,
+      "actualRows": 500,
+      "modelSha256": "2d7aed83332f51195df3cdd45edd090b6b2bfba344f335b7d01108cb9efabfe7",
+      "modelBytes": 288433,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.49189072847366333,
+      "budgetThreshold": 0.5462116599082947,
+      "trainingMilliseconds": 322.9127,
+      "tuningAndValidationMilliseconds": 540.2039,
+      "warmHeadMillisecondsPerRow": 0.016700215053763443,
+      "modelReceiptSha256": "1583ddd0819f1431f2b91dd96b2176766dea693c59c9f743909bfc1a84cd8622"
+    },
+    {
+      "arm": "text",
+      "targetRows": 3344,
+      "actualRows": 3344,
+      "modelSha256": "e9f7e0dc018b8b415e34084e36015580d808b7594a79648a3dd0cc2fe6e41a4d",
+      "modelBytes": 725337,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.3177258372306824,
+      "budgetThreshold": 0.3655540943145752,
+      "trainingMilliseconds": 301.9755,
+      "tuningAndValidationMilliseconds": 595.6384,
+      "warmHeadMillisecondsPerRow": 0.020173494623655915,
+      "modelReceiptSha256": "d1e062318e2084740c640cadd6fd22a04c4a3cd1b7ab7d9dc2fe13f46599e56e"
+    },
+    {
+      "arm": "semantic",
+      "targetRows": 3344,
+      "actualRows": 3344,
+      "modelSha256": "b83288124bcda2d273deadef0883ec1166d346f04b1108b8c5f1197024d3fe59",
+      "modelBytes": 3207,
+      "l2": 0.001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.2307986468076706,
+      "budgetThreshold": 0.5079220533370972,
+      "trainingMilliseconds": 14.1864,
+      "tuningAndValidationMilliseconds": 100.8435,
+      "warmHeadMillisecondsPerRow": 9.508960573476702e-05,
+      "modelReceiptSha256": "df09b41be20decae752df13a613a5f611e0e60f81c17d6818ded44888bb78bb1"
+    },
+    {
+      "arm": "combined",
+      "targetRows": 3344,
+      "actualRows": 3344,
+      "modelSha256": "48d0915ad5d518ad3f0f25e048d905960f72eb8929f7133057bf4b8c47768d10",
+      "modelBytes": 1085214,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.547464907169342,
+      "budgetThreshold": 0.5117021203041077,
+      "trainingMilliseconds": 382.0669,
+      "tuningAndValidationMilliseconds": 725.4535,
+      "warmHeadMillisecondsPerRow": 0.01741320788530466,
+      "modelReceiptSha256": "def53984f650ac31c50244a1a2c80415b31d974baa4ca881969c33818454ee83"
+    }
+  ],
+  "entries": [
+    {
+      "arm": "prior",
+      "targetRows": 100,
+      "actualTrainingRows": 100,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.13375224416517056,
+        "rocAuc": 0.5,
+        "logLoss": 0.4046631463519069,
+        "brier": 0.119026391382407,
+        "threshold": 0.19,
+        "truePositive": 149,
+        "falsePositive": 965,
+        "trueNegative": 0,
+        "falseNegative": 0,
+        "precision": 0.13375224416517056,
+        "recall": 1,
+        "falsePositiveRate": 1
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.13375224416517056,
+        "rocAuc": 0.5,
+        "logLoss": 0.4046631463519069,
+        "brier": 0.119026391382407,
+        "threshold": 1.0000000000000002,
+        "truePositive": 0,
+        "falsePositive": 0,
+        "trueNegative": 965,
+        "falseNegative": 149,
+        "precision": null,
+        "recall": 0,
+        "falsePositiveRate": 0
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.11120996441281139,
+            "upper": 0.15826702033598586
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.5,
+            "upper": 0.5
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.3719766113318837,
+            "upper": 0.4402098212498408
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.10505017793594448,
+            "upper": 0.1342255526083132
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 1,
+            "upper": 1
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 1,
+            "upper": 1
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.7888103649905295,
+            "upper": -0.7041617085712899
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.4806107274285426,
+            "upper": -0.441612885043542
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.21150999165673665,
+            "upper": 0.2701151465446018
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.060484773859970344,
+            "upper": 0.0834080234546036
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.13605442176870752,
+            "upper": 0.28358208955223885
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.95625,
+            "upper": 0.9790628115653041
+          }
+        ]
+      },
+      "savedPredictionsSha256": "9b9e666d939524f3e014a566913485a9cafcd62264d92de976901de585694005"
+    },
+    {
+      "arm": "direct",
+      "targetRows": 100,
+      "actualTrainingRows": 100,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.48452027261289554,
+        "rocAuc": 0.8155718607643356,
+        "logLoss": 5.276337876545287,
+        "brier": 0.7850110705785838,
+        "threshold": 0.9999694953635498,
+        "truePositive": 81,
+        "falsePositive": 107,
+        "trueNegative": 858,
+        "falseNegative": 68,
+        "precision": 0.4308510638297872,
+        "recall": 0.5436241610738255,
+        "falsePositiveRate": 0.11088082901554404
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.48452027261289554,
+        "rocAuc": 0.8155718607643356,
+        "logLoss": 5.276337876545287,
+        "brier": 0.7850110705785838,
+        "threshold": 0.9999990564079009,
+        "truePositive": 20,
+        "falsePositive": 10,
+        "trueNegative": 955,
+        "falseNegative": 129,
+        "precision": 0.6666666666666666,
+        "recall": 0.1342281879194631,
+        "falsePositiveRate": 0.010362694300518135
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.3724127648751717,
+            "upper": 0.5864251928539368
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7669272105520274,
+            "upper": 0.8567947604719883
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 5.040273803897924,
+            "upper": 5.540691000939174
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7588489040609764,
+            "upper": 0.8096360732198248
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.4489795918367347,
+            "upper": 0.6328125
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.0898876404494382,
+            "upper": 0.13435897435897437
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.4915471653611039,
+            "upper": -0.30213701631968837
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.19376444053251185,
+            "upper": -0.10531530325344762
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 4.855776078563494,
+            "upper": 5.37311682534603
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7051350721337155,
+            "upper": 0.7688380488560654
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.3464566929133858,
+            "upper": -0.1428571428571429
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.054808686659772496,
+            "upper": 0.10548523206751055
+          }
+        ]
+      },
+      "savedPredictionsSha256": "de973feb0b913d5e4b7a1e7a11b4d6abf11755c07bcae2c8db7d0c832ca6cec7"
+    },
+    {
+      "arm": "text",
+      "targetRows": 100,
+      "actualTrainingRows": 100,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.883834899539444,
+        "rocAuc": 0.9630420419376152,
+        "logLoss": 0.163705035238496,
+        "brier": 0.047303413718819506,
+        "threshold": 0.217556431889534,
+        "truePositive": 118,
+        "falsePositive": 31,
+        "trueNegative": 934,
+        "falseNegative": 31,
+        "precision": 0.7919463087248322,
+        "recall": 0.7919463087248322,
+        "falsePositiveRate": 0.03212435233160622
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.883834899539444,
+        "rocAuc": 0.9630420419376152,
+        "logLoss": 0.163705035238496,
+        "brier": 0.047303413718819506,
+        "threshold": 0.3935244083404541,
+        "truePositive": 91,
+        "falsePositive": 3,
+        "trueNegative": 962,
+        "falseNegative": 58,
+        "precision": 0.9680851063829787,
+        "recall": 0.610738255033557,
+        "falsePositiveRate": 0.0031088082901554403
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.8285564155442521,
+            "upper": 0.9234454505385157
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.9415880139924757,
+            "upper": 0.9805932364425428
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.13349814010047797,
+            "upper": 0.19190586491396205
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.03743320453741935,
+            "upper": 0.056747607985298
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7155172413793104,
+            "upper": 0.8631578947368421
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.02081165452653486,
+            "upper": 0.043704474505723206
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          }
+        ]
+      },
+      "savedPredictionsSha256": "98570b49a4059ab4672e79bf13a9e5093c19b7004f7446f5ac6231369d321c9c"
+    },
+    {
+      "arm": "semantic",
+      "targetRows": 100,
+      "actualTrainingRows": 100,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.3976950675738011,
+        "rocAuc": 0.7896581701846507,
+        "logLoss": 0.34180277912087786,
+        "brier": 0.09982825455097338,
+        "threshold": 0.35303860902786255,
+        "truePositive": 68,
+        "falsePositive": 95,
+        "trueNegative": 870,
+        "falseNegative": 81,
+        "precision": 0.4171779141104294,
+        "recall": 0.4563758389261745,
+        "falsePositiveRate": 0.09844559585492228
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.3976950675738011,
+        "rocAuc": 0.7896581701846507,
+        "logLoss": 0.34180277912087786,
+        "brier": 0.09982825455097338,
+        "threshold": 0.6614291071891785,
+        "truePositive": 17,
+        "falsePositive": 12,
+        "trueNegative": 953,
+        "falseNegative": 132,
+        "precision": 0.5862068965517241,
+        "recall": 0.11409395973154363,
+        "falsePositiveRate": 0.012435233160621761
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.3174389154714009,
+            "upper": 0.49879631292229853
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7384503319215403,
+            "upper": 0.8336446503287508
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.30064123016921146,
+            "upper": 0.38704331129159625
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.08665063937506792,
+            "upper": 0.11381970773641802
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.36619718309859156,
+            "upper": 0.5463917525773195
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.07818930041152264,
+            "upper": 0.11770833333333333
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.5627241109665648,
+            "upper": -0.38716883938177826
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.2277341581410104,
+            "upper": -0.12568375052024494
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.14191728469398074,
+            "upper": 0.21935989222535063
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.04071658652450859,
+            "upper": 0.06480858224689377
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.4577464788732395,
+            "upper": -0.21897810218978098
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.043478260869565216,
+            "upper": 0.08881922675026123
+          }
+        ]
+      },
+      "savedPredictionsSha256": "085105fcfbe5deacb1fdea7acd3391ea6a596486ef473ee32d0835cfae7efd60"
+    },
+    {
+      "arm": "combined",
+      "targetRows": 100,
+      "actualTrainingRows": 100,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.8348996661502006,
+        "rocAuc": 0.9483534443787599,
+        "logLoss": 0.17057282797838869,
+        "brier": 0.04878646682879049,
+        "threshold": 0.28998398780822754,
+        "truePositive": 112,
+        "falsePositive": 42,
+        "trueNegative": 923,
+        "falseNegative": 37,
+        "precision": 0.7272727272727273,
+        "recall": 0.7516778523489933,
+        "falsePositiveRate": 0.043523316062176166
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.8348996661502006,
+        "rocAuc": 0.9483534443787599,
+        "logLoss": 0.17057282797838869,
+        "brier": 0.04878646682879049,
+        "threshold": 0.5141431093215942,
+        "truePositive": 88,
+        "falsePositive": 13,
+        "trueNegative": 952,
+        "falseNegative": 61,
+        "precision": 0.8712871287128713,
+        "recall": 0.5906040268456376,
+        "falsePositiveRate": 0.013471502590673576
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.771723908496075,
+            "upper": 0.8862092001978958
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.9253613440120135,
+            "upper": 0.9691298157281113
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.138175057029897,
+            "upper": 0.2015504156097003
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.03962027809070026,
+            "upper": 0.05798860125786336
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.6717557251908397,
+            "upper": 0.8287671232876712
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.030366492146596858,
+            "upper": 0.05906735751295337
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.08909399932707518,
+            "upper": -0.009715042138030872
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.03055170542465102,
+            "upper": 0.0028592829465738934
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.015428111803721944,
+            "upper": 0.02632755528989833
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.005109574545896715,
+            "upper": 0.007499347866542293
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.11585365853658536,
+            "upper": 0.03424657534246578
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.0031250000000000028,
+            "upper": 0.02714440825190011
+          }
+        ]
+      },
+      "savedPredictionsSha256": "4c6bd7fca901a4f8142860c3e0a8ded9c8a50e94e3d1442768e504cb5a54d016"
+    },
+    {
+      "arm": "prior",
+      "targetRows": 500,
+      "actualTrainingRows": 500,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.13375224416517056,
+        "rocAuc": 0.5,
+        "logLoss": 0.3934580914099264,
+        "brier": 0.11586264272890345,
+        "threshold": 0.134,
+        "truePositive": 149,
+        "falsePositive": 965,
+        "trueNegative": 0,
+        "falseNegative": 0,
+        "precision": 0.13375224416517056,
+        "recall": 1,
+        "falsePositiveRate": 1
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.13375224416517056,
+        "rocAuc": 0.5,
+        "logLoss": 0.3934580914099264,
+        "brier": 0.11586264272890345,
+        "threshold": 1.0000000000000002,
+        "truePositive": 0,
+        "falsePositive": 0,
+        "trueNegative": 965,
+        "falseNegative": 149,
+        "precision": null,
+        "recall": 0,
+        "falsePositiveRate": 0
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.11120996441281139,
+            "upper": 0.15826702033598586
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.5,
+            "upper": 0.5
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.3513931805410862,
+            "upper": 0.4392037695721799
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.09936169395017677,
+            "upper": 0.1338074588859401
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 1,
+            "upper": 1
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 1,
+            "upper": 1
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.7899510941538689,
+            "upper": -0.7076053726829699
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.4792748399455563,
+            "upper": -0.44202710935120315
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.2076541517179143,
+            "upper": 0.2929886529141142
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.06084319897905773,
+            "upper": 0.0933352812177847
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.19767441860465118,
+            "upper": 0.35915492957746475
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.9790575916230366,
+            "upper": 0.992849846782431
+          }
+        ]
+      },
+      "savedPredictionsSha256": "ac893fd00ba24ef0181f8b1f080dd9e85e892fd8c3ffdad67f41094f8b2f5f6a"
+    },
+    {
+      "arm": "direct",
+      "targetRows": 500,
+      "actualTrainingRows": 500,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.48452027261289554,
+        "rocAuc": 0.8155718607643356,
+        "logLoss": 5.276337876545287,
+        "brier": 0.7850110705785838,
+        "threshold": 0.9999694953635498,
+        "truePositive": 81,
+        "falsePositive": 107,
+        "trueNegative": 858,
+        "falseNegative": 68,
+        "precision": 0.4308510638297872,
+        "recall": 0.5436241610738255,
+        "falsePositiveRate": 0.11088082901554404
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.48452027261289554,
+        "rocAuc": 0.8155718607643356,
+        "logLoss": 5.276337876545287,
+        "brier": 0.7850110705785838,
+        "threshold": 0.9999990564079009,
+        "truePositive": 20,
+        "falsePositive": 10,
+        "trueNegative": 955,
+        "falseNegative": 129,
+        "precision": 0.6666666666666666,
+        "recall": 0.1342281879194631,
+        "falsePositiveRate": 0.010362694300518135
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.3724127648751717,
+            "upper": 0.5864251928539368
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7669272105520274,
+            "upper": 0.8567947604719883
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 5.040273803897924,
+            "upper": 5.540691000939174
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7588489040609764,
+            "upper": 0.8096360732198248
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.4489795918367347,
+            "upper": 0.6328125
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.0898876404494382,
+            "upper": 0.13435897435897437
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.4961830076010659,
+            "upper": -0.299172311094437
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.19276735614479046,
+            "upper": -0.10363631061732714
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 4.8832160552073915,
+            "upper": 5.391676458740346
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7161106565980935,
+            "upper": 0.774857413599286
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.28409090909090917,
+            "upper": -0.0748299319727892
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.07510729613733906,
+            "upper": 0.12264150943396225
+          }
+        ]
+      },
+      "savedPredictionsSha256": "de973feb0b913d5e4b7a1e7a11b4d6abf11755c07bcae2c8db7d0c832ca6cec7"
+    },
+    {
+      "arm": "text",
+      "targetRows": 500,
+      "actualTrainingRows": 500,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.884999578871338,
+        "rocAuc": 0.9620544563062906,
+        "logLoss": 0.14355141553748005,
+        "brier": 0.03921491820941801,
+        "threshold": 0.5196351408958435,
+        "truePositive": 108,
+        "falsePositive": 13,
+        "trueNegative": 952,
+        "falseNegative": 41,
+        "precision": 0.8925619834710744,
+        "recall": 0.7248322147651006,
+        "falsePositiveRate": 0.013471502590673576
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.884999578871338,
+        "rocAuc": 0.9620544563062906,
+        "logLoss": 0.14355141553748005,
+        "brier": 0.03921491820941801,
+        "threshold": 0.5688080191612244,
+        "truePositive": 104,
+        "falsePositive": 12,
+        "trueNegative": 953,
+        "falseNegative": 45,
+        "precision": 0.896551724137931,
+        "recall": 0.697986577181208,
+        "falsePositiveRate": 0.012435233160621761
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.8337427195660038,
+            "upper": 0.9256005764860984
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.9418462104263079,
+            "upper": 0.9792716355567158
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.1190023983619501,
+            "upper": 0.17094119114630768
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.031543846914938535,
+            "upper": 0.047987483482731644
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.640625,
+            "upper": 0.8013245033112583
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.007121057985757884,
+            "upper": 0.02092050209205021
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          }
+        ]
+      },
+      "savedPredictionsSha256": "6ec87fdbb7669d6053210625a3e13ee85ede5ef5d49386f2612837918888e003"
+    },
+    {
+      "arm": "semantic",
+      "targetRows": 500,
+      "actualTrainingRows": 500,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.4871205031626659,
+        "rocAuc": 0.8326390096324373,
+        "logLoss": 0.303666661343592,
+        "brier": 0.08892988923325511,
+        "threshold": 0.353270947933197,
+        "truePositive": 70,
+        "falsePositive": 47,
+        "trueNegative": 918,
+        "falseNegative": 79,
+        "precision": 0.5982905982905983,
+        "recall": 0.4697986577181208,
+        "falsePositiveRate": 0.04870466321243523
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.4871205031626659,
+        "rocAuc": 0.8326390096324373,
+        "logLoss": 0.303666661343592,
+        "brier": 0.08892988923325511,
+        "threshold": 0.5969641208648682,
+        "truePositive": 18,
+        "falsePositive": 12,
+        "trueNegative": 953,
+        "falseNegative": 131,
+        "precision": 0.6,
+        "recall": 0.12080536912751678,
+        "falsePositiveRate": 0.012435233160621761
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.39048300584916495,
+            "upper": 0.5931969790813764
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7911276720372056,
+            "upper": 0.869246342737722
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.26417951036421916,
+            "upper": 0.3457729652343091
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.07658895966097133,
+            "upper": 0.10270038185775181
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.3695652173913043,
+            "upper": 0.5579710144927537
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.0343811394891945,
+            "upper": 0.06354166666666666
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.4798855649752849,
+            "upper": -0.3033696185225484
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.17030163639728246,
+            "upper": -0.09142313184198003
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.12304250261460695,
+            "upper": 0.19812786192483678
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.03771607289272094,
+            "upper": 0.06240113779576024
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.35555555555555557,
+            "upper": -0.14893617021276595
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.018614270941054806,
+            "upper": 0.05209397344228805
+          }
+        ]
+      },
+      "savedPredictionsSha256": "2bc6c6275e19c92a851769c2c82c20f8a6ef5b279615906cd13e8d79c489b6b1"
+    },
+    {
+      "arm": "combined",
+      "targetRows": 500,
+      "actualTrainingRows": 500,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.8649454460566934,
+        "rocAuc": 0.9585700872830963,
+        "logLoss": 0.1506363640414606,
+        "brier": 0.04306456100491671,
+        "threshold": 0.49189072847366333,
+        "truePositive": 104,
+        "falsePositive": 18,
+        "trueNegative": 947,
+        "falseNegative": 45,
+        "precision": 0.8524590163934426,
+        "recall": 0.697986577181208,
+        "falsePositiveRate": 0.01865284974093264
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.8649454460566934,
+        "rocAuc": 0.9585700872830963,
+        "logLoss": 0.1506363640414606,
+        "brier": 0.04306456100491671,
+        "threshold": 0.5462116599082947,
+        "truePositive": 99,
+        "falsePositive": 9,
+        "trueNegative": 956,
+        "falseNegative": 50,
+        "precision": 0.9166666666666666,
+        "recall": 0.6644295302013423,
+        "falsePositiveRate": 0.00932642487046632
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.8032797601846419,
+            "upper": 0.9117881978554616
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.9366971701365177,
+            "upper": 0.9761417859577369
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.12012657525967992,
+            "upper": 0.18018795777278926
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.034182903779826586,
+            "upper": 0.05189037036835669
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.6095890410958904,
+            "upper": 0.7756410256410257
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.01023541453428864,
+            "upper": 0.029166666666666667
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.048117186700479486,
+            "upper": 0.004506661616941021
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.017711223684545474,
+            "upper": 0.009306869600987255
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.008151615139687818,
+            "upper": 0.02344315322680343
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.0008662088128680301,
+            "upper": 0.008547805508680631
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.07344632768361581,
+            "upper": 0.021428571428571352
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.004119464469618949,
+            "upper": 0.014690451206715634
+          }
+        ]
+      },
+      "savedPredictionsSha256": "0b89ba2466389c506b6963b361ac8ef738c9afe121b91058f40735317a368753"
+    },
+    {
+      "arm": "prior",
+      "targetRows": 3344,
+      "actualTrainingRows": 3344,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.13375224416517056,
+        "rocAuc": 0.5,
+        "logLoss": 0.39345803366352866,
+        "brier": 0.11586262932784513,
+        "threshold": 0.1339712918660287,
+        "truePositive": 149,
+        "falsePositive": 965,
+        "trueNegative": 0,
+        "falseNegative": 0,
+        "precision": 0.13375224416517056,
+        "recall": 1,
+        "falsePositiveRate": 1
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.13375224416517056,
+        "rocAuc": 0.5,
+        "logLoss": 0.39345803366352866,
+        "brier": 0.11586262932784513,
+        "threshold": 1.0000000000000002,
+        "truePositive": 0,
+        "falsePositive": 0,
+        "trueNegative": 965,
+        "falseNegative": 149,
+        "precision": null,
+        "recall": 0,
+        "falsePositiveRate": 0
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.11120996441281139,
+            "upper": 0.15826702033598586
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.5,
+            "upper": 0.5
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.3513875455533699,
+            "upper": 0.4392097770873299
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.09936038625554382,
+            "upper": 0.13380885303184134
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 1,
+            "upper": 1
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 1,
+            "upper": 1
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.839429470357,
+            "upper": -0.7765104316653912
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.4903785890893062,
+            "upper": -0.460615180287103
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.2398208313392055,
+            "upper": 0.3197217461351537
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.07143907551981338,
+            "upper": 0.1026166290819959
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.1079136690647482,
+            "upper": 0.23448275862068968
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.9830328738069989,
+            "upper": 0.9957446808510638
+          }
+        ]
+      },
+      "savedPredictionsSha256": "4aba68fe667474900129dc09737bd333b8078d52aac8b5c9b01bbd7b89e3aaa8"
+    },
+    {
+      "arm": "direct",
+      "targetRows": 3344,
+      "actualTrainingRows": 3344,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.48452027261289554,
+        "rocAuc": 0.8155718607643356,
+        "logLoss": 5.276337876545287,
+        "brier": 0.7850110705785838,
+        "threshold": 0.9999694953635498,
+        "truePositive": 81,
+        "falsePositive": 107,
+        "trueNegative": 858,
+        "falseNegative": 68,
+        "precision": 0.4308510638297872,
+        "recall": 0.5436241610738255,
+        "falsePositiveRate": 0.11088082901554404
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.48452027261289554,
+        "rocAuc": 0.8155718607643356,
+        "logLoss": 5.276337876545287,
+        "brier": 0.7850110705785838,
+        "threshold": 0.9999990564079009,
+        "truePositive": 20,
+        "falsePositive": 10,
+        "trueNegative": 955,
+        "falseNegative": 129,
+        "precision": 0.6666666666666666,
+        "recall": 0.1342281879194631,
+        "falsePositiveRate": 0.010362694300518135
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.3724127648751717,
+            "upper": 0.5864251928539368
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7669272105520274,
+            "upper": 0.8567947604719883
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 5.040273803897924,
+            "upper": 5.540691000939174
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7588489040609764,
+            "upper": 0.8096360732198248
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.4489795918367347,
+            "upper": 0.6328125
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.0898876404494382,
+            "upper": 0.13435897435897437
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.5522430543809963,
+            "upper": -0.35590648589082696
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.20781220196735606,
+            "upper": -0.12029393087181339
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 4.918959847559388,
+            "upper": 5.420943599836897
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7260017041335138,
+            "upper": 0.7847231082611118
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.3835616438356164,
+            "upper": -0.18493150684931514
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.07777777777777778,
+            "upper": 0.12537917087967643
+          }
+        ]
+      },
+      "savedPredictionsSha256": "de973feb0b913d5e4b7a1e7a11b4d6abf11755c07bcae2c8db7d0c832ca6cec7"
+    },
+    {
+      "arm": "text",
+      "targetRows": 3344,
+      "actualTrainingRows": 3344,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.9413509610237517,
+        "rocAuc": 0.9775637236151198,
+        "logLoss": 0.1137206635361694,
+        "brier": 0.0289562262151361,
+        "threshold": 0.3177258372306824,
+        "truePositive": 124,
+        "falsePositive": 10,
+        "trueNegative": 955,
+        "falseNegative": 25,
+        "precision": 0.9253731343283582,
+        "recall": 0.8322147651006712,
+        "falsePositiveRate": 0.010362694300518135
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.9413509610237517,
+        "rocAuc": 0.9775637236151198,
+        "logLoss": 0.1137206635361694,
+        "brier": 0.0289562262151361,
+        "threshold": 0.3655540943145752,
+        "truePositive": 120,
+        "falsePositive": 4,
+        "trueNegative": 961,
+        "falseNegative": 29,
+        "precision": 0.967741935483871,
+        "recall": 0.8053691275167785,
+        "falsePositiveRate": 0.004145077720207254
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.9063865837597649,
+            "upper": 0.9678534619940578
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.960531502031411,
+            "upper": 0.990360394159578
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.09228390820055042,
+            "upper": 0.136221742465368
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.022122980676532036,
+            "upper": 0.03645554717770316
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7635135135135135,
+            "upper": 0.8920454545454546
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.00425531914893617,
+            "upper": 0.016931216931216932
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0
+          }
+        ]
+      },
+      "savedPredictionsSha256": "a0266656a5c803dec0192d61ea6284251f6c904586fb087be842c98ebb9dfad2"
+    },
+    {
+      "arm": "semantic",
+      "targetRows": 3344,
+      "actualTrainingRows": 3344,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.47052051947451967,
+        "rocAuc": 0.8295371561706715,
+        "logLoss": 0.3124712604964489,
+        "brier": 0.09378706848120394,
+        "threshold": 0.2307986468076706,
+        "truePositive": 60,
+        "falsePositive": 68,
+        "trueNegative": 897,
+        "falseNegative": 89,
+        "precision": 0.46875,
+        "recall": 0.40268456375838924,
+        "falsePositiveRate": 0.07046632124352331
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.47052051947451967,
+        "rocAuc": 0.8295371561706715,
+        "logLoss": 0.3124712604964489,
+        "brier": 0.09378706848120394,
+        "threshold": 0.5079220533370972,
+        "truePositive": 21,
+        "falsePositive": 8,
+        "trueNegative": 957,
+        "falseNegative": 128,
+        "precision": 0.7241379310344828,
+        "recall": 0.14093959731543623,
+        "falsePositiveRate": 0.008290155440414507
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.37686621477095195,
+            "upper": 0.5701934635379312
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.7879147650178858,
+            "upper": 0.8680024557682647
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.27050476785075306,
+            "upper": 0.35743934091281004
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.07939668283607786,
+            "upper": 0.10967922567100356
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.3037037037037037,
+            "upper": 0.4968944099378882
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.05295315682281059,
+            "upper": 0.09005235602094241
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.5551485684324469,
+            "upper": -0.377396357868361
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.18851643352666891,
+            "upper": -0.1093886431628519
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.16210966489522755,
+            "upper": 0.23907290729016406
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.05231304071383394,
+            "upper": 0.07856231995293572
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.5310344827586206,
+            "upper": -0.32653061224489793
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.041928721174004195,
+            "upper": 0.08038585209003216
+          }
+        ]
+      },
+      "savedPredictionsSha256": "cb5ffc6a340fe7e791463c59d4df24a51d9c7037b98aaa9cfebe2199046791bb"
+    },
+    {
+      "arm": "combined",
+      "targetRows": 3344,
+      "actualTrainingRows": 3344,
+      "holdout": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.9217580062565631,
+        "rocAuc": 0.9755329137253538,
+        "logLoss": 0.11751697299771577,
+        "brier": 0.03131839490177551,
+        "threshold": 0.547464907169342,
+        "truePositive": 108,
+        "falsePositive": 3,
+        "trueNegative": 962,
+        "falseNegative": 41,
+        "precision": 0.972972972972973,
+        "recall": 0.7248322147651006,
+        "falsePositiveRate": 0.0031088082901554403
+      },
+      "atValidationFprBudget": {
+        "rows": 1114,
+        "spam": 149,
+        "ham": 965,
+        "auprc": 0.9217580062565631,
+        "rocAuc": 0.9755329137253538,
+        "logLoss": 0.11751697299771577,
+        "brier": 0.03131839490177551,
+        "threshold": 0.5117021203041077,
+        "truePositive": 110,
+        "falsePositive": 4,
+        "trueNegative": 961,
+        "falseNegative": 39,
+        "precision": 0.9649122807017544,
+        "recall": 0.738255033557047,
+        "falsePositiveRate": 0.004145077720207254
+      },
+      "uncertainty": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.8780595472324568,
+            "upper": 0.9544807522866376
+          },
+          {
+            "metric": "rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.9590351615959575,
+            "upper": 0.9880407362421751
+          },
+          {
+            "metric": "logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.09453877514853616,
+            "upper": 0.14079833159341984
+          },
+          {
+            "metric": "brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.02379961847374987,
+            "upper": 0.0387524344451701
+          },
+          {
+            "metric": "recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0.6385542168674698,
+            "upper": 0.802547770700637
+          },
+          {
+            "metric": "falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": 0,
+            "upper": 0.008113590263691683
+          }
+        ]
+      },
+      "pairedDeltaFromText": {
+        "seed": 1729,
+        "resamples": 1000,
+        "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+        "intervals": [
+          {
+            "metric": "pairedDelta:auprc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.0415376997587108,
+            "upper": -0.002205083756861792
+          },
+          {
+            "metric": "pairedDelta:rocAuc",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.010997534006841114,
+            "upper": 0.007133018496654819
+          },
+          {
+            "metric": "pairedDelta:logLoss",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.0056793336401755184,
+            "upper": 0.014123801616089879
+          },
+          {
+            "metric": "pairedDelta:brier",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.0009800917371621497,
+            "upper": 0.006146996115320588
+          },
+          {
+            "metric": "pairedDelta:recall",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.17333333333333334,
+            "upper": -0.04724409448818889
+          },
+          {
+            "metric": "pairedDelta:falsePositiveRate",
+            "defined": 1000,
+            "undefined": 0,
+            "lower": -0.014644351464435146,
+            "upper": 0
+          }
+        ]
+      },
+      "savedPredictionsSha256": "c948e46bd77fd4d31a110deba3f9f52737b772c43cfd9829831b055fae204877"
+    }
+  ],
+  "predictionPerformance": {
+    "status": "MEASURED_NOT_GATE_REINTERPRETATION",
+    "rawSha256": "8cd3f97380d5e615d49ea4d3f4ad609ae3a3c0445b3094f773614a96c7d80e8e",
+    "heads": [
+      {
+        "arm": "text",
+        "targetRows": 100,
+        "originalMedianManagedBytes": 4609360,
+        "compactMedianManagedBytes": 2165352,
+        "managedReductionPercent": 53.022718989187226,
+        "originalMedianMilliseconds": 20.1557,
+        "compactMedianMilliseconds": 88.4731,
+        "ratioOfMediansTimeChangePercent": 338.9482875811805,
+        "medianPairedTimeChangePercent": 354.52756116658975,
+        "original70PercentTargetReached": false,
+        "noMoreThan10PercentMedianRegression": false,
+        "maximumObservedWorkingSetBytes": 105705472
+      },
+      {
+        "arm": "semantic",
+        "targetRows": 100,
+        "originalMedianManagedBytes": 1668160,
+        "compactMedianManagedBytes": 4992,
+        "managedReductionPercent": 99.70074812967582,
+        "originalMedianMilliseconds": 6.4364,
+        "compactMedianMilliseconds": 1.4214,
+        "ratioOfMediansTimeChangePercent": -77.91622646199738,
+        "medianPairedTimeChangePercent": -76.83695917868492,
+        "original70PercentTargetReached": true,
+        "noMoreThan10PercentMedianRegression": true,
+        "maximumObservedWorkingSetBytes": 103677952
+      },
+      {
+        "arm": "combined",
+        "targetRows": 100,
+        "originalMedianManagedBytes": 5081312,
+        "compactMedianManagedBytes": 2178144,
+        "managedReductionPercent": 57.13422045330026,
+        "originalMedianMilliseconds": 20.8785,
+        "compactMedianMilliseconds": 88.5792,
+        "ratioOfMediansTimeChangePercent": 324.26036353186294,
+        "medianPairedTimeChangePercent": 321.9765572935043,
+        "original70PercentTargetReached": false,
+        "noMoreThan10PercentMedianRegression": false,
+        "maximumObservedWorkingSetBytes": 112472064
+      },
+      {
+        "arm": "text",
+        "targetRows": 500,
+        "originalMedianManagedBytes": 4701552,
+        "compactMedianManagedBytes": 2182832,
+        "managedReductionPercent": 53.57209704369961,
+        "originalMedianMilliseconds": 22.9204,
+        "compactMedianMilliseconds": 97.7389,
+        "ratioOfMediansTimeChangePercent": 326.4275492574301,
+        "medianPairedTimeChangePercent": 317.80836975351525,
+        "original70PercentTargetReached": false,
+        "noMoreThan10PercentMedianRegression": false,
+        "maximumObservedWorkingSetBytes": 119214080
+      },
+      {
+        "arm": "semantic",
+        "targetRows": 500,
+        "originalMedianManagedBytes": 1551304,
+        "compactMedianManagedBytes": 4992,
+        "managedReductionPercent": 99.67820620587582,
+        "originalMedianMilliseconds": 9.9564,
+        "compactMedianMilliseconds": 1.4167,
+        "ratioOfMediansTimeChangePercent": -85.77096139166767,
+        "medianPairedTimeChangePercent": -85.82921537905267,
+        "original70PercentTargetReached": true,
+        "noMoreThan10PercentMedianRegression": true,
+        "maximumObservedWorkingSetBytes": 119246848
+      },
+      {
+        "arm": "combined",
+        "targetRows": 500,
+        "originalMedianManagedBytes": 5237776,
+        "compactMedianManagedBytes": 2198504,
+        "managedReductionPercent": 58.026001875605225,
+        "originalMedianMilliseconds": 19.1181,
+        "compactMedianMilliseconds": 96.7198,
+        "ratioOfMediansTimeChangePercent": 405.90696774261045,
+        "medianPairedTimeChangePercent": 409.3302357506799,
+        "original70PercentTargetReached": false,
+        "noMoreThan10PercentMedianRegression": false,
+        "maximumObservedWorkingSetBytes": 124018688
+      },
+      {
+        "arm": "text",
+        "targetRows": 3344,
+        "originalMedianManagedBytes": 4822216,
+        "compactMedianManagedBytes": 2185304,
+        "managedReductionPercent": 54.68257747060687,
+        "originalMedianMilliseconds": 20.9091,
+        "compactMedianMilliseconds": 113.5619,
+        "ratioOfMediansTimeChangePercent": 443.1218942948286,
+        "medianPairedTimeChangePercent": 430.37050853456157,
+        "original70PercentTargetReached": false,
+        "noMoreThan10PercentMedianRegression": false,
+        "maximumObservedWorkingSetBytes": 135421952
+      },
+      {
+        "arm": "semantic",
+        "targetRows": 3344,
+        "originalMedianManagedBytes": 1661720,
+        "compactMedianManagedBytes": 4992,
+        "managedReductionPercent": 99.69958837830681,
+        "originalMedianMilliseconds": 4.3587,
+        "compactMedianMilliseconds": 0.7523,
+        "ratioOfMediansTimeChangePercent": -82.74026659325028,
+        "medianPairedTimeChangePercent": -82.94413711798313,
+        "original70PercentTargetReached": true,
+        "noMoreThan10PercentMedianRegression": true,
+        "maximumObservedWorkingSetBytes": 135782400
+      },
+      {
+        "arm": "combined",
+        "targetRows": 3344,
+        "originalMedianManagedBytes": 5396680,
+        "compactMedianManagedBytes": 2204944,
+        "managedReductionPercent": 59.14258395902666,
+        "originalMedianMilliseconds": 18.4774,
+        "compactMedianMilliseconds": 120.8747,
+        "ratioOfMediansTimeChangePercent": 554.1759121954387,
+        "medianPairedTimeChangePercent": 538.698297516048,
+        "original70PercentTargetReached": false,
+        "noMoreThan10PercentMedianRegression": false,
+        "maximumObservedWorkingSetBytes": 150790144
+      }
+    ],
+    "measuredSourceCommit": "94e3c2e92d68fdb76f0f89f3324f94ead7c5e2b5",
+    "sourceAssemblySha256": "aa4dd17e0aae6dc32ba8f9f6f569169fb34cfb143c8bce94189512b2deefb61e",
+    "executableReceiptSha256": "2c8bbde1165eff4bb4c343e5223c0b08a587738c12780f07342654c14b82c303",
+    "modelSetAndTrainingFreezeAndEvaluationUnchanged": true,
+    "fullRowsPerHead": 5574,
+    "headsMeasured": 9,
+    "pairsPerHead": 5,
+    "exactAssociationAndStandardReplayPass": true,
+    "profile": {
+      "requestedCursors": 1,
+      "partitionedSourceControl": false,
+      "publicOutputCursorSet": true,
+      "customScorer": false,
+      "predictionCache": false,
+      "trainingPolicyChanged": false
+    },
+    "scope": "Frozen original Predict versus reusable compact columns through the same nine genuinely new saved Julia heads; full5574 rows, five balanced AB/BA pairs per head, warmups excluded. Full import/IO/public-reader validation, model load, bridge construction and replay checks excluded from matched hot prediction scope. Managed GC bytes are not native or process memory; CPU/WS remain separately reported. 70% reduction is a reported benchmark, never a retroactive PASS for v5/v6; no new fitting/extraction or holdout tuning.",
+    "original70PercentFailuresPreserved": true,
+    "benchmarkOnly": true
+  },
+  "preservedHistoricalReceipts": [
+    "consumer.optimization.v5.json",
+    "consumer.optimization.v6.json",
+    "consumer.learner.v1.json",
+    "consumer.learner.v2.json",
+    "consumer.julia-controls.v1.json"
+  ],
+  "limitations": "Public-corpus pretraining contamination possible; one grouped nonchronological split; fixed-model bootstrap; multiple comparisons. Direct scores are not necessarily calibrated. Laya-vs-Julia is a different-model study, not an optimization accuracy claim. Host Arrow Double probabilities, CPU-only ML.NET, no device zero-copy.",
+  "privacy": "Aggregate metrics/hashes only; no raw SMS, row IDs, individual labels/predictions, weights or private paths."
+}

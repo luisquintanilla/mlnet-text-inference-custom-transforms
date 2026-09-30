@@ -106,11 +106,55 @@ First-process consumer authorization/IO/full scan/metadata/cache import is
 This is not filesystem-cold or isolated projection timing; managed bytes are
 not native memory or the numeric-cache budget.
 
-Source-only post-evaluation benchmark support is separate from these completed
-study results. Per-head matched Julia allocation gains are not claimed until
-an explicitly authorized saved-head benchmark receipt exists. Historical
-v5/v6 Laya gains below remain named Laya evidence, not Julia estimates.
-Likewise, the model receipts' five-pass warm validation rates (text
+**The separately authorized post-evaluation Julia benchmark is completed.**
+All nine frozen models (three heads at each target) use the production/default
+single-cursor profile on all 5,574 rows, five balanced AB/BA pairs per model,
+with independent warmups excluded. The frozen original consumer's unchanged
+`Predict` and reusable compact columns score the same saved model. Complete
+source/group/label associations and standard reload replay pass with maximum
+probability delta **0**. No models, tuning, thresholds, holdout or bootstrap
+results changed. Benchmark-only enumeration/receipt changes use separate source
+`94e3c2e92d68fdb76f0f89f3324f94ead7c5e2b5` and a new 45-file closure, not a
+substituted study executable.
+
+| Target | Head | Original/compact managed bytes (medians) | Reduction | Original/compact ms (medians) | Time change |
+|---|---|---|---|---|---|
+| 100 | text | 4,609,360 / 2,165,352 | 53.02% | 20.1557 / 88.4731 | +338.95% |
+| 100 | semantic | 1,668,160 / 4,992 | 99.70% | 6.4364 / 1.4214 | -77.92% |
+| 100 | combined | 5,081,312 / 2,178,144 | 57.13% | 20.8785 / 88.5792 | +324.26% |
+| 500 | text | 4,701,552 / 2,182,832 | 53.57% | 22.9204 / 97.7389 | +326.43% |
+| 500 | semantic | 1,551,304 / 4,992 | 99.68% | 9.9564 / 1.4167 | -85.77% |
+| 500 | combined | 5,237,776 / 2,198,504 | 58.03% | 19.1181 / 96.7198 | +405.91% |
+| 3344 | text | 4,822,216 / 2,185,304 | 54.68% | 20.9091 / 113.5619 | +443.12% |
+| 3344 | semantic | 1,661,720 / 4,992 | 99.70% | 4.3587 / 0.7523 | -82.74% |
+| 3344 | combined | 5,396,680 / 2,204,944 | 59.14% | 18.4774 / 120.8747 | +554.18% |
+
+Time changes above are ratios of medians; the safe JSON also preserves median
+paired changes. Text/combined **do not reach 70% and exceed the original 10%
+time-regression target**. Default single-cursor text processing is a substantial
+negative tradeoff, not an end-to-end optimization win. Semantic reaches the
+allocation benchmark and is faster. These findings do not trigger another
+profile choice, scoring run or tuning round; the owner authorized this measured
+profile and reporting of its outcomes, not reinterpretation of failed targets.
+Managed allocation is process-wide and includes all text work; import, model
+load, bridge construction and replay checks are outside the matched hot scope.
+The maximum observed process working set is 150,790,144 bytes, distinct from
+the 267,552-byte numeric cache and managed-allocation counts.
+
+[`consumer.julia-study.v1.json`](consumer.julia-study.v1.json) contains all 15
+aggregate metrics/intervals, model hashes/sizes/settings, the nine-head
+performance results and artifact provenance. Its SHA-256 is
+`575f590be364a4e91fd5a895e74f43f16547a664cc9d26b464928cd5c3007ad9`.
+Raw benchmark SHA is
+`8cd3f97380d5e615d49ea4d3f4ad609ae3a3c0445b3094f773614a96c7d80e8e`;
+benchmark executable receipt SHA is
+`2c8bbde1165eff4bb4c343e5223c0b08a587738c12780f07342654c14b82c303`.
+The immutable 98-file consumer study roll-up has SHA
+`944731884e941600c22c56232154ab3d0670c9fd38db22e157657dc08c3448d3`.
+The first duplicate-option invocation was rejected before import/model work
+and remains retained as failure evidence. Historical v5/v6 Laya gains below
+remain named Laya evidence, not Julia estimates.
+The model receipts' five-pass warm validation rates (text
 0.0201735 ms/row, semantic 0.00009509, combined 0.0174132 for target 3,344)
 are descriptive single-cursor rates, not balanced paired speedups.
 
@@ -178,7 +222,7 @@ dotnet $Cli train @Julia --storage compact --out "<new Julia models>"
 # Pin the completed training.freeze.json before opening the holdout:
 dotnet $Cli evaluate @Julia --storage compact --training-freeze "<completed freeze>" `
   --training-freeze-sha256 "<independent freeze hash>" --out "<new Julia evaluation>"
-# After evaluation, measure identical saved heads with the frozen original oracle.
+# After evaluation, measure all nine identical saved heads with the frozen original oracle.
 # Default production single-cursor profile is explicit; other already-qualified
 # prediction-only cursor variants require their own separately labelled receipt.
 dotnet $Cli control-julia-prediction @Julia --reference "<frozen original consumer>" `
@@ -194,7 +238,7 @@ measurement, then invoke its unchanged `Predict` through the same saved heads.
 All 5,574 output IDs/groups/labels/probabilities and standard reload replay must
 match before measurement. Five AB/BA pairs per text/semantic/combined full-data
 head exclude warmups, IO, import, model load, bridge construction and replay
-checks. They report managed bytes, wall/CPU time and process working set without
+checks. All three training targets are included. They report managed bytes, wall/CPU time and process working set without
 calling these native memory or whole-process allocation. The READY receipt
 separately reports first-process full import/validation/cache setup; it is not
 a filesystem-cold or isolated-projection claim. A completed pinned evaluation
