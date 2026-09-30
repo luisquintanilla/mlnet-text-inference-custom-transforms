@@ -137,28 +137,10 @@ public static class ArrowFeatureReader
         string expectedFingerprint, string preparationPath, string splitPath, string statesPath, string questionsPath,
         long numericCapBytes = ProbabilityStore.DefaultNumericCapBytes, CancellationToken token = default)
     {
-        var preparation = ArtifactFiles.Read<PreparationReceipt>(preparationPath);
-        if (preparation.Version != 1 || preparation.Status != "complete")
-            throw new InvalidDataException("Preparation is not complete.");
-        ArtifactFiles.RequireHash(splitPath, preparation.SplitSha256);
-        ArtifactFiles.RequireHash(statesPath, preparation.StatesSha256);
-        ArtifactFiles.RequireHash(questionsPath, preparation.QuestionsSha256);
-        var split = ArtifactFiles.Read<SplitManifest>(splitPath);
-        if (split.CorpusSha256 != preparation.CorpusSha256 || split.QuestionsSha256 != preparation.QuestionsSha256 ||
-            split.GroupDiagnosticsSha256 != preparation.GroupsSha256)
-            throw new InvalidDataException("Split provenance differs from frozen preparation.");
-        var states = ReadStates(statesPath);
-        var labels = split.Rows.ToDictionary(r => r.RowId);
-        if (states.Count != preparation.ParsedRows || labels.Count != states.Count ||
-            !states.Keys.Order().SequenceEqual(labels.Keys.Order()) ||
-            labels.Values.Count(r => r.Label) != preparation.Spam ||
-            labels.Values.Count(r => !r.Label) != preparation.Ham)
-            throw new InvalidDataException("Preparation source ID/class counts differ from states/splits.");
-        split.Validate(states.Select(p => new CorpusRow(p.Key, labels[p.Key].Label, p.Value)).ToArray());
-        var metadata = new StudyMetadata(states.OrderBy(p => p.Key).Select(p =>
-            new StudyRowMetadata(p.Key, labels[p.Key].GroupId, labels[p.Key].Label, p.Value, labels[p.Key].Split)));
+        var (metadata, preparation) = ReadFrozenMetadata(preparationPath, splitPath, statesPath, questionsPath);
         var contract = ExpectedContract(contractPath, expectedFingerprint, questionsPath);
-        using var reader = await DecisionArrowDatasetReader.OpenAsync(manifestPath, contract, states.Keys, token);
+        using var reader = await DecisionArrowDatasetReader.OpenAsync(manifestPath, contract,
+            Enumerable.Range(0, metadata.Count).Select(i => metadata[i].RowId), token);
         if (reader.Manifest.Provenance.InputSha256 != preparation.StatesSha256 ||
             reader.Manifest.Provenance.QuestionsSha256 != preparation.QuestionsSha256)
             throw new InvalidDataException("Completed dataset source/questions differ from frozen preparation.");
@@ -210,6 +192,32 @@ public static class ArrowFeatureReader
         }
     }
 
+    internal static (StudyMetadata Metadata, PreparationReceipt Preparation) ReadFrozenMetadata(
+        string preparationPath, string splitPath, string statesPath, string questionsPath)
+    {
+        var preparation = ArtifactFiles.Read<PreparationReceipt>(preparationPath);
+        if (preparation.Version != 1 || preparation.Status != "complete")
+            throw new InvalidDataException("Preparation is not complete.");
+        ArtifactFiles.RequireHash(splitPath, preparation.SplitSha256);
+        ArtifactFiles.RequireHash(statesPath, preparation.StatesSha256);
+        ArtifactFiles.RequireHash(questionsPath, preparation.QuestionsSha256);
+        var split = ArtifactFiles.Read<SplitManifest>(splitPath);
+        if (split.CorpusSha256 != preparation.CorpusSha256 || split.QuestionsSha256 != preparation.QuestionsSha256 ||
+            split.GroupDiagnosticsSha256 != preparation.GroupsSha256)
+            throw new InvalidDataException("Split provenance differs from frozen preparation.");
+        var states = ReadStates(statesPath);
+        var labels = split.Rows.ToDictionary(r => r.RowId);
+        if (states.Count != preparation.ParsedRows || labels.Count != states.Count ||
+            !states.Keys.Order().SequenceEqual(labels.Keys.Order()) ||
+            labels.Values.Count(r => r.Label) != preparation.Spam ||
+            labels.Values.Count(r => !r.Label) != preparation.Ham)
+            throw new InvalidDataException("Preparation source ID/class counts differ from states/splits.");
+        split.Validate(states.Select(p => new CorpusRow(p.Key, labels[p.Key].Label, p.Value)).ToArray());
+        var metadata = new StudyMetadata(states.OrderBy(p => p.Key).Select(p =>
+            new StudyRowMetadata(p.Key, labels[p.Key].GroupId, labels[p.Key].Label, p.Value, labels[p.Key].Split)));
+        return (metadata, preparation);
+    }
+
     public static async Task<int> SmokeAsync(string manifestPath, string contractPath, string expectedFingerprint,
         string questionsPath, CancellationToken token = default)
     {
@@ -228,7 +236,7 @@ public static class ArrowFeatureReader
         return rows;
     }
 
-    private static Dictionary<long, string> ReadStates(string path)
+    internal static Dictionary<long, string> ReadStates(string path)
     {
         var result = new Dictionary<long, string>();
         using var input = new StreamReader(path, ArtifactFiles.Utf8, false);

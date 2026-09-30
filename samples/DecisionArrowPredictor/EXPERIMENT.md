@@ -167,6 +167,36 @@ not consumer-owned CUDA arithmetic or permission to reinterpret a GPU contract.
 No real Julia head is trained or old Laya head relabelled while joined acceptance
 and the completed selected artifact remain unavailable.
 
+**Bounded stored Julia CPU128 import is separately qualified.**
+[`consumer.julia-controls.v1.json`](consumer.julia-controls.v1.json) pins the
+producer's existing completed control manifest/contract/data, CPU qualification,
+and the independently frozen label-free control selection. The shared frozen
+source validator checks the original 5,574 states/splits, then joins all 128
+selected IDs in their exact nonmonotonic order to original text, groups, human
+labels and partitions: 92 training / 36 validation / no holdout rows.
+The package public reader validates schema/IDs/hash/full EOS; legacy `Project`
+and compact projection agree on every ten-Single coordinate and separate-Double
+direct score. The 6,144-byte numeric cache is published only after full validation,
+with no Arrow/native leases. Authored source/profile/cap/cancellation/partial-file
+rejection controls and existing focused regressions pass **194/194**.
+
+This uses already stored probabilities, with no model load, prediction, fit,
+extractor inference or performance run. The producer's bounded export cost is
+not a full extraction cost, and an absent model-load duration is not invented.
+`control-julia-import` cannot select a full corpus or holdout; the regular real
+Julia study import remains disabled. Its CPU mode is exactly `scalar-cpu` with
+the producer's canonical CPU identity, not an alias/glob or reinterpretation
+of the rejected CUDA profile.
+
+```powershell
+dotnet $Cli control-julia-import --dataset "<pinned completed CPU128 directory>" `
+  --selection "<frozen control selection receipt>" --control-states "<control128.jsonl>" `
+  --qualification "<pinned CPU qualification receipt>" `
+  --preparation "<frozen preparation>" --split "<frozen split>" `
+  --states "<frozen full states>" --questions "<frozen questions>" `
+  --out "<new bounded import receipt.json>"
+```
+
 **Current-package v5 results remain blocked.** The explicit control variant
 requests one cursor for semantic and sixteen for text/combined. All twelve
 projection cases pass: 87.81-89.89% managed reduction and 12.28-72.91% lower

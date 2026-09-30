@@ -53,6 +53,12 @@ try
               control-fit <same import options> --out <new bounded fit-control directory>
                           [--arm text|semantic|combined --l2 0.0001|0.001|0.01]
               Fit control requires a separate quiet fitting lease; uses <=128 whole-group train/validation rows, no holdout.
+              control-julia-import --dataset <pinned CPU128 completed control directory>
+                                   --selection <frozen control selection receipt> --control-states <control128.jsonl>
+                                   --qualification <pinned CPU qualification receipt> --preparation <frozen preparation>
+                                   --split <frozen split> --states <frozen full states> --questions <frozen questions>
+                                   --out <new control-only import receipt>
+              Julia import control reads stored probabilities only; no model or performance measurement.
               Other control commands require a quiet CPU slot; they never fit/extract a new model.
             The first prepare downloads only the explicitly approved public UCI corpus.
             Review grouping and bundled license/count evidence before the final freeze command.
@@ -60,7 +66,7 @@ try
         return 0;
     }
     if (args[0] is not ("prepare" or "import" or "train" or "evaluate" or "smoke" or "control-projection"
-        or "control-same-model" or "control-allocation" or "control-interop" or "control-fit"))
+        or "control-same-model" or "control-allocation" or "control-interop" or "control-fit" or "control-julia-import"))
         throw new ArgumentException($"Unsupported command: {args[0]}.");
     var options = new Dictionary<string, string>(StringComparer.Ordinal);
     for (int i = 1; i < args.Length; i++)
@@ -88,6 +94,8 @@ try
         "control-interop" => ["--fixture-root", "--producer-receipt", "--questions", "--out"],
         "control-fit" => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states",
             "--questions", "--out", "--arm", "--l2"],
+        "control-julia-import" => ["--dataset", "--selection", "--control-states", "--qualification", "--preparation",
+            "--split", "--states", "--questions", "--out"],
         "evaluate" => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states", "--questions",
             "--out", "--training-freeze", "--training-freeze-sha256", "--storage", "--numeric-cap-bytes"],
         _ => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states", "--questions",
@@ -95,6 +103,14 @@ try
     };
     if (options.Keys.Any(k => !allowed.Contains(k, StringComparer.Ordinal)))
         throw new ArgumentException($"Unknown {args[0]} option.");
+    if (args[0] == "control-julia-import")
+    {
+        await JuliaBoundedControlImport.VerifyPinned128Async(Required("--dataset"), Required("--selection"),
+            Required("--control-states"), Required("--qualification"), Required("--preparation"), Required("--split"),
+            Required("--states"), Required("--questions"), Required("--out"));
+        Console.WriteLine("Pinned bounded Julia CPU128 import/source association/projection fullEOS PASS; no model, timing or full-study GO.");
+        return 0;
+    }
     if (args[0] == "control-fit")
     {
         await ConsumerFitControls.VerifyAsync(
