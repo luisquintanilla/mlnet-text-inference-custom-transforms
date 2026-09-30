@@ -292,8 +292,9 @@ public static class ConsumerControls
         string trainingFreezePath, string trainingFreezeSha256, string evaluationPath, string evaluationSha256,
         string output, int predictionCursors = 1, bool partitionedSourceControl = false)
     {
-        if (File.Exists(output) || PredictorTraining.LearnedArms.Any(name =>
-            File.Exists(output + $".{name}.same-model.json") || File.Exists(output + $".{name}.measurements.json")))
+        if (File.Exists(output) || new[] { 100, 500, 3344 }.Any(target =>
+            PredictorTraining.LearnedArms.Any(name => File.Exists(output + $".{name}-{target}.same-model.json") ||
+                File.Exists(output + $".{name}-{target}.measurements.json"))))
             throw new IOException("Julia benchmark receipts, including partial evidence, are immutable.");
         JuliaStudyImport.RequireLegacyParity(original, compact);
         if (compact.FeatureFingerprint != JuliaFixtureInterop.HighPrecisionFingerprint ||
@@ -323,15 +324,16 @@ public static class ConsumerControls
         var measurements = new List<ConsumerMeasurement>();
         var models = new List<object>();
         string directory = Path.GetDirectoryName(Path.GetFullPath(trainingFreezePath))!;
-        foreach (string name in PredictorTraining.LearnedArms)
+        foreach (var arm in freeze.Arms.Where(arm => PredictorTraining.LearnedArms.Contains(arm.Arm, StringComparer.Ordinal)))
         {
-            var arm = freeze.Arms.Single(arm => arm.Arm == name && arm.TargetRows == 3344);
+            string name = arm.Arm;
+            string key = $"{name}-{arm.TargetRows}";
             string filename = arm.ModelReceiptFile ?? throw new InvalidDataException("Missing frozen Julia model receipt.");
             if (Path.GetFileName(filename) != filename) throw new InvalidDataException("Model receipt must be a sibling file.");
             string receiptPath = Path.Combine(directory, filename);
             ArtifactFiles.RequireHash(receiptPath, arm.ModelReceiptSha256 ?? "");
             var receipt = ArtifactFiles.Read<ModelReceipt>(receiptPath);
-            if (receipt.Arm != name || receipt.TargetRows != 3344 || receipt.ActualRows != 3344 ||
+            if (receipt.Arm != name || receipt.TargetRows != arm.TargetRows || receipt.ActualRows != arm.ActualRows ||
                 receipt.DatasetManifestSha256 != compact.DatasetManifestSha256 ||
                 receipt.SplitSha256 != compact.SplitSha256 || receipt.QuestionsSha256 != compact.QuestionsSha256 ||
                 receipt.Threshold != arm.Threshold || receipt.BudgetThreshold != arm.BudgetThreshold ||
@@ -346,9 +348,9 @@ public static class ConsumerControls
             bool finite = expected.All(row => double.IsFinite(row.Probability) && row.Probability is >= 0 and <= 1);
             double? difference = complete && finite ? Enumerable.Range(0, expected.Length)
                 .Select(i => Math.Abs(expected[i].Probability - actual[i].Probability)).DefaultIfEmpty(0).Max() : null;
-            ArtifactFiles.Write(output + $".{name}.same-model.json", new
+            ArtifactFiles.Write(output + $".{key}.same-model.json", new
             {
-                schemaVersion = 1, status = "SAME_MODEL_COMPARISON_RECORDED", arm = name, receipt.ModelSha256,
+                schemaVersion = 1, status = "SAME_MODEL_COMPARISON_RECORDED", arm = name, arm.TargetRows, receipt.ModelSha256,
                 expectedRows = expected.Length, actualRows = actual.Count, finiteOriginalProbabilities = finite,
                 completeAssociation = complete && Enumerable.Range(0, expected.Length).All(i =>
                     expected[i].RowId == actual[i].RowId && expected[i].GroupId == actual[i].GroupId &&
@@ -369,7 +371,7 @@ public static class ConsumerControls
                 for (int run = 0; run < 2; run++)
                 {
                     bool legacy = ab == (run == 0);
-                    measurements.Add(Measure($"julia-{name}-prediction-materialization", legacy ? "original" : "compact",
+                    measurements.Add(Measure($"julia-{key}-prediction-materialization", legacy ? "original" : "compact",
                         selection.Count, 0, pair, order, () =>
                         {
                             if (legacy) GC.KeepAlive(oracle.Predict(model, rows));
@@ -377,14 +379,14 @@ public static class ConsumerControls
                         }, compact.NumericCapacityBytes));
                 }
             }
-            ArtifactFiles.Write(output + $".{name}.measurements.json", new
+            ArtifactFiles.Write(output + $".{key}.measurements.json", new
             {
-                schemaVersion = 1, arm = name, receipt.ModelSha256, rows = selection.Count,
+                schemaVersion = 1, arm = name, arm.TargetRows, receipt.ModelSha256, rows = selection.Count,
                 predictionCursors, partitionedSourceControl,
-                measurements = measurements.Where(measurement => measurement.Scope == $"julia-{name}-prediction-materialization")
+                measurements = measurements.Where(measurement => measurement.Scope == $"julia-{key}-prediction-materialization")
             });
             buffer.RequireReplay(expected);
-            models.Add(new { arm = name, receipt.ModelSha256, receipt.ModelBytes, receipt.L2,
+            models.Add(new { arm = name, arm.TargetRows, receipt.ModelSha256, receipt.ModelBytes, receipt.L2,
                 completeAssociationAndSaveLoadReplay = true, predictionTolerance = 1e-6 });
         }
         ArtifactFiles.Write(output, new
@@ -396,7 +398,7 @@ public static class ConsumerControls
             rows = selection.Count, models, measurements,
             predictionExecutionProfile = new { requestedCursors = predictionCursors, partitionedSourceControl,
                 publicOutputCursorSet = true, customScorer = false, predictionCache = false, trainingPolicyChanged = false },
-            scope = "Frozen original Predict versus reusable compact columns through the same three genuinely new saved Julia heads; " +
+            scope = "Frozen original Predict versus reusable compact columns through the same nine genuinely new saved Julia heads; " +
                 "full5574 rows, five balanced AB/BA pairs per head, warmups excluded. Full import/IO/public-reader validation, " +
                 "model load, bridge construction and replay checks excluded from matched hot prediction scope. " +
                 "Managed GC bytes are not native or process memory; CPU/WS remain separately reported. " +
