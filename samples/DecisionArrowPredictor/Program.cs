@@ -43,6 +43,7 @@ try
                                  [--rows 257|4097|65537|1048577] [--batch-size 1|256|4096]
               control-same-model <same import options> --reference <frozen consumer directory>
                                  --model <existing .mlnet> --model-receipt <receipt> --out <new receipt.json>
+                                 [--prediction-cursors <positive bounded count; default 1>]
               control-allocation <same import options> --model <existing .mlnet>
                                  --model-receipt <receipt> --out <new diagnostic.json>
               control-interop --fixture-root <pinned fictional Julia fixture root>
@@ -77,7 +78,7 @@ try
         "smoke" => ["--precision"],
         "control-projection" => ["--reference", "--out", "--rows", "--batch-size"],
         "control-same-model" => ["--reference", "--out", "--model", "--model-receipt", "--manifest", "--contract",
-            "--feature-fingerprint", "--preparation", "--split", "--states", "--questions"],
+            "--feature-fingerprint", "--preparation", "--split", "--states", "--questions", "--prediction-cursors"],
         "control-allocation" => ["--out", "--model", "--model-receipt", "--manifest", "--contract",
             "--feature-fingerprint", "--preparation", "--split", "--states", "--questions"],
         "control-interop" => ["--fixture-root", "--producer-receipt", "--questions", "--out"],
@@ -108,7 +109,9 @@ try
         await ConsumerControls.SameModelAsync(Required("--reference"),
             [Required("--manifest"), Required("--contract"), Required("--feature-fingerprint"), Required("--preparation"),
                 Required("--split"), Required("--states"), Required("--questions")],
-            Required("--model"), Required("--model-receipt"), Required("--out"));
+            Required("--model"), Required("--model-receipt"), Required("--out"),
+            options.TryGetValue("--prediction-cursors", out var predictionCursors) ?
+                int.Parse(predictionCursors, System.Globalization.CultureInfo.InvariantCulture) : 1);
         Console.WriteLine("Same saved-model full-row association and replay PASS; inspect raw paired allocation/time receipt.");
         return 0;
     }

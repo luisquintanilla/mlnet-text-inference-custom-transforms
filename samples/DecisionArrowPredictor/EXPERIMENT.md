@@ -19,8 +19,9 @@ Runtime, GPU package, or cloud inference belongs in this process.
 The historical Laya results below remain unchanged. The dependent Julia-first
 follow-up is **not complete** and does not reuse Laya-trained heads under a
 Julia identity. Its latest public-safe checkpoint is
-[`consumer.optimization.v4.json`](consumer.optimization.v4.json); the earlier
-[`v3 failure checkpoint`](consumer.optimization.v3.json) remains unchanged.
+[`consumer.optimization.v5.json`](consumer.optimization.v5.json); the earlier
+[`v4`](consumer.optimization.v4.json) and
+[`v3 failure checkpoints`](consumer.optimization.v3.json) remain unchanged.
 
 `import`, `train` and `evaluate` accept `--storage compact` and an optional
 `--numeric-cap-bytes` (default 67,108,864). Legacy storage remains the default;
@@ -59,6 +60,8 @@ dotnet $Cli control-same-model <same named import options> `
   --reference "<immutable original consumer directory>" `
   --model "<existing matching .mlnet>" --model-receipt "<matching receipt>" `
   --out "<new raw receipt.json>"
+# Explicit bounded control variant only; not the normal training/evaluation default:
+# add --prediction-cursors 16 after a coordinated quiet-slot approval.
 
 dotnet $Cli control-allocation <same named import options> `
   --model "<existing matching .mlnet>" --model-receipt "<matching receipt>" `
@@ -96,11 +99,18 @@ and combined tradeoff fails both unchanged gates; it is not an accepted default
 performance claim. Managed allocation measurements remain process-wide.
 The control does not cache predictions, substitute a custom scorer, change
 training shuffle/seed, or exclude text work from the matched prediction scope.
+An explicitly approved **default-off control variant** can request 1..16 public
+output cursors. Parallel consumers require a disjoint ID union and scatter into
+reusable selection-rank buffers; every fill checks count, uniqueness, finite
+probabilities and source/group/label associations before exposing results.
+It changes neither source-view cursor policy nor learner shuffle/seed, caches
+no scores, and uses no custom scorer. Its focused positive/rejection controls
+pass. It has not replaced the normal single-output-cursor workflow.
 The v4 timing receipt measures the pre-handoff adapter binary. New-package
 reader/projection and public `WriteBatchesAsync` interoperability pass all three
 producer-owned fictional Julia fixtures; the writer owns each yielded batch.
 [`consumer.interop.v1.json`](consumer.interop.v1.json) records safe package,
-closure and fixture aggregates. Current-package timing remains a separate gate.
+closure and fixture aggregates.
 These are not real Julia rows
 or a completed predictor study. `DataViewTrace` is diagnostic-only/default-off:
 it records active-column requests, selection-local IDs/order and feature-bit
@@ -116,6 +126,19 @@ The producer's explicit CPU fallback remains a runtime qualification decision,
 not consumer-owned CUDA arithmetic or permission to reinterpret a GPU contract.
 No real Julia head is trained or old Laya head relabelled while joined acceptance
 and the completed selected artifact remain unavailable.
+
+**Current-package v5 results remain blocked.** The explicit control variant
+requests one cursor for semantic and sixteen for text/combined. All twelve
+projection cases pass: 87.81-89.89% managed reduction and 12.28-72.91% lower
+median time. Complete same-model source/feature/association/reload parity passes
+all 5,574 rows for each head. Semantic materialization passes (99.69% reduction,
+60.70% faster). Text and combined now pass the time gate (2.33% and 17.97%
+faster), but managed reductions are only **22.89% and 21.73%: both FAIL 70%**.
+Parallel splitter/text-processing allocation is included, not hidden by a new
+scope or thread-local counter. Focused controls pass **162/162**, including
+invalid duplicate/missing/extra/group/label/nonfinite unions with no partial
+result publication. These timing improvements are not an allocation acceptance
+pass or authorization to run the full Julia study.
 
 Both initial hash-failing test runs and failed harness attempts are preserved.
 The frozen questions were originally CRLF bytes, SHA-256 `9e6e6c5c...0068ea`;

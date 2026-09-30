@@ -262,4 +262,68 @@ public sealed class CompactDataViewTests
         Assert.AreEqual(0L, entry.LabelGetterCalls);
         CollectionAssert.AreEqual(new[] { "RowId" }, entry.ActiveColumns);
     }
+
+    [TestMethod]
+    [DataRow(1)]
+    [DataRow(4)]
+    [DataRow(16)]
+    public void PredictionBuffer_PublicOutputCursorSetRestoresSelectionRankAndReusesColumns(int cursors)
+    {
+        var legacy = StudyFixture.Authored();
+        using var data = StudyData.FromLegacy(legacy with { Rows = legacy.Rows.Reverse().ToArray() });
+        var selected = data.All();
+        var view = selected.View();
+        var context = new MLContext(1);
+        var model = context.Transforms.Conversion.ConvertType("Probability", "SpamBaseline", DataKind.Single).Fit(view);
+        var buffer = new PredictionBuffer(selected.Count);
+        var oracle = selected.SourceIds().Select(id => legacy.Rows.Single(r => r.RowId == id))
+            .Select(r => new Prediction(r.RowId, r.GroupId, r.Label, (float)r.SpamBaseline)).ToArray();
+        for (int pass = 0; pass < 3; pass++)
+        {
+            buffer.Fill(model, view, selected, requestedCursors: cursors);
+            buffer.RequireReplay(oracle);
+            Assert.AreEqual(selected.Count, buffer.Count);
+            Assert.AreEqual(0, data.ActiveCursors);
+        }
+        Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
+            buffer.Fill(model, view, selected, requestedCursors: 17));
+        Assert.AreEqual(0, buffer.Count);
+    }
+
+    [TestMethod]
+    [DataRow("duplicate")]
+    [DataRow("missing")]
+    [DataRow("extra")]
+    [DataRow("group")]
+    [DataRow("label")]
+    [DataRow("nonfinite")]
+    public void PredictionBuffer_ParallelProfileRejectsInvalidUnionWithoutPublishingPartialRows(string mutation)
+    {
+        var legacy = StudyFixture.Authored();
+        using var data = StudyData.FromLegacy(legacy);
+        var selected = data.All();
+        var rows = legacy.Rows.ToArray();
+        if (mutation == "duplicate") rows = [.. rows, rows[0]];
+        else if (mutation == "missing") rows = rows[..^1];
+        else
+        {
+            var original = rows[0];
+            rows[0] = new LearningRow
+            {
+                RowId = mutation == "extra" ? -9999 : original.RowId,
+                GroupId = mutation == "group" ? -1 : original.GroupId,
+                Label = mutation == "label" ? !original.Label : original.Label,
+                Text = original.Text, Semantic = original.Semantic,
+                SpamBaseline = mutation == "nonfinite" ? double.NaN : original.SpamBaseline
+            };
+        }
+        var context = new MLContext(1);
+        var input = context.Data.LoadFromEnumerable(rows);
+        var model = context.Transforms.Conversion.ConvertType("Probability", "SpamBaseline", DataKind.Single).Fit(input);
+        var buffer = new PredictionBuffer(selected.Count);
+        Assert.ThrowsExactly<InvalidDataException>(() =>
+            buffer.Fill(model, input, selected, requestedCursors: 4));
+        Assert.AreEqual(0, buffer.Count);
+        Assert.AreEqual(0, data.ActiveCursors);
+    }
 }

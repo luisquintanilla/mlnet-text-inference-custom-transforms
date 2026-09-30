@@ -192,7 +192,7 @@ public static class ConsumerControls
     }
 
     public static async Task SameModelAsync(string referenceDirectory, string[] importPaths,
-        string modelPath, string modelReceiptPath, string output)
+        string modelPath, string modelReceiptPath, string output, int predictionCursors = 1)
     {
         if (File.Exists(output)) throw new IOException("Control receipts are immutable.");
         using var oracle = new OriginalConsumerOracle(referenceDirectory);
@@ -206,14 +206,14 @@ public static class ConsumerControls
         var selection = compact.All();
         var predictionView = selection.View();
         var buffer = new PredictionBuffer(selection.Count);
-        buffer.Fill(model, predictionView, selection);
+        buffer.Fill(model, predictionView, selection, requestedCursors: predictionCursors);
         buffer.RequireReplay(expected);
         var loaded = PredictorTraining.Load(modelPath, receipt, compact.FeatureFingerprint);
-        buffer.Fill(loaded, predictionView, selection);
+        buffer.Fill(loaded, predictionView, selection, requestedCursors: predictionCursors);
         buffer.RequireReplay(expected);
         var measurements = new List<ConsumerMeasurement>();
         _ = oracle.Predict(model, oracle.Rows(original));
-        buffer.Fill(model, predictionView, selection);
+        buffer.Fill(model, predictionView, selection, requestedCursors: predictionCursors);
         for (int pair = 0; pair < 5; pair++)
         {
             bool ab = pair % 2 == 0;
@@ -225,7 +225,7 @@ public static class ConsumerControls
                     selection.Count, 0, pair, order, () =>
                     {
                         if (legacy) GC.KeepAlive(oracle.Predict(model, oracle.Rows(original)));
-                        else buffer.Fill(model, predictionView, selection);
+                        else buffer.Fill(model, predictionView, selection, requestedCursors: predictionCursors);
                     }, compact.NumericCapacityBytes));
             }
         }
@@ -248,6 +248,9 @@ public static class ConsumerControls
             sourceAssemblySha256 = ArtifactFiles.Hash(typeof(ConsumerControls).Assembly.Location),
             exactAssociation = true, predictionTolerance = 1e-6, inference = "Existing ML.NET saved head only; no new model extraction or fitting.",
             exactFeatureBitsAndOriginalText = true,
+            predictionExecutionProfile = new { requestedCursors = predictionCursors,
+                publicOutputCursorSet = true, disjointSourceIdsRequired = true, selectionRankOrderRestored = true,
+                customScorer = false, predictionCache = false, trainingPolicyChanged = false },
             measurements
         });
     }

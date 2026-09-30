@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "status": "CORE_GATE_BLOCKED",
+  "baselineConsumerCommit": "ca1381be58f1d935c31b545aa2e99e4d0a5bddad",
+  "sourceAssemblySha256": "4fb26b1c9d56121428e3de64b080672e7c637ddbc4395923b1dae692d2944163",
+  "adapterSourceCommit": "65880cdfd33580d23d0e833ac977f79acb18b1b0",
+  "adapterVersion": "0.1.0-exp.decisions.1.g65880cdfd335",
+  "referenceReceiptSha256": "dab8a851b981a8c772a7dac3012d99a8bdb91b6406b4ebc02009168f5ee424dc",
+  "quietSlotCoordinated": true,
+  "pairsPerCase": 5,
+  "order": "AB/BA/AB/BA/AB; independent warmups; process-wide GC managed allocation; no cache flush.",
+  "thresholds": {
+    "managedReductionPercentMinimum": 70,
+    "medianTimeRegressionPercentMaximum": 10,
+    "warmRequestedSemanticGetterBytesPerRowMaximum": 1,
+    "predictionReplayAbsoluteTolerance": 0.000001
+  },
+  "projection": {
+    "rawSha256": "d210ff77f148fa1f9c6e71d43bd8fdfabc14f5194f3763bd8d60e4170115184d",
+    "scope": "Unchanged projection/materialization: numeric capacity allocation and batch accessor binding included; synthetic construction/IPC roundtrip excluded. CPU/working-set diagnostics include setup; managed bytes are not native/process memory.",
+    "caseCount": 12,
+    "gatePassCount": 12,
+    "cases": [
+      {"rows": 257, "batchSize": 1, "managedReductionPercent": 89.8502, "medianTimeChangePercent": -61.7004},
+      {"rows": 257, "batchSize": 256, "managedReductionPercent": 88.9660, "medianTimeChangePercent": -42.2956},
+      {"rows": 257, "batchSize": 4096, "managedReductionPercent": 88.9108, "medianTimeChangePercent": -39.3402},
+      {"rows": 4097, "batchSize": 1, "managedReductionPercent": 89.8860, "medianTimeChangePercent": -58.1616},
+      {"rows": 4097, "batchSize": 256, "managedReductionPercent": 89.0762, "medianTimeChangePercent": -62.6512},
+      {"rows": 4097, "batchSize": 4096, "managedReductionPercent": 89.0602, "medianTimeChangePercent": -12.2801},
+      {"rows": 65537, "batchSize": 1, "managedReductionPercent": 87.8128, "medianTimeChangePercent": -63.1578},
+      {"rows": 65537, "batchSize": 256, "managedReductionPercent": 89.0620, "medianTimeChangePercent": -62.4311},
+      {"rows": 65537, "batchSize": 4096, "managedReductionPercent": 89.0723, "medianTimeChangePercent": -62.7991},
+      {"rows": 1048577, "batchSize": 1, "managedReductionPercent": 87.8159, "medianTimeChangePercent": -72.9100},
+      {"rows": 1048577, "batchSize": 256, "managedReductionPercent": 89.0589, "medianTimeChangePercent": -62.6855},
+      {"rows": 1048577, "batchSize": 4096, "managedReductionPercent": 89.0668, "medianTimeChangePercent": -59.9966}
+    ]
+  },
+  "sameExistingModel": {
+    "rowsPerHead": 5574,
+    "exactOriginalTextSourceGroupsLabelsAndFeatureBits": true,
+    "completePredictionAndSavedLoadReplayPass": true,
+    "requestedSemanticGetterManagedBytesPerRow": 0.07606745604592752,
+    "heads": [
+      {"arm": "semantic", "targetRows": 3344, "requestedOutputCursors": 1,
+        "rawSha256": "6105f947558aeda8bfd9b308031b91d27ed305f49681b73f54d9fef4dfdc589e",
+        "originalMedianManagedBytes": 1621248, "compactMedianManagedBytes": 4976,
+        "managedReductionPercent": 99.6931, "medianTimeChangePercent": -60.7037,
+        "allocationGatePass": true, "timeGatePass": true},
+      {"arm": "text", "targetRows": 3344, "requestedOutputCursors": 16,
+        "rawSha256": "3899d8ac276e8e6231725f009686f06ae176b09db5f82dc4ec0b685905df53d6",
+        "originalMedianManagedBytes": 4821648, "compactMedianManagedBytes": 3718136,
+        "managedReductionPercent": 22.8866, "medianTimeChangePercent": -2.3254,
+        "allocationGatePass": false, "timeGatePass": true},
+      {"arm": "combined", "targetRows": 3344, "requestedOutputCursors": 16,
+        "rawSha256": "7ff0987cca7acb9583836211ae04e893d136f5c6fc4be08580feff2db412e59b",
+        "originalMedianManagedBytes": 5401448, "compactMedianManagedBytes": 4227456,
+        "managedReductionPercent": 21.7348, "medianTimeChangePercent": -17.9724,
+        "allocationGatePass": false, "timeGatePass": true}
+    ]
+  },
+  "variant": {
+    "defaultOffControlOnly": true,
+    "maximumRequestedCursors": 16,
+    "publicGetRowCursorSetAndOrdinaryModelGetters": true,
+    "sourceIdToSelectionRankIndexReused": true,
+    "disjointUnionCountAssociationFiniteChecksEveryFill": true,
+    "failureDoesNotPublishPartialRows": true,
+    "normalSingleCursorWorkflowUnchanged": true,
+    "sourceCursorTrainingShuffleSeedPolicyChanged": false,
+    "customScorerOrPredictionCache": false,
+    "interpretation": "Parallel output restores acceptable matched prediction time, but splitter/text processing allocation still fails the unchanged 70% target. Not aggregate acceptance or full-study GO."
+  },
+  "focusedOfflineTestsPassed": 162,
+  "retainedEvidence": "All v1-v4 failures, immutable raw v5 paired data and v4 public-safe negative checkpoint are preserved. No text work excluded, allocation counter changed, or tolerance/threshold relaxed.",
+  "juliaStudyComplete": false,
+  "remaining": [
+    "Text/combined 70% repeated prediction materialization allocation gate.",
+    "Actual learner/cache/shuffle/order traces and bounded independent fits.",
+    "One completed selected-profile Julia5574 artifact and explicit full-study/quiet GO.",
+    "Genuinely new 15-entry/nine-model Julia training, pre-holdout freeze, standard replay and unchanged whole-group bootstrap."
+  ]
+}
