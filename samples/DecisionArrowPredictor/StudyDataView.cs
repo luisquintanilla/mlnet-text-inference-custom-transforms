@@ -1,0 +1,182 @@
+using Microsoft.ML;
+using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
+
+namespace DecisionArrowPredictor;
+
+public sealed class StudyDataView : IDataView
+{
+    private readonly RowSelection selection;
+    private readonly IHost? host;
+    private readonly bool partitionedPredictionControl;
+    public static DataViewSchema SharedSchema { get; } = CreateSchema();
+    public DataViewSchema Schema => SharedSchema;
+    // ML.NET 5 LoadFromEnumerable uses StreamingDataView, not the shuffling ListDataView.
+    public bool CanShuffle => false;
+    public long? GetRowCount() { selection.Owner.RequireOpen(); return selection.Count; }
+
+    public StudyDataView(RowSelection selection)
+    {
+        selection.Owner.RequireOpen();
+        this.selection = selection;
+    }
+
+    public StudyDataView(RowSelection selection, MLContext context) : this(selection)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        // Match the legacy source's host registration before estimator construction, not a new shuffle seed.
+        host = ((IHostEnvironment)context).Register(nameof(StudyDataView));
+    }
+
+    internal StudyDataView(RowSelection selection, bool partitionedPredictionControl) : this(selection) =>
+        this.partitionedPredictionControl = partitionedPredictionControl;
+
+    private static DataViewSchema CreateSchema()
+    {
+        var builder = new DataViewSchema.Builder();
+        builder.AddColumn(nameof(LearningRow.RowId), NumberDataViewType.Int64);
+        builder.AddColumn(nameof(LearningRow.GroupId), NumberDataViewType.Int64);
+        builder.AddColumn(nameof(LearningRow.Label), BooleanDataViewType.Instance);
+        builder.AddColumn(nameof(LearningRow.Text), TextDataViewType.Instance);
+        builder.AddColumn(nameof(LearningRow.Semantic), new VectorDataViewType(NumberDataViewType.Single, FeatureContract.Width));
+        builder.AddColumn(nameof(LearningRow.SpamBaseline), NumberDataViewType.Double);
+        return builder.ToSchema();
+    }
+
+    public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random? rand = null) =>
+        new Cursor(selection, columnsNeeded, host, 0, selection.Count);
+
+    public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random? rand = null)
+    {
+        if (n <= 0) throw new ArgumentOutOfRangeException(nameof(n));
+        if (!partitionedPredictionControl || n == 1 || selection.Count == 0)
+            return [GetRowCursor(columnsNeeded, rand)];
+        int count = Math.Min(Math.Min(n, PredictionBuffer.MaximumControlCursors), selection.Count);
+        var columns = columnsNeeded.ToArray();
+        var cursors = new DataViewRowCursor[count];
+        int acquired = 0;
+        try
+        {
+            for (; acquired < count; acquired++)
+            {
+                int start = checked((int)((long)selection.Count * acquired / count));
+                int end = checked((int)((long)selection.Count * (acquired + 1) / count));
+                cursors[acquired] = new Cursor(selection, columns, host, start, end);
+            }
+            return cursors;
+        }
+        catch
+        {
+            for (int i = 0; i < acquired; i++) cursors[i].Dispose();
+            throw;
+        }
+    }
+
+    private sealed class Cursor : DataViewRowCursor
+    {
+        private readonly RowSelection selection;
+        private readonly IHost? host;
+        private readonly int start, end;
+        private readonly bool[] active = new bool[SharedSchema.Count];
+        private readonly Delegate?[] getters = new Delegate?[SharedSchema.Count];
+        private bool disposed;
+        private long position;
+        public override long Position => disposed || position < start ? -1 : position;
+        public override long Batch => start;
+        public override DataViewSchema Schema => SharedSchema;
+
+        public Cursor(RowSelection selection, IEnumerable<DataViewSchema.Column> columns, IHost? host, int start, int end)
+        {
+            this.selection = selection;
+            this.host = host;
+            this.start = start;
+            this.end = end;
+            position = start - 1L;
+            foreach (var column in columns)
+            {
+                CheckColumn(column);
+                active[column.Index] = true;
+            }
+            if (active[0]) getters[0] = (ValueGetter<long>)((ref long value) => value = Current.RowId);
+            if (active[1]) getters[1] = (ValueGetter<long>)((ref long value) => value = Current.GroupId);
+            if (active[2]) getters[2] = (ValueGetter<bool>)((ref bool value) => value = Current.Label);
+            if (active[3]) getters[3] = (ValueGetter<ReadOnlyMemory<char>>)((ref ReadOnlyMemory<char> value) => value = Current.Text.AsMemory());
+            if (active[4]) getters[4] = (ValueGetter<VBuffer<float>>)Semantic;
+            if (active[5]) getters[5] = (ValueGetter<double>)((ref double value) => value = selection.Owner.Probabilities.Direct(Ordinal));
+            selection.Owner.AcquireCursor();
+        }
+
+        private int Ordinal
+        {
+            get
+            {
+                if (disposed || position < start || position >= end)
+                {
+                    var error = new InvalidOperationException("Cursor is not positioned on a live row.");
+                    throw host?.Process(error) ?? error;
+                }
+                return selection[(int)position];
+            }
+        }
+
+        private StudyRowMetadata Current => selection.Owner.Metadata[Ordinal];
+
+        private void Semantic(ref VBuffer<float> value)
+        {
+            int ordinal = Ordinal;
+            var editor = VBufferEditor.Create(ref value, FeatureContract.Width);
+            selection.Owner.Probabilities.CopySemantic(ordinal, editor.Values);
+            value = editor.Commit();
+        }
+
+        public override ValueGetter<DataViewRowId> GetIdGetter() => Id;
+        private void Id(ref DataViewRowId value)
+        {
+            _ = Ordinal;
+            value = new DataViewRowId((ulong)position, 0);
+        }
+
+        private static void CheckColumn(DataViewSchema.Column column)
+        {
+            if ((uint)column.Index >= (uint)SharedSchema.Count ||
+                column.Name != SharedSchema[column.Index].Name ||
+                !column.Type.Equals(SharedSchema[column.Index].Type))
+                throw new ArgumentException("Column is not from the study schema.", nameof(column));
+        }
+
+        public override bool IsColumnActive(DataViewSchema.Column column)
+        {
+            CheckColumn(column);
+            return active[column.Index];
+        }
+
+        public override ValueGetter<TValue> GetGetter<TValue>(DataViewSchema.Column column)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            CheckColumn(column);
+            if (!active[column.Index]) throw new InvalidOperationException("Requested column is inactive.");
+            return getters[column.Index] as ValueGetter<TValue> ??
+                throw new InvalidOperationException("Requested getter type differs from the column type.");
+        }
+
+        public override bool MoveNext()
+        {
+            if (disposed) return false;
+            if (position + 1 < end) { position++; return true; }
+            position = -1;
+            Dispose();
+            return false;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && !disposed)
+            {
+                disposed = true;
+                position = -1;
+                selection.Owner.ReleaseCursor();
+            }
+            base.Dispose(disposing);
+        }
+    }
+}

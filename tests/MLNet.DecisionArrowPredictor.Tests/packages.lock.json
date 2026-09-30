@@ -46,19 +46,19 @@
       },
       "DecisionInference.Abstractions": {
         "type": "Transitive",
-        "resolved": "0.1.0-exp.decisions.1.gab4eebf29b9f",
-        "contentHash": "P2RrULuD4OhoimjNaYm0LdDRhR/fKcRYBzVvof+UGBPtpxxyOBe6pVB5kE0HpaoxOWF3+Corj7QDOnOxV3LADA==",
+        "resolved": "0.1.0-exp.decisions.1.g65880cdfd335",
+        "contentHash": "OPJMeMq9hsoDs6wce4TyZ/7sn449RDx2MC5QUFAqUmwO8Tdd6y5R9OjXRNSQsGJG9R+4E9uR612IeLBdjAPf0w==",
         "dependencies": {
           "Microsoft.Extensions.AI.Abstractions": "10.10.0"
         }
       },
       "DecisionInference.Arrow": {
         "type": "Transitive",
-        "resolved": "0.1.0-exp.decisions.1.gab4eebf29b9f",
-        "contentHash": "QZLho0GryiKecKsOuhNKUHyzBGwMx0+c9mFvOAcU0VfTvGyCKgnpaWx5NjweCbw8qt6JJhc2RaKYJsv+nV2HPQ==",
+        "resolved": "0.1.0-exp.decisions.1.g65880cdfd335",
+        "contentHash": "gxhYrY5pb8yBhq7m398cPVPIqG7xuuNwEycn8xoaMRyRRO5VzYuvq4m7RWFhu1aJWcQw3gvB/yILq+8zAHSzZw==",
         "dependencies": {
           "Apache.Arrow": "[23.0.0-exp.decisions.1.g6aafc634d65c]",
-          "DecisionInference.Abstractions": "[0.1.0-exp.decisions.1.gab4eebf29b9f]"
+          "DecisionInference.Abstractions": "[0.1.0-exp.decisions.1.g65880cdfd335]"
         }
       },
       "Microsoft.ApplicationInsights": {
@@ -191,7 +191,7 @@
         "type": "Project",
         "dependencies": {
           "Apache.Arrow": "[23.0.0-exp.decisions.1.g6aafc634d65c, 23.0.0-exp.decisions.1.g6aafc634d65c]",
-          "DecisionInference.Arrow": "[0.1.0-exp.decisions.1.gab4eebf29b9f, 0.1.0-exp.decisions.1.gab4eebf29b9f]",
+          "DecisionInference.Arrow": "[0.1.0-exp.decisions.1.g65880cdfd335, 0.1.0-exp.decisions.1.g65880cdfd335]",
           "Microsoft.ML": "[5.0.0, 5.0.0]"
         }
       }

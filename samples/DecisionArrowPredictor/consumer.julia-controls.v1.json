@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "status": "BOUNDED_JULIA_CPU128_IMPORT_PARITY_PASS_NOT_CORE_GO",
+  "sourceAssemblySha256": "b83fcbc6038d2d07dcd6eafdf9e5da281212199b4ad6fc1d572258352927dca3",
+  "adapterSourceCommit": "65880cdfd33580d23d0e833ac977f79acb18b1b0",
+  "adapterVersion": "0.1.0-exp.decisions.1.g65880cdfd335",
+  "adapterAssemblySha256": "5d365e08262698e85bf55fa6d2119c83fc1a41d85531f5f2342c25ae70bfe27a",
+  "producerRuntimeSourceCommit": "fd14d3b1caf89886a5f6cc29fa6c01dcef199e01",
+  "featureFingerprint": "78ed3dc0344f71f1d8515f5923dc2c1de3604e59e6b4a1c9cb89851e2b3cf05d",
+  "selectedMode": "scalar-cpu",
+  "producerQualificationStatus": "QUALIFIED-CPU-FALLBACK-FULL-GATED",
+  "rawReceiptSha256": "4934509587cb8362209d6bd1f58e97068b906e015d5891fa9ef68b29d301226f",
+  "independentPins": {
+    "manifestSha256": "f00fbeda4045a2a8d0c17a54efd569b382bba9d1047ffe22bf9cfaf12d99845c",
+    "manifestBytes": 7068,
+    "contractSha256": "78ed3dc0344f71f1d8515f5923dc2c1de3604e59e6b4a1c9cb89851e2b3cf05d",
+    "contractBytes": 2448,
+    "dataSha256": "444969cad288ebdb868528b66884a835c126b8ba8572a195f1ed960b6cfa0620",
+    "dataBytes": 23520,
+    "controlSelectionSha256": "dfba474494e9bc54a077a76d2254b1675ebaa1fce2cf7d5748a5e7372ed7608c",
+    "controlStatesSha256": "46c32520da66d08180221c301bc9f955a63a4155b8f06bf47c19b8effda0cfa4",
+    "qualificationSha256": "6602c1f86a251855eb2f647dd700c6402870a0c1960c81d45d7484c2cfc50f07"
+  },
+  "association": {
+    "originalFrozenCorpusRowsValidated": 5574,
+    "rowsImported": 128,
+    "trainingRows": 92,
+    "validationRows": 36,
+    "holdoutRows": 0,
+    "exactIndependentSelectionOrder": true,
+    "originalTextSourceIdsGroupsHumanLabelsAndPartitionsPreserved": true,
+    "labelsAndSplitMetadataNotTakenFromProducer": true
+  },
+  "projection": {
+    "fullPublicReaderSchemaIdsHashAndEosGate": true,
+    "legacyProjectVersusCompactTenSingleBitsExact": true,
+    "separateDoubleDirectBitsExact": true,
+    "renormalized": false,
+    "numericCapacityBytes": 6144,
+    "numericCapDefaultBytes": 67108864,
+    "arrowNativeLeasesAfterImport": 0
+  },
+  "focusedOfflineTests": {
+    "passed": 194,
+    "failed": 0,
+    "skipped": 0,
+    "newAuthoredCases": 24,
+    "coverage": "Independent order/text/group/label association, holdout/duplicate/missing/extra/oversize rejection, exact CPU/source/input/count/batch profile, cap/cancel, hash mismatch and rehashed truncated batch fullEOS failure."
+  },
+  "scope": {
+    "readsAlreadyCompletedProducerControlOnly": true,
+    "newInferenceOccurred": false,
+    "modelLoadedPredictedOrFitted": false,
+    "performanceMeasured": false,
+    "fullJuliaStudyImportEnabled": false,
+    "fullStudyReady": false,
+    "consumerInventedLoadMillisecondsOrFullExtractionCost": false
+  },
+  "remaining": [
+    "Bounded same-Julia independent fit qualification is not claimed by this reader/projection control.",
+    "Unchanged text/combined70% materialization allocation gate remains failed; all v5/v6 and C3 failure evidence is preserved.",
+    "One completed selected-profile Julia5574 export and explicit joined gates/quiet full-study GO.",
+    "New Julia15-entry/nine-model training, pre-holdout freeze, standard replay and unchanged1000whole-group bootstrap."
+  ]
+}

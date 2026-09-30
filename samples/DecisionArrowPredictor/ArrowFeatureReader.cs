@@ -11,6 +11,8 @@ public sealed record ImportReceipt(int Version, string Status, string FeatureFin
 
 public static class ArrowFeatureReader
 {
+    public const string LegacyLayaFingerprint = "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514";
+
     public static DecisionArrowSchema ExpectedContract(string contractPath, string fingerprint, string questionsPath)
     {
         ArtifactFiles.RequireHash(questionsPath, FeatureContract.QuestionsV1Sha256);
@@ -131,6 +133,91 @@ public static class ArrowFeatureReader
         FeatureContract.Conversion, FeatureContract.Projection,
         study.Extraction ?? throw new InvalidDataException("Missing real extraction cost."));
 
+    public static async Task<StudyData> ImportCompactAsync(string manifestPath, string contractPath,
+        string expectedFingerprint, string preparationPath, string splitPath, string statesPath, string questionsPath,
+        long numericCapBytes = ProbabilityStore.DefaultNumericCapBytes, CancellationToken token = default)
+    {
+        var (metadata, preparation) = ReadFrozenMetadata(preparationPath, splitPath, statesPath, questionsPath);
+        var contract = ExpectedContract(contractPath, expectedFingerprint, questionsPath);
+        using var reader = await DecisionArrowDatasetReader.OpenAsync(manifestPath, contract,
+            Enumerable.Range(0, metadata.Count).Select(i => metadata[i].RowId), token);
+        if (reader.Manifest.Provenance.InputSha256 != preparation.StatesSha256 ||
+            reader.Manifest.Provenance.QuestionsSha256 != preparation.QuestionsSha256)
+            throw new InvalidDataException("Completed dataset source/questions differ from frozen preparation.");
+        // Julia is enabled only after its producer-owned canonical contract/package handoff is pinned.
+        if (contract.FeatureFingerprint != LegacyLayaFingerprint ||
+            reader.Manifest.Provenance.ExecutionMode is not ("scalar" or "native" or "scalar-cpu" or "native-cpu"))
+            throw new InvalidDataException("Compact real import currently requires the pinned historical Laya identity/mode; " +
+                "Julia awaits its independent producer handoff. Synthetic/unknown/mixed real modes are not accepted.");
+        var measurements = reader.Manifest.Provenance.Measurements ??
+            throw new InvalidDataException("Real semantic extraction measurements are missing.");
+        foreach (string name in new[] { "loadMilliseconds", "exportBeforeManifestPublicationMilliseconds" })
+            if (!measurements.TryGetValue(name, out double value) || !double.IsFinite(value) || value < 0)
+                throw new InvalidDataException($"Missing/invalid real semantic extraction measurement: {name}.");
+        var store = new ProbabilityStore(metadata.Count, numericCapBytes);
+        try
+        {
+            var seen = new bool[metadata.Count];
+            int count = 0;
+            RecordBatch? batch;
+            while ((batch = await reader.ReadNextRecordBatchAsync(token)) is not null)
+            {
+                using (batch)
+                {
+                    var accessor = new ProbabilityBatchAccessor(batch);
+                    for (int row = 0; row < accessor.Count; row++)
+                    {
+                        int ordinal = metadata.Ordinal(accessor.RowId(row));
+                        if (seen[ordinal]) throw new InvalidDataException("Duplicate Arrow source ID.");
+                        store.SetDirect(ordinal, accessor.CopyRow(row, store.WritableSemantic(ordinal)));
+                        seen[ordinal] = true;
+                        count = checked(count + 1);
+                    }
+                }
+            }
+            if (count != metadata.Count || seen.Any(value => !value) || reader.Manifest.RowCount != count)
+                throw new InvalidDataException("Missing Arrow source IDs/count mismatch.");
+            token.ThrowIfCancellationRequested();
+            var extraction = new ExtractionCost(reader.Manifest.Provenance.ExecutionMode, count,
+                new Dictionary<string, double>(measurements, StringComparer.Ordinal),
+                "Producer exportBeforeManifestPublicationMilliseconds includes scoring/append/IPC/hash/finalize; " +
+                "loadMilliseconds separate; nested producer stages overlap. Consumer import/open/projection are separate.");
+            return new(metadata, store, contract.FeatureFingerprint, ArtifactFiles.Hash(manifestPath),
+                preparation.SplitSha256, preparation.QuestionsSha256, extraction);
+        }
+        catch
+        {
+            store.Dispose();
+            throw;
+        }
+    }
+
+    internal static (StudyMetadata Metadata, PreparationReceipt Preparation) ReadFrozenMetadata(
+        string preparationPath, string splitPath, string statesPath, string questionsPath)
+    {
+        var preparation = ArtifactFiles.Read<PreparationReceipt>(preparationPath);
+        if (preparation.Version != 1 || preparation.Status != "complete")
+            throw new InvalidDataException("Preparation is not complete.");
+        ArtifactFiles.RequireHash(splitPath, preparation.SplitSha256);
+        ArtifactFiles.RequireHash(statesPath, preparation.StatesSha256);
+        ArtifactFiles.RequireHash(questionsPath, preparation.QuestionsSha256);
+        var split = ArtifactFiles.Read<SplitManifest>(splitPath);
+        if (split.CorpusSha256 != preparation.CorpusSha256 || split.QuestionsSha256 != preparation.QuestionsSha256 ||
+            split.GroupDiagnosticsSha256 != preparation.GroupsSha256)
+            throw new InvalidDataException("Split provenance differs from frozen preparation.");
+        var states = ReadStates(statesPath);
+        var labels = split.Rows.ToDictionary(r => r.RowId);
+        if (states.Count != preparation.ParsedRows || labels.Count != states.Count ||
+            !states.Keys.Order().SequenceEqual(labels.Keys.Order()) ||
+            labels.Values.Count(r => r.Label) != preparation.Spam ||
+            labels.Values.Count(r => !r.Label) != preparation.Ham)
+            throw new InvalidDataException("Preparation source ID/class counts differ from states/splits.");
+        split.Validate(states.Select(p => new CorpusRow(p.Key, labels[p.Key].Label, p.Value)).ToArray());
+        var metadata = new StudyMetadata(states.OrderBy(p => p.Key).Select(p =>
+            new StudyRowMetadata(p.Key, labels[p.Key].GroupId, labels[p.Key].Label, p.Value, labels[p.Key].Split)));
+        return (metadata, preparation);
+    }
+
     public static async Task<int> SmokeAsync(string manifestPath, string contractPath, string expectedFingerprint,
         string questionsPath, CancellationToken token = default)
     {
@@ -149,7 +236,7 @@ public static class ArrowFeatureReader
         return rows;
     }
 
-    private static Dictionary<long, string> ReadStates(string path)
+    internal static Dictionary<long, string> ReadStates(string path)
     {
         var result = new Dictionary<long, string>();
         using var input = new StreamReader(path, ArtifactFiles.Utf8, false);

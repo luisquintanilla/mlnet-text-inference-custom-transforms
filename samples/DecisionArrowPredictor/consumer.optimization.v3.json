@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "status": "CORE_GATE_BLOCKED",
+  "baselineConsumerCommit": "ca1381be58f1d935c31b545aa2e99e4d0a5bddad",
+  "referenceReceiptSha256": "dab8a851b981a8c772a7dac3012d99a8bdb91b6406b4ebc02009168f5ee424dc",
+  "historicalLayaFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+  "juliaStudyComplete": false,
+  "projectionBatch1RawSha256": "eb13fb5a3071718ae5e6bc6e6cfe509dad34301619a8be08906fcec59bc81450",
+  "sameModelRawSha256": "52e4e702ba9357db3172329d2c5f384cbacadec041f431a7cb2466fe337b6b48",
+  "boundedAcceptanceSha256": "4d6a1e4261c37dde3e01757dda5786aa4e6f64193465eb2c5c5235ede8f3c8fc",
+  "numericStorage": {
+    "blockRows": 1024,
+    "defaultCapBytes": 67108864,
+    "bytesPerRow": 48,
+    "finalBlock": "Exact short capacity; checked reservation and actual allocation before/after every block.",
+    "largestMeasuredRows": 1048577,
+    "largestMeasuredCapacityBytes": 50331696,
+    "laya5574CapacityBytes": 267552,
+    "excluded": "Text, metadata, training state, native memory, total process working set and VRAM."
+  },
+  "boundedV3": {
+    "pairsPerCase": 5,
+    "order": "AB/BA/AB/BA/AB; each path warmed separately; no shared-machine cache flush",
+    "projectionBatch1": [
+      {"rows": 257, "managedReductionPercent": 89.85015315837404, "medianTimeChangePercent": -64.00457292177043},
+      {"rows": 4097, "managedReductionPercent": 89.88600067516684, "medianTimeChangePercent": -66.83134810094533},
+      {"rows": 65537, "managedReductionPercent": 87.81485720500638, "medianTimeChangePercent": -67.5152427986244},
+      {"rows": 1048577, "managedReductionPercent": 87.81481067877162, "medianTimeChangePercent": -72.03386143726165}
+    ],
+    "sameModelRows": 5574,
+    "sameModelAssociationTextAndFeatureBitsExact": true,
+    "sameModelPredictionTolerance": 0.000001,
+    "sameModelSaveLoadReplayPass": true,
+    "requestedSemanticGetterManagedBytesPerRow": 0.07606745604592752,
+    "predictionMaterializationManagedReductionPercent": 44.87419673253964,
+    "predictionMaterializationMedianTimeChangePercent": -32.999911284599,
+    "predictionMaterialization70PercentGatePass": false
+  },
+  "retainedFailures": [
+    "Fresh checkout LF attribute changed the original frozen CRLF question-byte hash. Both failed TRXs retained; exact original bytes now pinned with -text.",
+    "Synthetic harness assumed String selected candidate; actual pinned Arrow field is Int32. Failure retained and corrected without schema changes.",
+    "Builder-owned native slices did not match the legacy IPC reader ownership contract. Failure retained; synthetic IPC roundtrip is outside projection scope.",
+    "v1 full final-block padding failed the 257-row allocation target.",
+    "v2 Struct.Fields wrappers failed all batch1 allocation targets; v3 checked raw child-buffer binding passes these bounded targets.",
+    "v1/v2/v3 repeated prediction materialization remains below the 70 percent target."
+  ],
+  "remainingGates": [
+    "Full current-binary projection matrix including batches 256 and 4096.",
+    "Repeated prediction materialization allocation target.",
+    "Learner-input/effective cache/shuffle/order traces and bounded independently fitted controls.",
+    "Independent canonical Julia contract, all-precision fixtures and exact portable package handoff.",
+    "One chosen completed 5574-row Julia artifact and coordinator full-study/quiet-slot approval.",
+    "New Julia 15-entry/nine-model study with freeze before holdout and original 1000-group bootstrap."
+  ],
+  "interpretation": "Engineering data-path controls on fictional numerics and an existing Laya artifact/model, not new Julia inference, accuracy or end-to-end extractor speedup evidence."
+}

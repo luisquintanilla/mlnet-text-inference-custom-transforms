@@ -4,14 +4,471 @@ Start with the [beginner walkthrough](README.md). This reference preserves the
 full acquisition, reproducibility, split, training, evaluation and acceptance
 details; its commands run from the repository root.
 
-**Study status:** the completed real 5,574-row scalar export has been imported,
-trained and evaluated. [Results and limitations](#real-scalar-study-results)
-include all five arms/three curves; synthetic smoke remains a separate exercise.
+**Historical Laya study status:** the completed real 5,574-row scalar export has
+been imported, trained and evaluated. [Results and limitations](#real-scalar-study-results)
+include all five arms/three curves. The Julia-first follow-up below has explicit
+CPU-only execution approval under a revised acceptance contract and is now
+complete: a new full artifact, nine learned models and 15 evaluated entries.
+Synthetic smoke remains separate.
 
 An experimental, CPU-only **consumer**, not a decision provider. It trains
 ordinary ML.NET 5.0.0 pipelines from persisted decision probabilities. No
 reference to `MLNet.TextInference.Onnx`, local Laya session, tokenizer, ONNX
 Runtime, GPU package, or cloud inference belongs in this process.
+
+## Compact consumer and completed CPU-only Julia study
+
+### Completed original-design study
+
+The independently pinned CPU producer artifact contains all 5,574 original
+rows. Consumer READY validates 5,102 groups, original 3,344/1,116/1,114
+partitions, exact original projection bits/source associations, full reader
+EOS and native-score-null semantics. The numeric cache occupies **267,552
+bytes** under its 64 MiB numeric-only cap; no Arrow/native leases remain.
+The new source is measured at `d0397ca74e6ddb7e92ae57cbc17cf45be78e93de`,
+with a frozen 45-file CPU-only consumer executable. Its build/runtime closure
+contains no ORT, provider, tokenizer or CUDA dependency.
+
+Focused qualification passes **262 tests with no failures or skips**.
+The first missing test-friend build failure and two authored native-offset
+failures are retained. The latter exposed that the pinned Arrow `Struct.Fields`
+already applies its parent offset; the validator was corrected, not its
+expected values or tolerance. Stored-Julia C3 then passes all nine candidates
+on 32 training/32 validation rows: same fitted original-model probability
+delta **0**, independent/traced/observer parity, exact slots/thresholds/metrics,
+and six ordinary actual-schema winning save/load replays. The frozen original
+consumer's `Project` verifies all full-artifact feature bits before these fits.
+
+The actual study uses 27 unchanged L2 candidates to select **nine genuinely
+new Julia heads**, with prior/direct/text/semantic/combined at targets
+100/500/3,344. All actual subset sizes equal their declared targets. Models,
+choices and validation-only thresholds were frozen before holdout:
+
+| Immutable artifact | SHA-256 |
+|---|---|
+| Completed producer handoff | `da74c2042366d295c0a05897aff8ea09c37c346778717e43a58c3c8f445553d1` |
+| Full CPU dataset manifest | `179b944431d5fd6054adada0827c4ec708fd50b6e97b0ac2ef45f3feeaa8bd16` |
+| Frozen consumer executable receipt | `09c0e049173995bd652fa24720ce0b9ce522f145b4cf3e8e648ec667b659951c` |
+| Stored-Julia bounded C3 receipt | `9047a04c21c3fb8e33cfbc1f4dd42762f5bf2161a580f3d3e0058d7e49b4221e` |
+| Pre-holdout training freeze | `5588ac9187e5975948b3b4fcbfdd2826cf89c22bd1cc28a46c525db3bba58245` |
+| Complete holdout evaluation | `41302e7583cf62b86dbe5582bbb15f38267a705fdd57c7d96ac50a9ef2be3bd3` |
+
+Every entry evaluates the same 1,114 untouched holdout rows (149 spam/965 ham,
+1,020 duplicate groups). Standard saved/load replay checks full associations
+and probabilities within 1e-6. The unchanged 1,000 whole-group bootstrap,
+seed 1729, consumes saved predictions without inference. An independent
+saved-output audit verifies all 15 complete ID/group/label unions, artifact
+hashes, integer decisions and all reported point metrics with maximum
+absolute difference **0** (required limit 1e-12). Undefined interval outcomes
+are retained; no post-holdout model/threshold tuning occurred.
+
+Metrics below use the frozen validation-selected F1 threshold. AP and ROC
+AUC are ranking metrics, independent of that threshold.
+
+| Target | Arm | AP | ROC AUC | Log loss | Brier | Recall | FPR |
+|---|---|---|---|---|---|---|---|
+| 100 | prior | 0.133752 | 0.500000 | 0.404663 | 0.119026 | 1.000000 | 1.000000 |
+| 100 | direct | 0.484520 | 0.815572 | 5.276338 | 0.785011 | 0.543624 | 0.110881 |
+| 100 | text | 0.883835 | 0.963042 | 0.163705 | 0.047303 | 0.791946 | 0.032124 |
+| 100 | semantic | 0.397695 | 0.789658 | 0.341803 | 0.099828 | 0.456376 | 0.098446 |
+| 100 | combined | 0.834900 | 0.948353 | 0.170573 | 0.048786 | 0.751678 | 0.043523 |
+| 500 | prior | 0.133752 | 0.500000 | 0.393458 | 0.115863 | 1.000000 | 1.000000 |
+| 500 | direct | 0.484520 | 0.815572 | 5.276338 | 0.785011 | 0.543624 | 0.110881 |
+| 500 | text | 0.885000 | 0.962054 | 0.143551 | 0.039215 | 0.724832 | 0.013472 |
+| 500 | semantic | 0.487121 | 0.832639 | 0.303667 | 0.088930 | 0.469799 | 0.048705 |
+| 500 | combined | 0.864945 | 0.958570 | 0.150636 | 0.043065 | 0.697987 | 0.018653 |
+| 3344 | prior | 0.133752 | 0.500000 | 0.393458 | 0.115863 | 1.000000 | 1.000000 |
+| 3344 | direct | 0.484520 | 0.815572 | 5.276338 | 0.785011 | 0.543624 | 0.110881 |
+| 3344 | text | 0.941351 | 0.977564 | 0.113721 | 0.028956 | 0.832215 | 0.010363 |
+| 3344 | semantic | 0.470521 | 0.829537 | 0.312471 | 0.093787 | 0.402685 | 0.070466 |
+| 3344 | combined | 0.921758 | 0.975533 | 0.117517 | 0.031318 | 0.724832 | 0.003109 |
+
+Full-training text AP has a grouped-bootstrap interval [0.906387, 0.967853];
+combined AP has [0.878060, 0.954481]. The paired combined-minus-text AP interval
+is [-0.041538, -0.002205]: these Julia features did **not** improve this text
+head on this frozen split. Direct scores rank above the prior but have poor
+raw calibration (log loss 5.276338/Brier 0.785011), and semantic-only learning
+does not approach the text head. These are completed negative findings, not
+grounds for another tuning round.
+
+At the separately frozen validation 1% FPR-budget threshold, full-training
+text holdout recall/FPR is 0.805369/0.004145; combined is
+0.738255/0.004145; semantic is 0.140940/0.008290; direct is
+0.134228/0.010363. A validation FPR budget does not promise a holdout FPR bound.
+
+Producer load **4,644.8617 ms**, two-call warmup **999.6235 ms**, and full
+extraction plus validation **1,778,147.246 ms** are independent scopes.
+The export measure excludes load/warmup and runtime receipt/module hashing;
+transfers are included, not separately measured. No original full Julia
+scoring rerun exists, so this is not an extraction speedup claim.
+First-process consumer authorization/IO/full scan/metadata/cache import is
+792.9465 ms and 18,821,104 managed bytes, with 60,190,720-byte working set.
+This is not filesystem-cold or isolated projection timing; managed bytes are
+not native memory or the numeric-cache budget.
+
+**The separately authorized post-evaluation Julia benchmark is completed.**
+All nine frozen models (three heads at each target) use the production/default
+single-cursor profile on all 5,574 rows, five balanced AB/BA pairs per model,
+with independent warmups excluded. The frozen original consumer's unchanged
+`Predict` and reusable compact columns score the same saved model. Complete
+source/group/label associations and standard reload replay pass with maximum
+probability delta **0**. No models, tuning, thresholds, holdout or bootstrap
+results changed. Benchmark-only enumeration/receipt changes use separate source
+`94e3c2e92d68fdb76f0f89f3324f94ead7c5e2b5` and a new 45-file closure, not a
+substituted study executable.
+
+| Target | Head | Original/compact managed bytes (medians) | Reduction | Original/compact ms (medians) | Time change |
+|---|---|---|---|---|---|
+| 100 | text | 4,609,360 / 2,165,352 | 53.02% | 20.1557 / 88.4731 | +338.95% |
+| 100 | semantic | 1,668,160 / 4,992 | 99.70% | 6.4364 / 1.4214 | -77.92% |
+| 100 | combined | 5,081,312 / 2,178,144 | 57.13% | 20.8785 / 88.5792 | +324.26% |
+| 500 | text | 4,701,552 / 2,182,832 | 53.57% | 22.9204 / 97.7389 | +326.43% |
+| 500 | semantic | 1,551,304 / 4,992 | 99.68% | 9.9564 / 1.4167 | -85.77% |
+| 500 | combined | 5,237,776 / 2,198,504 | 58.03% | 19.1181 / 96.7198 | +405.91% |
+| 3344 | text | 4,822,216 / 2,185,304 | 54.68% | 20.9091 / 113.5619 | +443.12% |
+| 3344 | semantic | 1,661,720 / 4,992 | 99.70% | 4.3587 / 0.7523 | -82.74% |
+| 3344 | combined | 5,396,680 / 2,204,944 | 59.14% | 18.4774 / 120.8747 | +554.18% |
+
+Time changes above are ratios of medians; the safe JSON also preserves median
+paired changes. Text/combined **do not reach 70% and exceed the original 10%
+time-regression target**. Default single-cursor text processing is a substantial
+negative tradeoff, not an end-to-end optimization win. Semantic reaches the
+allocation benchmark and is faster. These findings do not trigger another
+profile choice, scoring run or tuning round; the owner authorized this measured
+profile and reporting of its outcomes, not reinterpretation of failed targets.
+Managed allocation is process-wide and includes all text work; import, model
+load, bridge construction and replay checks are outside the matched hot scope.
+The maximum observed process working set is 150,790,144 bytes, distinct from
+the 267,552-byte numeric cache and managed-allocation counts.
+
+[`consumer.julia-study.v1.json`](consumer.julia-study.v1.json) contains all 15
+aggregate metrics/intervals, model hashes/sizes/settings, the nine-head
+performance results and artifact provenance. Its SHA-256 is
+`575f590be364a4e91fd5a895e74f43f16547a664cc9d26b464928cd5c3007ad9`.
+Raw benchmark SHA is
+`8cd3f97380d5e615d49ea4d3f4ad609ae3a3c0445b3094f773614a96c7d80e8e`;
+benchmark executable receipt SHA is
+`2c8bbde1165eff4bb4c343e5223c0b08a587738c12780f07342654c14b82c303`.
+The immutable 98-file consumer study roll-up has SHA
+`944731884e941600c22c56232154ab3d0670c9fd38db22e157657dc08c3448d3`.
+The first duplicate-option invocation was rejected before import/model work
+and remains retained as failure evidence. Historical v5/v6 Laya gains below
+remain named Laya evidence, not Julia estimates.
+The model receipts' five-pass warm validation rates (text
+0.0201735 ms/row, semantic 0.00009509, combined 0.0174132 for target 3,344)
+are descriptive single-cursor rates, not balanced paired speedups.
+
+All published results are aggregate-only: no raw messages, individual IDs,
+labels or predictions, model weights, or private paths. Limitations remain
+public-corpus contamination, one grouped nonchronological split, fixed-model
+bootstrap and multiple comparisons. Laya/Julia comparisons are different-model
+comparisons, not optimization accuracy proof; CUDA remains rejected at the
+unchanged numerical tolerance.
+
+### Revised owner acceptance and full-artifact boundary
+
+On 2026-09-30 the owner explicitly authorized one full CPU Julia export and the
+consumer import, fitting and frozen holdout study. The **70% managed-allocation
+target is now a reported benchmark, not an execution blocker**. This does not
+turn the v5/v6 allocation failures into passes: their exact receipts, scopes,
+per-head gains and C3 evidence remain unchanged. Numerical tolerances, original
+source/label/group/partition associations, frozen learning design, complete
+reader validation and save/load replay are unchanged. CUDA remains rejected;
+no mixed-provider rows or relabelled historical models are accepted.
+
+The dedicated full-study importer requires an independently pinned, completed
+producer `full-export.receipt.json`, all referenced artifact sizes/hashes, the
+new GO-READY CPU qualification and SELECTED execution profile, the original
+qualification, and the unchanged portable package receipt. It accepts only the
+producer's canonical CPU identity `78ed3dc0...e3cf05d`, runtime source `fd14d3b1`
+and package source `65880cdf`. It independently checks the original 5,574 IDs
+and 5,102 groups, exact original source bytes, grouped 3,344/1,116/1,114 split,
+scalar state batch 1, output batch 256 and CPU intra/inter threads 4/1.
+All 5,574 prepared tensor rows must retain the frozen original preparation bytes
+(`8be3531e...810e235c`); this is source preparation evidence, not an original
+full scoring rerun.
+The public package reader's schema/hash/ID/full-EOS validation still precedes
+READY. Native scores stay null, ten Single feature bits and the separate Double
+direct score retain their existing interpretation, and no native/Arrow lease
+survives import. A bounded control handoff cannot open this route.
+
+After the producer releases its exclusive export slot, ordinary offline
+validation and same-Julia stored-artifact POCO/compact projection and bounded
+learner controls precede the study. Each candidate first compares predictions
+from the **same fitted original model**, then independently fitted and traced
+paths; unchanged 1e-6 prediction and 1e-12 metric limits apply. The new study
+uses nine genuinely new learned heads and 15 entries at targets 100/500/3,344,
+with ordinary actual-schema save/load. Model choices and thresholds are frozen
+before 1,114-row holdout evaluation; the unchanged 1,000 whole-group bootstrap
+reads saved predictions without inference. Full extraction and head timings
+remain separate; overlapping producer writer stages are not summed.
+
+The full CPU artifact and original-design study are now completed as recorded
+above. Reproduction requires the same independently pinned artifacts and a
+coordinated quiet slot; all outputs must use new immutable locations:
+
+```powershell
+$Julia = @(
+  "--julia-artifact-root", "<immutable Julia namespace>",
+  "--julia-handoff", "<completed full-export.receipt.json>",
+  "--julia-handoff-sha256", "<independently supplied completed handoff hash>",
+  "--preparation", "<original preparation>", "--split", "<original split>",
+  "--states", "<original label-free full states>", "--questions", "<frozen questions>"
+)
+dotnet $Cli import @Julia --storage compact --out "<new READY receipt>"
+dotnet $Cli control-fit @Julia --reference "<frozen original consumer>" `
+  --out "<new bounded same-Julia fit-control directory>"
+dotnet $Cli train @Julia --storage compact --out "<new Julia models>"
+# Pin the completed training.freeze.json before opening the holdout:
+dotnet $Cli evaluate @Julia --storage compact --training-freeze "<completed freeze>" `
+  --training-freeze-sha256 "<independent freeze hash>" --out "<new Julia evaluation>"
+# After evaluation, measure all nine identical saved heads with the frozen original oracle.
+# Default production single-cursor profile is explicit; other already-qualified
+# prediction-only cursor variants require their own separately labelled receipt.
+dotnet $Cli control-julia-prediction @Julia --reference "<frozen original consumer>" `
+  --training-freeze "<completed freeze>" --training-freeze-sha256 "<independent freeze hash>" `
+  --evaluation "<completed evaluation.json>" --evaluation-sha256 "<independent evaluation hash>" `
+  --prediction-cursors 1 --source-cursors single --out "<new per-head benchmark.json>"
+```
+
+The Julia bounded projection oracle invokes the immutable original consumer's
+`Project`, rather than sharing the new accessor's math. Prediction benchmarks
+bridge those already-verified rows into the frozen original POCO type outside
+measurement, then invoke its unchanged `Predict` through the same saved heads.
+All 5,574 output IDs/groups/labels/probabilities and standard reload replay must
+match before measurement. Five AB/BA pairs per text/semantic/combined full-data
+head exclude warmups, IO, import, model load, bridge construction and replay
+checks. All three training targets are included. They report managed bytes, wall/CPU time and process working set without
+calling these native memory or whole-process allocation. The READY receipt
+separately reports first-process full import/validation/cache setup; it is not
+a filesystem-cold or isolated-projection claim. A completed pinned evaluation
+is required before the benchmark can open all rows, so this measurement cannot
+expose holdout predictions during model or threshold selection.
+
+The historical Laya results below remain unchanged. The dependent Julia-first
+follow-up is **not complete** and does not reuse Laya-trained heads under a
+Julia identity. Its latest public-safe checkpoint is
+[`consumer.optimization.v6.json`](consumer.optimization.v6.json); the earlier
+[`v5`](consumer.optimization.v5.json),
+[`v4`](consumer.optimization.v4.json) and
+[`v3 failure checkpoints`](consumer.optimization.v3.json) remain unchanged.
+
+`import`, `train` and `evaluate` accept `--storage compact` and an optional
+`--numeric-cap-bytes` (default 67,108,864). Legacy storage remains the default;
+the beginner `Start.ps1` and fictional smoke route are unchanged. Compact real
+import through `--manifest` accepts only the independently pinned historical
+Laya identity/modes. Full Julia import uses the separately pinned CPU handoff
+options above, not a mode alias or an unrestricted external fingerprint.
+
+Compact import validates the entire completed dataset through the public
+sequential reader, joins original IDs to canonical immutable metadata, and
+copies ten checked Single coordinates plus the separate Double direct score
+into 1,024-row segments. The final segment reserves only its actual short
+capacity. Every reservation/allocation is checked against the numeric cap;
+failure disposes partial storage, with no unlimited fallback. Text, metadata,
+trainer state, native memory and process working set are **not** capped by this
+numeric limit. No Arrow/native lease survives import. Selection views share
+ordinals; they do not copy observations or text.
+
+The named IDataView schema is unchanged. Semantic getters populate caller-owned
+reusable VBuffers, active columns avoid unnecessary semantic work, and each
+cursor has independent position/masks/delegates. Store disposal prevents new
+cursors while existing owners can finish. ML.NET 5.0.0 `LoadFromEnumerable`
+uses a non-shuffling StreamingDataView with selection-local DataViewRowId;
+source RowId is a separate column. The compact view preserves that behavior.
+SDCA retains its default shuffle policy and injected RowShufflingTransformer.
+Runtime learner-input/order and bounded independently fitted equivalence
+controls qualify only their measured artifacts and selections.
+
+The approved single-candidate control in
+[`consumer.learner.v1.json`](consumer.learner.v1.json) isolates a real ML.NET
+host-lifecycle difference. Equal seed, local IDs, feature bits and 197 source /
+194 learner-input trace records initially still produced a 0.0022873655
+independent prediction difference. The legacy StreamingDataView registers a
+source host; each default host registration derives its Random from the parent
+stream. Omitting that registration shifted the learner's effective forced
+shuffle seed. The real compact training view now retains its own public
+`IHostEnvironment.Register("StudyDataView")` host, exactly once per candidate
+before estimator construction. There is no dummy enumerable, explicit new
+seed, manual Random advancement, or changed shuffle/cache policy.
+
+On the same historical Laya 32-train/32-validation text candidate at L2 0.0001,
+four independent ordinary/traced fits now give probability differences **0**,
+observer differences **0**, exact source/learner traces, vocabulary slots,
+validation metrics and thresholds. Both failed pre-fix receipts remain
+immutable. This narrowly approved result is **not** three-arm/grid/save-load
+qualification, an allocation PASS, Julia fitting, or full-study GO.
+
+The subsequent explicitly approved **bounded Laya grid**
+[`consumer.learner.v2.json`](consumer.learner.v2.json) passes all three arms
+and three existing L2 candidates: 36 ordinary/traced independent fits have
+maximum prediction and observer differences **0**, exact source/learner
+requests/order/feature and label bits, slots, metrics, thresholds and selected
+L2. Six winning original/compact models pass standard save/load with their
+actual input schemas and complete 32-row validation associations/replay.
+The authored ControlledFit test independently covers 33 training / 4 validation
+rows, nine candidates and six saved-model replays. Ordinary focused regressions
+pass 164 cases. These controls open no holdout and train no Julia head; the
+allocation failures prevented aggregate acceptance under the original contract.
+The later owner decision above makes them nonblocking reported benchmarks.
+
+Advanced controls require an externally coordinated quiet CPU slot:
+
+```powershell
+dotnet $Cli control-projection --reference "<immutable original consumer directory>" `
+  --out "<new raw measurement.json>" --rows 4097 --batch-size 256
+
+dotnet $Cli control-same-model <same named import options> `
+  --reference "<immutable original consumer directory>" `
+  --model "<existing matching .mlnet>" --model-receipt "<matching receipt>" `
+  --out "<new raw receipt.json>"
+# Explicit bounded control variant only; not the normal training/evaluation default:
+# add --prediction-cursors 16 after a coordinated quiet-slot approval.
+# A separately approved prediction-only source partition control also needs:
+# --source-cursors partitioned (default single; never a training option).
+
+dotnet $Cli control-allocation <same named import options> `
+  --model "<existing matching .mlnet>" --model-receipt "<matching receipt>" `
+  --out "<new diagnostic.json>"
+
+# Independent fitting needs its own explicitly approved quiet lease:
+dotnet $Cli control-fit <same named import options> --arm text --l2 0.0001 `
+  --out "<new single-candidate control directory>"
+# Omitting BOTH selectors requests the full bounded three-arm/three-L2 grid;
+# do not run it under a single-candidate approval.
+```
+
+The full projection matrix is 257/4,097/65,537/1,048,577 rows at batches
+1/256/4,096, including final short batches and nonzero parent offsets. Controls
+verify an immutable original executable/source closure before using its
+original projection/import/prediction methods. Synthetic Arrow construction
+and IPC roundtrip are outside projection timing; accessor binding and actual
+numeric cache capacity are included. Projection wall time sums measured
+intervals; whole-run CPU/working-set diagnostics also include excluded setup.
+GC managed bytes are not native or whole-process memory. Raw observations and
+failed attempts remain local and immutable; only safe aggregates are committed.
+
+| Checkpoint | Result, not a completion claim |
+|---|---|
+| Focused offline regressions with the new portable pin | 153 passed, no skips; all three precisions, independent Struct/List/primitive offsets and null rejection, cap failure, independent/active cursors, caller buffer ownership and default-off diagnostic trace forwarding |
+| Full v4 twelve-case projection, five balanced pairs/case | All unchanged gates pass: 87.81-89.89% managed reduction; median measured scope 32.32-86.45% faster |
+| Three existing full-training heads on all 5,574 Laya rows | Exact original text/source/groups/labels/feature bits; complete prediction and saved-load replay within 1e-6 |
+| Requested Semantic getter | 0.0761 allocated managed bytes/row, including cursor setup |
+| v4 semantic prediction materialization | 99.71% managed reduction; median measured time 58.51% faster |
+| v4 text prediction materialization | **55.07% reduction and 480.31% median time regression: FAIL** |
+| v4 combined prediction materialization | **59.10% reduction and 396.04% median time regression: FAIL** |
+| New-package fictional Julia interoperability | All three 257-row precisions pass public-reader EOS/independent IDs/exact projection bits and owned standard-batch byte-exact roundtrip |
+| Historical v4 checkpoint scope | Subsequent v5/v6 failures and bounded controls below remain unchanged; completed CPU Julia study is separately recorded above |
+
+The v4 execution profile requests exactly one public output cursor through
+`GetRowCursorSet(activeColumns, 1)`. ML.NET's ordinary `GetRowCursor` can
+automatically split/consolidate parallel transform cursors, allocating on
+background threads. Removing that consolidation fixes the semantic allocation
+failure, but also serializes expensive text featurization. The measured text
+and combined tradeoff fails both unchanged gates; it is not an accepted default
+performance claim. Managed allocation measurements remain process-wide.
+The control does not cache predictions, substitute a custom scorer, change
+training shuffle/seed, or exclude text work from the matched prediction scope.
+An explicitly approved **default-off control variant** can request 1..16 public
+output cursors. Parallel consumers require a disjoint ID union and scatter into
+reusable selection-rank buffers; every fill checks count, uniqueness, finite
+probabilities and source/group/label associations before exposing results.
+It changes neither source-view cursor policy nor learner shuffle/seed, caches
+no scores, and uses no custom scorer. Its focused positive/rejection controls
+pass. It has not replaced the normal single-output-cursor workflow.
+The v4 timing receipt measures the pre-handoff adapter binary. New-package
+reader/projection and public `WriteBatchesAsync` interoperability pass all three
+producer-owned fictional Julia fixtures; the writer owns each yielded batch.
+[`consumer.interop.v1.json`](consumer.interop.v1.json) records safe package,
+closure and fixture aggregates.
+These are not real Julia rows
+or a completed predictor study. `DataViewTrace` is diagnostic-only/default-off:
+it records active-column requests, selection-local IDs/order and feature-bit
+hashes, never raw text, and does not advance supplied Random instances.
+
+```powershell
+dotnet $Cli control-interop --fixture-root "<producer's immutable fictional Julia fixture root>" `
+  --producer-receipt "<pinned fixture receipt>" --questions "samples\DecisionArrowPredictor\questions.v1.json" `
+  --out "<new local receipt.json>"
+```
+
+The producer's explicit CPU fallback remains a runtime qualification decision,
+not consumer-owned CUDA arithmetic or permission to reinterpret a GPU contract.
+No real Julia head is trained or old Laya head relabelled while joined acceptance
+and the completed selected artifact remain unavailable. The explicit owner
+approval above authorizes proceeding once that full artifact is actually handed off.
+
+**Bounded stored Julia CPU128 import is separately qualified.**
+[`consumer.julia-controls.v1.json`](consumer.julia-controls.v1.json) pins the
+producer's existing completed control manifest/contract/data, CPU qualification,
+and the independently frozen label-free control selection. The shared frozen
+source validator checks the original 5,574 states/splits, then joins all 128
+selected IDs in their exact nonmonotonic order to original text, groups, human
+labels and partitions: 92 training / 36 validation / no holdout rows.
+The package public reader validates schema/IDs/hash/full EOS; legacy `Project`
+and compact projection agree on every ten-Single coordinate and separate-Double
+direct score. The 6,144-byte numeric cache is published only after full validation,
+with no Arrow/native leases. Authored source/profile/cap/cancellation/partial-file
+rejection controls and existing focused regressions pass **194/194**.
+
+This uses already stored probabilities, with no model load, prediction, fit,
+extractor inference or performance run. The producer's bounded export cost is
+not a full extraction cost, and an absent model-load duration is not invented.
+`control-julia-import` cannot select a full corpus or holdout; the separate
+full-study route requires its own completed authorized handoff. Its CPU mode is exactly `scalar-cpu` with
+the producer's canonical CPU identity, not an alias/glob or reinterpretation
+of the rejected CUDA profile.
+
+```powershell
+dotnet $Cli control-julia-import --dataset "<pinned completed CPU128 directory>" `
+  --selection "<frozen control selection receipt>" --control-states "<control128.jsonl>" `
+  --qualification "<pinned CPU qualification receipt>" `
+  --preparation "<frozen preparation>" --split "<frozen split>" `
+  --states "<frozen full states>" --questions "<frozen questions>" `
+  --out "<new bounded import receipt.json>"
+```
+
+**Historical current-package v5 failed the original acceptance contract.** The explicit control variant
+requests one cursor for semantic and sixteen for text/combined. All twelve
+projection cases pass: 87.81-89.89% managed reduction and 12.28-72.91% lower
+median time. Complete same-model source/feature/association/reload parity passes
+all 5,574 rows for each head. Semantic materialization passes (99.69% reduction,
+60.70% faster). Text and combined now pass the time gate (2.33% and 17.97%
+faster), but managed reductions are only **22.89% and 21.73%: both FAIL 70%**.
+Parallel splitter/text-processing allocation is included, not hidden by a new
+scope or thread-local counter. Focused controls pass **162/162**, including
+invalid duplicate/missing/extra/group/label/nonfinite unions with no partial
+result publication. These timing improvements are not an allocation acceptance
+pass or authorization to run the full Julia study.
+
+**The single approved v6 text-only partition control also fails allocation.**
+Bounded contiguous source cursors avoid part of the splitter overhead while
+keeping selection-local global-rank DataViewRowIds, independent masks/getters,
+caller-owned buffers and a disjoint full union. The source control is named
+`PartitionedPredictionControlView`; ordinary and context-hosted training views
+still return one cursor. CanShuffle, Random, learner policy and normal
+training/evaluation defaults are unchanged. Focused offline tests pass
+**170/170**, including nonmonotonic IDs, contiguous partition bounds, repeat
+passes, active masks, dispose leases and complete scattered output replay.
+
+One coordinated five-pair run used only the existing Laya text target3344 head
+on all 5,574 rows. Content, feature bits, full associations and saved-load
+replay pass. Median allocation is 4,852,096 original versus 3,254,320 compact
+bytes: **32.93% reduction, FAIL 70%**. Time passes: 96.7651 versus 89.1169 ms
+(7.90% lower ratio of medians; 3.52% lower median paired change). Process-wide
+allocation includes all text transforms, parallel work and materialization;
+no score cache, custom scorer or narrower scope is substituted. The maximum
+observed working set is 108,359,680 bytes, separate from the 267,552-byte
+numeric cache. The quiet lease was released and measurement work stopped on
+the allocation failure. No combined-head rerun, new fitting, Julia extraction,
+Julia training or holdout evaluation followed. The safe aggregate/raw hash is
+in [`consumer.optimization.v6.json`](consumer.optimization.v6.json).
+
+Both initial hash-failing test runs and failed harness attempts are preserved.
+The frozen questions were originally CRLF bytes, SHA-256 `9e6e6c5c...0068ea`;
+an inherited `text eol=lf` attribute changed their bytes in new worktrees.
+They are now pinned `-text` like the immutable fixtures, retaining every original
+question string and the original full hash. No identity check was relaxed.
 
 The existing typed-transform portable persistence format is **not** an
 arbitrary ML.NET pipeline serializer. This sample uses `MLContext.Model.Save`
@@ -168,18 +625,22 @@ data. Exact frozen questions were committed before scoring:
 
 ## Feature contract and study
 
-The portable adapter is pinned to clean TypeSafe commit
-`ab4eebf29b9fdca49ce13e3b4afac0ec16b22983`, version
-`0.1.0-exp.decisions.1.gab4eebf29b9f`; Arrow core/scalars use the baseline version
+The current portable adapter is pinned to clean TypeSafe commit
+`65880cdfd33580d23d0e833ac977f79acb18b1b0`, version
+`0.1.0-exp.decisions.1.g65880cdfd335`; Arrow core/scalars use the baseline version
 `23.0.0-exp.decisions.1.g6aafc634d65c`. Exact package byte receipts are committed
 in `eng\experiments\decision-arrow.dependencies.json`. Restore maps only the
 designated experimental IDs to their immutable feeds, uses NuGet's approved
 public v2 endpoint for everything else, and isolates the cache. The unsigned
 exception is explicit and local: hashes identify bytes, **not author signatures**.
 No global trust or root settings are changed. Compute is not a predictor dependency.
+The adapter handoff receipt is independently pinned; its packages are immutable,
+not a full-experiment READY or permission to begin Julia training. Consumer
+builds remain on SDK 10.0.112; the package producer's SDK is separate provenance.
+The historical Laya source/package/results and old artifact kit remain untouched.
 
-Default smoke uses three **synthetic** 257-row, five-question fixtures produced
-from that clean source. Their original complete manifest/contract/Arrow bytes
+Default smoke uses the original three **synthetic** 257-row, five-question
+fixtures produced from clean `ab4eebf29b9f` source. Their original complete manifest/contract/Arrow bytes
 are preserved; `eng\ImportDecisionArrowFixtures.ps1` verifies the immutable
 producer receipt before importing them. These fixtures exercise short final
 batches and all declared precisions, not real corpus inference.

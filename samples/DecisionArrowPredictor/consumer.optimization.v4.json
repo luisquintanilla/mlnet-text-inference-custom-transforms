@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 1,
+  "status": "CORE_GATE_BLOCKED",
+  "baselineConsumerCommit": "ca1381be58f1d935c31b545aa2e99e4d0a5bddad",
+  "sourceAssemblySha256": "ddd598b911ef9a2bbe76ac8776ea54309efd5e39821911367d5922749a06a0d7",
+  "referenceReceiptSha256": "dab8a851b981a8c772a7dac3012d99a8bdb91b6406b4ebc02009168f5ee424dc",
+  "historicalLayaFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+  "historicalDatasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+  "juliaStudyComplete": false,
+  "quietSlotCoordinated": true,
+  "pairsPerCase": 5,
+  "order": "AB/BA/AB/BA/AB; each path warmed separately; no shared-machine cache flush.",
+  "thresholds": {
+    "managedReductionPercentMinimum": 70,
+    "medianTimeRegressionPercentMaximum": 10,
+    "warmRequestedSemanticGetterBytesPerRowMaximum": 1,
+    "predictionReplayAbsoluteTolerance": 0.000001
+  },
+  "predictionExecutionProfile": "Public output.GetRowCursorSet(activeColumns, 1); exactly one cursor required. No custom scorer, prediction cache, training/shuffle/seed change.",
+  "numericStorage": {
+    "blockRows": 1024,
+    "defaultCapBytes": 67108864,
+    "bytesPerRow": 48,
+    "largestMeasuredRows": 1048577,
+    "largestMeasuredCapacityBytes": 50331696,
+    "laya5574CapacityBytes": 267552,
+    "finalBlock": "Exact short capacity; checked reservations and actual allocations.",
+    "excluded": "Text, metadata, training state, native memory, total process working set and VRAM."
+  },
+  "projection": {
+    "rawSha256": "67356d4bcf94d1b5e642d4a264b62aa90751614d50de985081ee628744fd024a",
+    "scope": "Managed projection/materialization, including accessor binding and actual numeric capacity; synthetic construction and IPC roundtrip excluded. Wall time sums measured intervals. Whole-run CPU/working-set diagnostics include excluded setup.",
+    "caseCount": 12,
+    "gatePassCount": 12,
+    "cases": [
+      {"rows": 257, "batchSize": 1, "managedReductionPercent": 89.8502, "medianTimeChangePercent": -60.8078},
+      {"rows": 257, "batchSize": 256, "managedReductionPercent": 88.9660, "medianTimeChangePercent": -33.7395},
+      {"rows": 257, "batchSize": 4096, "managedReductionPercent": 88.9108, "medianTimeChangePercent": -32.3203},
+      {"rows": 4097, "batchSize": 1, "managedReductionPercent": 89.8860, "medianTimeChangePercent": -68.1105},
+      {"rows": 4097, "batchSize": 256, "managedReductionPercent": 89.0500, "medianTimeChangePercent": -86.4546},
+      {"rows": 4097, "batchSize": 4096, "managedReductionPercent": 89.0602, "medianTimeChangePercent": -84.1668},
+      {"rows": 65537, "batchSize": 1, "managedReductionPercent": 87.8120, "medianTimeChangePercent": -67.3515},
+      {"rows": 65537, "batchSize": 256, "managedReductionPercent": 89.0620, "medianTimeChangePercent": -60.3392},
+      {"rows": 65537, "batchSize": 4096, "managedReductionPercent": 89.0723, "medianTimeChangePercent": -66.5807},
+      {"rows": 1048577, "batchSize": 1, "managedReductionPercent": 87.8159, "medianTimeChangePercent": -79.6168},
+      {"rows": 1048577, "batchSize": 256, "managedReductionPercent": 89.0592, "medianTimeChangePercent": -61.9107},
+      {"rows": 1048577, "batchSize": 4096, "managedReductionPercent": 89.0709, "medianTimeChangePercent": -60.9411}
+    ]
+  },
+  "sameExistingModel": {
+    "rowsPerHead": 5574,
+    "exactOriginalTextSourceGroupsLabelsAndFeatureBits": true,
+    "completePredictionAndSavedLoadReplayPass": true,
+    "requestedSemanticGetterManagedBytesPerRow": 0.07606745604592752,
+    "heads": [
+      {
+        "arm": "semantic",
+        "targetRows": 3344,
+        "modelSha256": "b51975c33ba2b774cfa9f3429f412bc821071ff3639472697135b1e8a1af2853",
+        "rawSha256": "77abd4ec6cb74dfd30d53132221cc5f64f69e1c9d5ad8621556b9b8868b0058f",
+        "managedReductionPercent": 99.7117,
+        "medianTimeChangePercent": -58.5135,
+        "gatePass": true
+      },
+      {
+        "arm": "text",
+        "targetRows": 3344,
+        "modelSha256": "c54ef0b126c54afd40f2db80629857489f12b15e28d0ee1150adeb00a676685c",
+        "rawSha256": "d80abd3edac569ff8625df6b4438cc178d80a0c7f8a0b19254dc7df9124b4433",
+        "managedReductionPercent": 55.0694,
+        "medianTimeChangePercent": 480.3147,
+        "gatePass": false
+      },
+      {
+        "arm": "combined",
+        "targetRows": 3344,
+        "modelSha256": "0eea552711109eb56d2c3e6bb9f1680bcf0c04454f5d32f2f760a03b27e5c12f",
+        "rawSha256": "6a448c3be5016638d0cf03087986cf57a1ab079374368d95591a0c5ef5fb2dc7",
+        "managedReductionPercent": 59.0974,
+        "medianTimeChangePercent": 396.0436,
+        "gatePass": false
+      }
+    ]
+  },
+  "retainedEvidence": [
+    "All v1/v2/v3 raw failures and v3 public-safe checkpoint remain immutable.",
+    "The single-output-cursor root fix removed background consolidation allocation for semantic scoring; the diagnostic was not substituted for acceptance.",
+    "The same serial profile also removes parallel text featurization. Its text and combined time/allocation failures are retained, not averaged away.",
+    "No scope, counter, numeric tolerance or acceptance threshold was relaxed."
+  ],
+  "remainingGates": [
+    "Text/combined repeated prediction materialization allocation and median-time targets.",
+    "Learner-input/effective cache/shuffle/order traces and bounded independently fitted controls.",
+    "Final exact source-derived portable package and all-precision canonical Julia interoperability.",
+    "One completed chosen 5574-row Julia artifact and explicit full-study/quiet-slot approval.",
+    "New Julia 15-entry/nine-model study, freeze before holdout, full replay and original 1000-group bootstrap."
+  ],
+  "interpretation": "Engineering controls on fictional numeric fixtures and historical Laya data/saved models. Not new Julia inference, predictor accuracy, an end-to-end extraction speedup or a full-study GO."
+}

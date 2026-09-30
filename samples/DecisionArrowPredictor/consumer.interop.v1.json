@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "status": "FICTIONAL_JULIA_PACKAGE_INTEROP_PASS_NOT_FULL_STUDY_READY",
+  "adapterSourceCommit": "65880cdfd33580d23d0e833ac977f79acb18b1b0",
+  "adapterVersion": "0.1.0-exp.decisions.1.g65880cdfd335",
+  "packageReceiptSha256": "1baa85ce0b1be99d306713d8a19f287b6a8a599bcf5726169c965f842d94b03c",
+  "fixtureReceiptSha256": "1f237da39bfe74542d74dfbdb82f744efb3ba1bc96fb60e1426f311721f849fd",
+  "consumerRawReceiptSha256": "2b2e3c0cf740357ed4ba67e754d31964a489f5aa3f8490cde6045bdb8bbb20dc",
+  "adapterAssemblySha256": "5d365e08262698e85bf55fa6d2119c83fc1a41d85531f5f2342c25ae70bfe27a",
+  "consumerReleaseAssemblySha256": "13560f1d1847de24645ae725fb042a36d7748e1f23875afa1a558d214efd8b49",
+  "consumerSdk": "10.0.112",
+  "producerPackageSdk": "10.0.401",
+  "mlNetVersion": "5.0.0",
+  "arrowVersion": "23.0.0-exp.decisions.1.g6aafc634d65c",
+  "packages": [
+    {
+      "id": "DecisionInference.Arrow",
+      "sizeBytes": 37059,
+      "sha256": "f44cd8e08de3cfc774fa1315dbfc13e7ed90d999a90f9f65057d235061f0e788",
+      "nuspecDependencies": [
+        "DecisionInference.Abstractions [0.1.0-exp.decisions.1.g65880cdfd335]",
+        "Apache.Arrow [23.0.0-exp.decisions.1.g6aafc634d65c]"
+      ]
+    },
+    {
+      "id": "DecisionInference.Abstractions",
+      "sizeBytes": 14532,
+      "sha256": "a7a8742ea8d35a8732a91531db38c14bb82c0fb9e37f936b3524412fe149cf6e",
+      "nuspecDependencies": ["Microsoft.Extensions.AI.Abstractions 10.10.0"]
+    }
+  ],
+  "restore": {
+    "newIsolatedCache": true,
+    "sourceMapped": true,
+    "initializedThenLockedRepeatPass": true,
+    "oldArtifactsAndCacheUntouched": true,
+    "globalTrustAndToolchainUnchanged": true
+  },
+  "consumerClosure": {
+    "cpuOnly": true,
+    "testedWithUseGpuRuntimeTrue": true,
+    "noComputeOnnxCudaTokenizerOrProviderDependency": true,
+    "noCrossRepositoryProjectReference": true
+  },
+  "fixtures": [
+    {"precision": "HighPrecision", "fingerprint": "78ed3dc0344f71f1d8515f5923dc2c1de3604e59e6b4a1c9cb89851e2b3cf05d"},
+    {"precision": "FourDecimalPlaces", "fingerprint": "622832ce70b7928e5cc5b015acd1f9e8b1ea3b621a78e6976d62cb4d2af32d62"},
+    {"precision": "TwoDecimalPlaces", "fingerprint": "2a19f1e2e6933924c4d4cb7b8df99bd8d5d58ce6689d8b1e9fa1ce727e737723"}
+  ],
+  "perFixtureChecks": {
+    "rows": 257,
+    "independentExpectedIds": "1..257",
+    "batchLengths": [256, 1],
+    "mode": "julia-offline-fixture-not-real",
+    "originalContractManifestDataSizeAndHashPinned": true,
+    "publicReaderFullSchemaIdHashEosGate": true,
+    "legacyCompactFeatureSingleAndDirectDoubleBitsExact": true,
+    "publicWriteBatchesAsyncOwnedBatchRoundtripByteExact": true,
+    "roundtripPublicReaderFullEosPass": true,
+    "arrowLeasesAfterImport": 0
+  },
+  "focusedOfflineTestsPassed": 153,
+  "originalThreePrecisionSmokeAndOneCommandStartPass": true,
+  "inferenceOccurred": false,
+  "realJuliaImportEnabled": false,
+  "juliaStudyComplete": false,
+  "remaining": "Selected completed real Julia runtime/artifact handoff, current-package performance/learner-equivalence gates and explicit full-study GO. Text/combined v4 failures remain blockers."
+}
