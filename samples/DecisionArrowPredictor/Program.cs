@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using DecisionArrowPredictor;
 
@@ -39,6 +40,10 @@ try
                        --training-freeze-sha256 <pinned hash> --out <new result directory>
               Add --storage compact [--numeric-cap-bytes 67108864] to import/train/evaluate.
               Compact is experimental and requires the independently pinned real identity.
+              Full CPU Julia compact import/train/evaluate instead require:
+                     --julia-artifact-root <immutable namespace> --julia-handoff <completed full-export receipt>
+                     --julia-handoff-sha256 <independent hash> plus preparation/split/states/questions/out.
+              Only the completed full5574 scalar-cpu handoff is accepted; bounded controls are not a substitute.
               control-projection --reference <frozen consumer directory> --out <new measurement.json>
                                  [--rows 257|4097|65537|1048577] [--batch-size 1|256|4096]
               control-same-model <same import options> --reference <frozen consumer directory>
@@ -53,6 +58,13 @@ try
               control-fit <same import options> --out <new bounded fit-control directory>
                           [--arm text|semantic|combined --l2 0.0001|0.001|0.01]
               Fit control requires a separate quiet fitting lease; uses <=128 whole-group train/validation rows, no holdout.
+              The same completed Julia handoff options select stored-Julia bounded fit controls.
+              Julia fit controls additionally require --reference <frozen original consumer directory>.
+              control-julia-prediction <Julia handoff/source options> --reference <frozen original consumer directory>
+                                      --training-freeze <freeze> --training-freeze-sha256 <independent hash>
+                                      --evaluation <completed evaluation> --evaluation-sha256 <independent hash>
+                                      --out <new benchmark.json> [--prediction-cursors 1..16] [--source-cursors single|partitioned]
+              Julia prediction benchmarks follow the frozen/evaluated study; no new fit, extraction or threshold selection.
               control-julia-import --dataset <pinned CPU128 completed control directory>
                                    --selection <frozen control selection receipt> --control-states <control128.jsonl>
                                    --qualification <pinned CPU qualification receipt> --preparation <frozen preparation>
@@ -66,7 +78,8 @@ try
         return 0;
     }
     if (args[0] is not ("prepare" or "import" or "train" or "evaluate" or "smoke" or "control-projection"
-        or "control-same-model" or "control-allocation" or "control-interop" or "control-fit" or "control-julia-import"))
+        or "control-same-model" or "control-allocation" or "control-interop" or "control-fit" or "control-julia-import"
+        or "control-julia-prediction"))
         throw new ArgumentException($"Unsupported command: {args[0]}.");
     var options = new Dictionary<string, string>(StringComparer.Ordinal);
     for (int i = 1; i < args.Length; i++)
@@ -93,16 +106,36 @@ try
             "--feature-fingerprint", "--preparation", "--split", "--states", "--questions"],
         "control-interop" => ["--fixture-root", "--producer-receipt", "--questions", "--out"],
         "control-fit" => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states",
-            "--questions", "--out", "--arm", "--l2"],
+            "--questions", "--out", "--arm", "--l2", "--julia-artifact-root", "--julia-handoff", "--julia-handoff-sha256",
+            "--reference"],
+        "control-julia-prediction" => ["--julia-artifact-root", "--julia-handoff", "--julia-handoff-sha256",
+            "--preparation", "--split", "--states", "--questions", "--reference", "--training-freeze",
+            "--training-freeze-sha256", "--evaluation", "--evaluation-sha256", "--out", "--prediction-cursors", "--source-cursors"],
         "control-julia-import" => ["--dataset", "--selection", "--control-states", "--qualification", "--preparation",
             "--split", "--states", "--questions", "--out"],
         "evaluate" => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states", "--questions",
-            "--out", "--training-freeze", "--training-freeze-sha256", "--storage", "--numeric-cap-bytes"],
+            "--out", "--training-freeze", "--training-freeze-sha256", "--storage", "--numeric-cap-bytes",
+            "--julia-artifact-root", "--julia-handoff", "--julia-handoff-sha256"],
         _ => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states", "--questions",
-            "--out", "--storage", "--numeric-cap-bytes"]
+            "--out", "--storage", "--numeric-cap-bytes", "--julia-artifact-root", "--julia-handoff", "--julia-handoff-sha256"]
     };
     if (options.Keys.Any(k => !allowed.Contains(k, StringComparer.Ordinal)))
         throw new ArgumentException($"Unknown {args[0]} option.");
+    bool julia = options.Keys.Any(key => key is "--julia-artifact-root" or "--julia-handoff" or "--julia-handoff-sha256");
+    if (julia)
+    {
+        _ = Required("--julia-artifact-root");
+        _ = Required("--julia-handoff");
+        _ = Required("--julia-handoff-sha256");
+        if (options.Keys.Any(key => key is "--manifest" or "--contract" or "--feature-fingerprint"))
+            throw new ArgumentException("Julia handoff selects all dataset identities/paths; do not mix independent legacy import options.");
+    }
+    if (args[0] == "control-fit" && !julia && options.ContainsKey("--reference"))
+        throw new ArgumentException("The frozen projection reference option is for full Julia fit controls only.");
+    Task<StudyData> ImportJulia(long cap = ProbabilityStore.DefaultNumericCapBytes) =>
+        JuliaStudyImport.ImportAsync(Required("--julia-artifact-root"), Required("--julia-handoff"),
+            Required("--julia-handoff-sha256"), Required("--preparation"), Required("--split"), Required("--states"),
+            Required("--questions"), cap);
     if (args[0] == "control-julia-import")
     {
         await JuliaBoundedControlImport.VerifyPinned128Async(Required("--dataset"), Required("--selection"),
@@ -111,13 +144,46 @@ try
         Console.WriteLine("Pinned bounded Julia CPU128 import/source association/projection fullEOS PASS; no model, timing or full-study GO.");
         return 0;
     }
+    if (args[0] == "control-julia-prediction")
+    {
+        if (!julia) throw new ArgumentException("Julia prediction benchmark requires a completed full Julia handoff.");
+        bool partitioned = options.GetValueOrDefault("--source-cursors", "single") switch
+        {
+            "single" => false, "partitioned" => true,
+            _ => throw new ArgumentException("Prediction source cursor control must be single or partitioned.")
+        };
+        using var compact = await ImportJulia();
+        var legacy = await JuliaStudyImport.ImportLegacyOracleAsync(Required("--julia-artifact-root"),
+            Required("--julia-handoff"), Required("--julia-handoff-sha256"), Required("--preparation"),
+            Required("--split"), Required("--states"), Required("--questions"),
+            originalReferenceDirectory: Required("--reference"));
+        ConsumerControls.JuliaSameModel(compact, legacy, Required("--reference"), Required("--training-freeze"),
+            Required("--training-freeze-sha256"), Required("--evaluation"), Required("--evaluation-sha256"),
+            Required("--out"), options.TryGetValue("--prediction-cursors", out var cursors) ?
+                int.Parse(cursors, System.Globalization.CultureInfo.InvariantCulture) : 1, partitioned);
+        Console.WriteLine("Stored-Julia saved-head full-row replay and per-head benchmark recorded; inspect raw gains/tradeoffs.");
+        return 0;
+    }
     if (args[0] == "control-fit")
     {
-        await ConsumerFitControls.VerifyAsync(
-            [Required("--manifest"), Required("--contract"), Required("--feature-fingerprint"), Required("--preparation"),
-                Required("--split"), Required("--states"), Required("--questions")], Required("--out"),
-            options.GetValueOrDefault("--arm"),
-            options.TryGetValue("--l2", out var l2) ? double.Parse(l2, System.Globalization.CultureInfo.InvariantCulture) : null);
+        double? onlyL2 = options.TryGetValue("--l2", out var l2) ?
+            double.Parse(l2, System.Globalization.CultureInfo.InvariantCulture) : null;
+        if (julia)
+        {
+            using var compact = await ImportJulia();
+            var legacy = await JuliaStudyImport.ImportLegacyOracleAsync(Required("--julia-artifact-root"),
+                Required("--julia-handoff"), Required("--julia-handoff-sha256"), Required("--preparation"),
+                Required("--split"), Required("--states"), Required("--questions"),
+                originalReferenceDirectory: Required("--reference"));
+            JuliaStudyImport.RequireLegacyParity(legacy, compact);
+            ConsumerFitControls.Verify(legacy, compact, Required("--out"), options.GetValueOrDefault("--arm"), onlyL2,
+                ArtifactFiles.Hash(Path.Combine(Required("--reference"), "reference.receipt.json")));
+        }
+        else
+            await ConsumerFitControls.VerifyAsync(
+                [Required("--manifest"), Required("--contract"), Required("--feature-fingerprint"), Required("--preparation"),
+                    Required("--split"), Required("--states"), Required("--questions")], Required("--out"),
+                options.GetValueOrDefault("--arm"), onlyL2);
         Console.WriteLine(options.ContainsKey("--arm") ?
             "Bounded single-candidate independent fit/source and learner trace parity PASS; no full grid/model freeze/holdout." :
             "Bounded independent fits/source and learner traces/standard save-load parity PASS; no holdout/full study.");
@@ -184,15 +250,25 @@ try
     if (args[0] is "import" or "train" or "evaluate")
     {
         string storage = options.GetValueOrDefault("--storage", "legacy");
-        if (storage is not ("legacy" or "compact") || storage == "legacy" && options.ContainsKey("--numeric-cap-bytes"))
+        if (storage is not ("legacy" or "compact") || storage == "legacy" &&
+            (options.ContainsKey("--numeric-cap-bytes") || julia))
             throw new ArgumentException("Use --storage compact for the numeric cache cap; storage must be legacy or compact.");
         if (storage == "compact")
         {
             long cap = options.TryGetValue("--numeric-cap-bytes", out string? value) ?
                 long.Parse(value, System.Globalization.CultureInfo.InvariantCulture) : ProbabilityStore.DefaultNumericCapBytes;
-            using var compact = await ArrowFeatureReader.ImportCompactAsync(Required("--manifest"), Required("--contract"),
-                Required("--feature-fingerprint"), Required("--preparation"), Required("--split"), Required("--states"),
-                Required("--questions"), cap);
+            using var importProcess = Process.GetCurrentProcess();
+            long importAllocatedStart = GC.GetTotalAllocatedBytes(true);
+            var importCpuStart = importProcess.TotalProcessorTime;
+            long importTimeStart = Stopwatch.GetTimestamp();
+            using var compact = julia ? await ImportJulia(cap) :
+                await ArrowFeatureReader.ImportCompactAsync(Required("--manifest"), Required("--contract"),
+                    Required("--feature-fingerprint"), Required("--preparation"), Required("--split"), Required("--states"),
+                    Required("--questions"), cap);
+            double importWallMilliseconds = Stopwatch.GetElapsedTime(importTimeStart).TotalMilliseconds;
+            long importManagedBytes = GC.GetTotalAllocatedBytes(true) - importAllocatedStart;
+            importProcess.Refresh();
+            double importCpuMilliseconds = (importProcess.TotalProcessorTime - importCpuStart).TotalMilliseconds;
             switch (args[0])
             {
                 case "import":
@@ -202,7 +278,20 @@ try
                         compact.SplitSha256, compact.QuestionsSha256, rows = compact.Metadata.Count,
                         compact.NumericCapacityBytes, compact.NumericCapBytes, numericPayloadBytesPerRow = 48,
                         conversion = FeatureContract.Conversion, projection = FeatureContract.Projection,
-                        arrowLeasesAfterImport = 0, compact.Extraction
+                        arrowLeasesAfterImport = 0, compact.Extraction,
+                        juliaHandoffSha256 = julia ? Required("--julia-handoff-sha256") : null,
+                        partitions = Enumerable.Range(0, compact.Metadata.Count).GroupBy(i => compact.Metadata[i].Partition)
+                            .ToDictionary(group => group.Key, group => group.Count()),
+                        groups = Enumerable.Range(0, compact.Metadata.Count).Select(i => compact.Metadata[i].GroupId).Distinct().Count(),
+                        importMeasurement = new
+                        {
+                            wallMilliseconds = importWallMilliseconds, managedBytes = importManagedBytes,
+                            cpuMilliseconds = importCpuMilliseconds,
+                            workingSetBytes = importProcess.WorkingSet64, peakWorkingSetBytes = importProcess.PeakWorkingSet64,
+                            scope = "First import in this process: full authorization/input validation, IO/public-reader full scan/EOS, " +
+                                "metadata and compact projection/cache allocation. Not filesystem-cold or isolated projection timing; " +
+                                "managed GC bytes exclude native/process memory. No fitting or prediction."
+                        }
                     });
                     Console.WriteLine($"Compact READY: {compact.Metadata.Count} rows, {compact.NumericCapacityBytes} numeric capacity bytes; no Arrow leases.");
                     break;

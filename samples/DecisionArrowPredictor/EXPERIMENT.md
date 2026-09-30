@@ -6,15 +6,95 @@ details; its commands run from the repository root.
 
 **Historical Laya study status:** the completed real 5,574-row scalar export has
 been imported, trained and evaluated. [Results and limitations](#real-scalar-study-results)
-include all five arms/three curves. The Julia-first follow-up below is blocked;
-synthetic smoke remains a separate exercise.
+include all five arms/three curves. The Julia-first follow-up below has explicit
+CPU-only execution approval under a revised acceptance contract; its completed
+full artifact and study results are still pending. Synthetic smoke remains separate.
 
 An experimental, CPU-only **consumer**, not a decision provider. It trains
 ordinary ML.NET 5.0.0 pipelines from persisted decision probabilities. No
 reference to `MLNet.TextInference.Onnx`, local Laya session, tokenizer, ONNX
 Runtime, GPU package, or cloud inference belongs in this process.
 
-## Compact consumer and Julia-first follow-up (in progress)
+## Compact consumer and Julia-first follow-up (CPU-only execution authorized)
+
+### Revised owner acceptance and full-artifact boundary
+
+On 2026-09-30 the owner explicitly authorized one full CPU Julia export and the
+consumer import, fitting and frozen holdout study. The **70% managed-allocation
+target is now a reported benchmark, not an execution blocker**. This does not
+turn the v5/v6 allocation failures into passes: their exact receipts, scopes,
+per-head gains and C3 evidence remain unchanged. Numerical tolerances, original
+source/label/group/partition associations, frozen learning design, complete
+reader validation and save/load replay are unchanged. CUDA remains rejected;
+no mixed-provider rows or relabelled historical models are accepted.
+
+The dedicated full-study importer requires an independently pinned, completed
+producer `full-export.receipt.json`, all referenced artifact sizes/hashes, the
+new GO-READY CPU qualification and SELECTED execution profile, the original
+qualification, and the unchanged portable package receipt. It accepts only the
+producer's canonical CPU identity `78ed3dc0...e3cf05d`, runtime source `fd14d3b1`
+and package source `65880cdf`. It independently checks the original 5,574 IDs
+and 5,102 groups, exact original source bytes, grouped 3,344/1,116/1,114 split,
+scalar state batch 1, output batch 256 and CPU intra/inter threads 4/1.
+All 5,574 prepared tensor rows must retain the frozen original preparation bytes
+(`8be3531e...810e235c`); this is source preparation evidence, not an original
+full scoring rerun.
+The public package reader's schema/hash/ID/full-EOS validation still precedes
+READY. Native scores stay null, ten Single feature bits and the separate Double
+direct score retain their existing interpretation, and no native/Arrow lease
+survives import. A bounded control handoff cannot open this route.
+
+After the producer releases its exclusive export slot, ordinary offline
+validation and same-Julia stored-artifact POCO/compact projection and bounded
+learner controls precede the study. Each candidate first compares predictions
+from the **same fitted original model**, then independently fitted and traced
+paths; unchanged 1e-6 prediction and 1e-12 metric limits apply. The new study
+uses nine genuinely new learned heads and 15 entries at targets 100/500/3,344,
+with ordinary actual-schema save/load. Model choices and thresholds are frozen
+before 1,114-row holdout evaluation; the unchanged 1,000 whole-group bootstrap
+reads saved predictions without inference. Full extraction and head timings
+remain separate; overlapping producer writer stages are not summed.
+
+The full CPU artifact and study have **not yet been verified or completed**.
+Prospective command syntax (only after a completed handoff and quiet-slot release):
+
+```powershell
+$Julia = @(
+  "--julia-artifact-root", "<immutable Julia namespace>",
+  "--julia-handoff", "<completed full-export.receipt.json>",
+  "--julia-handoff-sha256", "<independently supplied completed handoff hash>",
+  "--preparation", "<original preparation>", "--split", "<original split>",
+  "--states", "<original label-free full states>", "--questions", "<frozen questions>"
+)
+dotnet $Cli import @Julia --storage compact --out "<new READY receipt>"
+dotnet $Cli control-fit @Julia --reference "<frozen original consumer>" `
+  --out "<new bounded same-Julia fit-control directory>"
+dotnet $Cli train @Julia --storage compact --out "<new Julia models>"
+# Pin the completed training.freeze.json before opening the holdout:
+dotnet $Cli evaluate @Julia --storage compact --training-freeze "<completed freeze>" `
+  --training-freeze-sha256 "<independent freeze hash>" --out "<new Julia evaluation>"
+# After evaluation, measure identical saved heads with the frozen original oracle.
+# Default production single-cursor profile is explicit; other already-qualified
+# prediction-only cursor variants require their own separately labelled receipt.
+dotnet $Cli control-julia-prediction @Julia --reference "<frozen original consumer>" `
+  --training-freeze "<completed freeze>" --training-freeze-sha256 "<independent freeze hash>" `
+  --evaluation "<completed evaluation.json>" --evaluation-sha256 "<independent evaluation hash>" `
+  --prediction-cursors 1 --source-cursors single --out "<new per-head benchmark.json>"
+```
+
+The Julia bounded projection oracle invokes the immutable original consumer's
+`Project`, rather than sharing the new accessor's math. Prediction benchmarks
+bridge those already-verified rows into the frozen original POCO type outside
+measurement, then invoke its unchanged `Predict` through the same saved heads.
+All 5,574 output IDs/groups/labels/probabilities and standard reload replay must
+match before measurement. Five AB/BA pairs per text/semantic/combined full-data
+head exclude warmups, IO, import, model load, bridge construction and replay
+checks. They report managed bytes, wall/CPU time and process working set without
+calling these native memory or whole-process allocation. The READY receipt
+separately reports first-process full import/validation/cache setup; it is not
+a filesystem-cold or isolated-projection claim. A completed pinned evaluation
+is required before the benchmark can open all rows, so this measurement cannot
+expose holdout predictions during model or threshold selection.
 
 The historical Laya results below remain unchanged. The dependent Julia-first
 follow-up is **not complete** and does not reuse Laya-trained heads under a
@@ -27,9 +107,9 @@ Julia identity. Its latest public-safe checkpoint is
 `import`, `train` and `evaluate` accept `--storage compact` and an optional
 `--numeric-cap-bytes` (default 67,108,864). Legacy storage remains the default;
 the beginner `Start.ps1` and fictional smoke route are unchanged. Compact real
-import currently accepts only the independently pinned historical Laya
-identity/modes. Julia is deliberately blocked until its producer-owned
-canonical contract, exact mode and package handoff are integrated.
+import through `--manifest` accepts only the independently pinned historical
+Laya identity/modes. Full Julia import uses the separately pinned CPU handoff
+options above, not a mode alias or an unrestricted external fingerprint.
 
 Compact import validates the entire completed dataset through the public
 sequential reader, joins original IDs to canonical immutable metadata, and
@@ -80,7 +160,8 @@ actual input schemas and complete 32-row validation associations/replay.
 The authored ControlledFit test independently covers 33 training / 4 validation
 rows, nine candidates and six saved-model replays. Ordinary focused regressions
 pass 164 cases. These controls open no holdout and train no Julia head; the
-unchanged allocation failures still prevent aggregate acceptance.
+allocation failures prevented aggregate acceptance under the original contract.
+The later owner decision above makes them nonblocking reported benchmarks.
 
 Advanced controls require an externally coordinated quiet CPU slot:
 
@@ -165,7 +246,8 @@ dotnet $Cli control-interop --fixture-root "<producer's immutable fictional Juli
 The producer's explicit CPU fallback remains a runtime qualification decision,
 not consumer-owned CUDA arithmetic or permission to reinterpret a GPU contract.
 No real Julia head is trained or old Laya head relabelled while joined acceptance
-and the completed selected artifact remain unavailable.
+and the completed selected artifact remain unavailable. The explicit owner
+approval above authorizes proceeding once that full artifact is actually handed off.
 
 **Bounded stored Julia CPU128 import is separately qualified.**
 [`consumer.julia-controls.v1.json`](consumer.julia-controls.v1.json) pins the
@@ -183,8 +265,8 @@ rejection controls and existing focused regressions pass **194/194**.
 This uses already stored probabilities, with no model load, prediction, fit,
 extractor inference or performance run. The producer's bounded export cost is
 not a full extraction cost, and an absent model-load duration is not invented.
-`control-julia-import` cannot select a full corpus or holdout; the regular real
-Julia study import remains disabled. Its CPU mode is exactly `scalar-cpu` with
+`control-julia-import` cannot select a full corpus or holdout; the separate
+full-study route requires its own completed authorized handoff. Its CPU mode is exactly `scalar-cpu` with
 the producer's canonical CPU identity, not an alias/glob or reinterpretation
 of the rejected CUDA profile.
 

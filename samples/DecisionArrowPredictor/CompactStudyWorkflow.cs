@@ -93,8 +93,9 @@ public static class CompactStudyWorkflow
                         receipt.QuestionsSha256 != study.QuestionsSha256 || Path.GetFileName(receipt.ModelFile) != receipt.ModelFile)
                         throw new InvalidDataException("Frozen model receipt mismatch.");
                     string modelPath = Path.Combine(root, receipt.ModelFile);
-                    buffer.Fill(PredictorTraining.Load(modelPath, receipt, study.FeatureFingerprint), holdout.View(), holdout);
-                    replay.Fill(PredictorTraining.Load(modelPath, receipt, study.FeatureFingerprint), holdout.View(), holdout);
+                    var view = holdout.View();
+                    buffer.Fill(PredictorTraining.Load(modelPath, receipt, study.FeatureFingerprint, view.Schema), view, holdout);
+                    replay.Fill(PredictorTraining.Load(modelPath, receipt, study.FeatureFingerprint, view.Schema), view, holdout);
                     replay.RequireReplay(buffer);
                 }
                 ArtifactFiles.Write(Path.Combine(output, $"{arm.Arm}-{arm.TargetRows}.holdout.json"), buffer.Snapshot());

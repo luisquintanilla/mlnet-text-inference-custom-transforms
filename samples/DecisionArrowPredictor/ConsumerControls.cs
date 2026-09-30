@@ -288,6 +288,122 @@ public static class ConsumerControls
         });
     }
 
+    public static void JuliaSameModel(StudyData compact, ImportedStudy original, string referenceDirectory,
+        string trainingFreezePath, string trainingFreezeSha256, string evaluationPath, string evaluationSha256,
+        string output, int predictionCursors = 1, bool partitionedSourceControl = false)
+    {
+        if (File.Exists(output) || PredictorTraining.LearnedArms.Any(name =>
+            File.Exists(output + $".{name}.same-model.json") || File.Exists(output + $".{name}.measurements.json")))
+            throw new IOException("Julia benchmark receipts, including partial evidence, are immutable.");
+        JuliaStudyImport.RequireLegacyParity(original, compact);
+        if (compact.FeatureFingerprint != JuliaFixtureInterop.HighPrecisionFingerprint ||
+            compact.Metadata.Count != 5574 || compact.Partition("train").Count != 3344 ||
+            predictionCursors is < 1 or > PredictionBuffer.MaximumControlCursors)
+            throw new InvalidDataException("Julia benchmark requires the full frozen CPU source and a declared cursor profile.");
+        ArtifactFiles.RequireHash(trainingFreezePath, trainingFreezeSha256);
+        ArtifactFiles.RequireHash(evaluationPath, evaluationSha256);
+        var freeze = ArtifactFiles.Read<TrainingFreeze>(trainingFreezePath);
+        var evaluation = ArtifactFiles.Read<StudyEvaluation>(evaluationPath);
+        if (freeze.Version != 1 || freeze.Status != "complete" || evaluation.Version != 1 ||
+            evaluation.Status != "complete" || evaluation.TrainingFreezeSha256 != trainingFreezeSha256 ||
+            freeze.FeatureFingerprint != compact.FeatureFingerprint || evaluation.FeatureFingerprint != compact.FeatureFingerprint ||
+            freeze.DatasetManifestSha256 != compact.DatasetManifestSha256 ||
+            evaluation.DatasetManifestSha256 != compact.DatasetManifestSha256 ||
+            freeze.SplitSha256 != compact.SplitSha256 || evaluation.SplitSha256 != compact.SplitSha256 ||
+            freeze.QuestionsSha256 != compact.QuestionsSha256 || freeze.Conversion != FeatureContract.Conversion ||
+            freeze.Arms.Length != 15 || evaluation.Arms.Length != 15 ||
+            evaluation.Arms.Any(arm => arm.Holdout.Rows != 1114))
+            throw new InvalidDataException("Julia benchmarks follow the completed frozen study; never open holdout during selection.");
+        using var oracle = new OriginalConsumerOracle(referenceDirectory);
+        var rows = oracle.BridgeRows(original);
+        oracle.RequireRowsContent(rows, compact);
+        var selection = compact.All();
+        var view = partitionedSourceControl ? selection.PartitionedPredictionControlView() : selection.View();
+        var buffer = new PredictionBuffer(selection.Count);
+        var measurements = new List<ConsumerMeasurement>();
+        var models = new List<object>();
+        string directory = Path.GetDirectoryName(Path.GetFullPath(trainingFreezePath))!;
+        foreach (string name in PredictorTraining.LearnedArms)
+        {
+            var arm = freeze.Arms.Single(arm => arm.Arm == name && arm.TargetRows == 3344);
+            string filename = arm.ModelReceiptFile ?? throw new InvalidDataException("Missing frozen Julia model receipt.");
+            if (Path.GetFileName(filename) != filename) throw new InvalidDataException("Model receipt must be a sibling file.");
+            string receiptPath = Path.Combine(directory, filename);
+            ArtifactFiles.RequireHash(receiptPath, arm.ModelReceiptSha256 ?? "");
+            var receipt = ArtifactFiles.Read<ModelReceipt>(receiptPath);
+            if (receipt.Arm != name || receipt.TargetRows != 3344 || receipt.ActualRows != 3344 ||
+                receipt.DatasetManifestSha256 != compact.DatasetManifestSha256 ||
+                receipt.SplitSha256 != compact.SplitSha256 || receipt.QuestionsSha256 != compact.QuestionsSha256 ||
+                receipt.Threshold != arm.Threshold || receipt.BudgetThreshold != arm.BudgetThreshold ||
+                Path.GetFileName(receipt.ModelFile) != receipt.ModelFile)
+                throw new InvalidDataException("Julia benchmark model differs from the completed frozen study.");
+            string path = Path.Combine(directory, receipt.ModelFile);
+            var model = PredictorTraining.Load(path, receipt, compact.FeatureFingerprint, view.Schema);
+            var expected = OriginalConsumerOracle.Predictions(oracle.Predict(model, rows));
+            buffer.Fill(model, view, selection, requestedCursors: predictionCursors);
+            var actual = buffer.Values;
+            bool complete = expected.Length == actual.Count;
+            bool finite = expected.All(row => double.IsFinite(row.Probability) && row.Probability is >= 0 and <= 1);
+            double? difference = complete && finite ? Enumerable.Range(0, expected.Length)
+                .Select(i => Math.Abs(expected[i].Probability - actual[i].Probability)).DefaultIfEmpty(0).Max() : null;
+            ArtifactFiles.Write(output + $".{name}.same-model.json", new
+            {
+                schemaVersion = 1, status = "SAME_MODEL_COMPARISON_RECORDED", arm = name, receipt.ModelSha256,
+                expectedRows = expected.Length, actualRows = actual.Count, finiteOriginalProbabilities = finite,
+                completeAssociation = complete && Enumerable.Range(0, expected.Length).All(i =>
+                    expected[i].RowId == actual[i].RowId && expected[i].GroupId == actual[i].GroupId &&
+                    expected[i].Label == actual[i].Label),
+                maximumAbsoluteProbabilityDifference = difference, predictionTolerance = 1e-6
+            });
+            if (!finite) throw new InvalidDataException("Frozen original predictor returned invalid probabilities.");
+            buffer.RequireReplay(expected);
+            buffer.Fill(PredictorTraining.Load(path, receipt, compact.FeatureFingerprint, view.Schema),
+                view, selection, requestedCursors: predictionCursors);
+            buffer.RequireReplay(expected);
+            _ = oracle.Predict(model, rows);
+            buffer.Fill(model, view, selection, requestedCursors: predictionCursors);
+            for (int pair = 0; pair < 5; pair++)
+            {
+                bool ab = pair % 2 == 0;
+                string order = ab ? "AB" : "BA";
+                for (int run = 0; run < 2; run++)
+                {
+                    bool legacy = ab == (run == 0);
+                    measurements.Add(Measure($"julia-{name}-prediction-materialization", legacy ? "original" : "compact",
+                        selection.Count, 0, pair, order, () =>
+                        {
+                            if (legacy) GC.KeepAlive(oracle.Predict(model, rows));
+                            else buffer.Fill(model, view, selection, requestedCursors: predictionCursors);
+                        }, compact.NumericCapacityBytes));
+                }
+            }
+            ArtifactFiles.Write(output + $".{name}.measurements.json", new
+            {
+                schemaVersion = 1, arm = name, receipt.ModelSha256, rows = selection.Count,
+                predictionCursors, partitionedSourceControl,
+                measurements = measurements.Where(measurement => measurement.Scope == $"julia-{name}-prediction-materialization")
+            });
+            buffer.RequireReplay(expected);
+            models.Add(new { arm = name, receipt.ModelSha256, receipt.ModelBytes, receipt.L2,
+                completeAssociationAndSaveLoadReplay = true, predictionTolerance = 1e-6 });
+        }
+        ArtifactFiles.Write(output, new
+        {
+            schemaVersion = 1, status = "JULIA_SAME_MODEL_BENCHMARK_REPLAY_PASS",
+            compact.FeatureFingerprint, compact.DatasetManifestSha256, compact.SplitSha256, compact.QuestionsSha256,
+            trainingFreezeSha256, evaluationSha256, referenceReceiptSha256 = oracle.ReceiptSha256,
+            sourceAssemblySha256 = ArtifactFiles.Hash(typeof(ConsumerControls).Assembly.Location),
+            rows = selection.Count, models, measurements,
+            predictionExecutionProfile = new { requestedCursors = predictionCursors, partitionedSourceControl,
+                publicOutputCursorSet = true, customScorer = false, predictionCache = false, trainingPolicyChanged = false },
+            scope = "Frozen original Predict versus reusable compact columns through the same three genuinely new saved Julia heads; " +
+                "full5574 rows, five balanced AB/BA pairs per head, warmups excluded. Full import/IO/public-reader validation, " +
+                "model load, bridge construction and replay checks excluded from matched hot prediction scope. " +
+                "Managed GC bytes are not native or process memory; CPU/WS remain separately reported. " +
+                "70% reduction is a reported benchmark, never a retroactive PASS for v5/v6; no new fitting/extraction or holdout tuning."
+        });
+    }
+
     private static object Diagnose(IDataView view, RowSelection expected)
     {
         var schema = view.Schema;

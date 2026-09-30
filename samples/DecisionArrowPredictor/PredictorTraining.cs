@@ -139,7 +139,8 @@ public static class PredictorTraining
             .Select(r => new Prediction(r.RowId, r.GroupId, r.Label, r.Probability)).ToArray();
     }
 
-    public static ITransformer Load(string modelPath, ModelReceipt receipt, string expectedIdentity)
+    public static ITransformer Load(string modelPath, ModelReceipt receipt, string expectedIdentity,
+        DataViewSchema? expectedInputSchema = null)
     {
         if (receipt.Version != 1 || receipt.Conversion != FeatureContract.Conversion ||
             !receipt.Projection.SequenceEqual(FeatureContract.Projection) ||
@@ -148,6 +149,12 @@ public static class PredictorTraining
         FeatureContract.RequireIdentity(receipt.FeatureFingerprint, expectedIdentity);
         ArtifactFiles.RequireHash(modelPath, receipt.ModelSha256);
         using var file = File.OpenRead(modelPath);
-        return new MLContext(Seed).Model.Load(file, out _);
+        var model = new MLContext(Seed).Model.Load(file, out var savedSchema);
+        if (expectedInputSchema is not null &&
+            (savedSchema.Count != expectedInputSchema.Count ||
+                expectedInputSchema.Where((column, i) => column.Name != savedSchema[i].Name ||
+                    !column.Type.Equals(savedSchema[i].Type)).Any()))
+            throw new InvalidDataException("Saved predictor actual input schema differs from the study view.");
+        return model;
     }
 }

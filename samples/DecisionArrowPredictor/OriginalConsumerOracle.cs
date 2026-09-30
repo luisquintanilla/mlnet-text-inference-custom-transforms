@@ -58,9 +58,33 @@ internal sealed class OriginalConsumerOracle : IDisposable
 
     public object Rows(object imported) => imported.GetType().GetProperty("Rows")!.GetValue(imported)!;
 
-    public void RequireContent(object imported, StudyData data)
+    public System.Array BridgeRows(ImportedStudy imported)
     {
-        var rows = (System.Array)Rows(imported);
+        var type = assembly.GetType("DecisionArrowPredictor.LearningRow", true)!;
+        var id = type.GetProperty(nameof(LearningRow.RowId))!;
+        var group = type.GetProperty(nameof(LearningRow.GroupId))!;
+        var label = type.GetProperty(nameof(LearningRow.Label))!;
+        var text = type.GetProperty(nameof(LearningRow.Text))!;
+        var semantic = type.GetProperty(nameof(LearningRow.Semantic))!;
+        var direct = type.GetProperty(nameof(LearningRow.SpamBaseline))!;
+        var rows = System.Array.CreateInstance(type, imported.Rows.Length);
+        for (int i = 0; i < rows.Length; i++)
+        {
+            var source = imported.Rows[i];
+            var row = Activator.CreateInstance(type) ??
+                throw new InvalidDataException("Original consumer row construction failed.");
+            id.SetValue(row, source.RowId); group.SetValue(row, source.GroupId);
+            label.SetValue(row, source.Label); text.SetValue(row, source.Text);
+            semantic.SetValue(row, source.Semantic.ToArray()); direct.SetValue(row, source.SpamBaseline);
+            rows.SetValue(row, i);
+        }
+        return rows;
+    }
+
+    public void RequireContent(object imported, StudyData data) => RequireRowsContent((System.Array)Rows(imported), data);
+
+    public void RequireRowsContent(System.Array rows, StudyData data)
+    {
         if (rows.Length != data.Metadata.Count) throw new InvalidDataException("Original/compact content count differs.");
         if (rows.Length == 0) return;
         var rowType = rows.GetValue(0)!.GetType();
@@ -117,6 +141,23 @@ internal sealed class OriginalConsumerOracle : IDisposable
             var value = values.GetValue(i)!;
             result[i] = new((long)id.GetValue(value)!, (long)group.GetValue(value)!,
                 (bool)label.GetValue(value)!, (double)probability.GetValue(value)!);
+        }
+        return result;
+    }
+
+    public static FeatureObservation[] Observations(System.Array values)
+    {
+        if (values.Length == 0) return [];
+        var type = values.GetValue(0)!.GetType();
+        var id = type.GetProperty(nameof(FeatureObservation.RowId))!;
+        var semantic = type.GetProperty(nameof(FeatureObservation.Semantic))!;
+        var direct = type.GetProperty(nameof(FeatureObservation.SpamBaseline))!;
+        var result = new FeatureObservation[values.Length];
+        for (int i = 0; i < result.Length; i++)
+        {
+            var value = values.GetValue(i)!;
+            result[i] = new((long)id.GetValue(value)!, (float[])semantic.GetValue(value)!,
+                (double)direct.GetValue(value)!);
         }
         return result;
     }

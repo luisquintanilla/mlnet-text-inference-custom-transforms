@@ -22,7 +22,7 @@ public static class ConsumerFitControls
     }
 
     public static void Verify(ImportedStudy legacy, StudyData compact, string output, string? onlyArm = null,
-        double? onlyL2 = null)
+        double? onlyL2 = null, string? originalProjectionReferenceReceiptSha256 = null)
     {
         bool singleCandidate = onlyArm is not null && onlyL2.HasValue;
         if ((onlyArm is not null) != onlyL2.HasValue ||
@@ -52,6 +52,14 @@ public static class ConsumerFitControls
                 foreach (double l2 in singleCandidate ? [onlyL2!.Value] : PredictorTraining.L2Grid)
                 {
                     var original = Fit(arm, l2, false, false);
+                    var sameModelCompact = Predict(original.Model);
+                    ArtifactFiles.Write(Path.Combine(output, $"{arm}-{l2:R}.same-model.json"), new
+                    {
+                        arm, l2, comparison = Compare(original.Predictions, sameModelCompact),
+                        sourceModel = "Same original independently fitted candidate; no compact fit yet.",
+                        compact.FeatureFingerprint, compact.DatasetManifestSha256
+                    });
+                    RequirePredictions(original.Predictions, sameModelCompact);
                     var optimized = Fit(arm, l2, true, false);
                     var originalTraced = Fit(arm, l2, false, true);
                     var optimizedTraced = Fit(arm, l2, true, true);
@@ -59,6 +67,7 @@ public static class ConsumerFitControls
                     {
                         arm, l2, original = original.Candidate, compact = optimized.Candidate,
                         tracedOriginal = originalTraced.Candidate, tracedCompact = optimizedTraced.Candidate,
+                        sameFittedModelComparison = Compare(original.Predictions, sameModelCompact),
                         untracedComparison = Compare(original.Predictions, optimized.Predictions),
                         tracedComparison = Compare(originalTraced.Predictions, optimizedTraced.Predictions),
                         originalObserverComparison = Compare(original.Predictions, originalTraced.Predictions),
@@ -98,6 +107,7 @@ public static class ConsumerFitControls
                     "BOUNDED_INDEPENDENT_FIT_PARITY_PASS",
                 compact.FeatureFingerprint, compact.DatasetManifestSha256, compact.SplitSha256, compact.QuestionsSha256,
                 sourceAssemblySha256 = ArtifactFiles.Hash(typeof(ConsumerFitControls).Assembly.Location),
+                originalProjectionReferenceReceiptSha256,
                 trainingRows = training.Count, validationRows = validation.Count,
                 trainingIdOrderSha256 = HashIds(trainIds), validationIdOrderSha256 = HashIds(validationIds),
                 settings = "ML.NET5/seed1/thread1/max100/defaultShuffle/L2[.0001,.001,.01]; unchanged grouped subset; validation only.",

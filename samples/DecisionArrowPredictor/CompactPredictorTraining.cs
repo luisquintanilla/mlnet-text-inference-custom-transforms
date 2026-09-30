@@ -79,7 +79,7 @@ public static class CompactPredictorTraining
             budgetThreshold, bestFitMilliseconds, timer.Elapsed.TotalMilliseconds,
             warm.Elapsed.TotalMilliseconds / (5 * validation.Count), metricsAtThreshold, FeatureContract.Projection);
         var replay = new PredictionBuffer(validation.Count);
-        replay.Fill(PredictorTraining.Load(path, receipt, data.FeatureFingerprint), validationView, validation);
+        replay.Fill(PredictorTraining.Load(path, receipt, data.FeatureFingerprint, validationView.Schema), validationView, validation);
         replay.RequireReplay(predictions);
         ArtifactFiles.Write(Path.Combine(output, $"{arm}-{target}.receipt.json"), receipt);
         return new(receipt, fitted);
