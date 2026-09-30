@@ -199,6 +199,9 @@ and a completed dataset, not self-guessed metadata. Import joins by `row_id`;
 missing/extra/duplicate IDs and wrong source, questions, contract or partial
 artifacts are fatal. Conversion is checked Arrow `float64` probabilities to
 ML.NET `float32` **only at this boundary**; source Arrow values are unchanged.
+Real producer modes `scalar-cpu` and `native-cpu` are accepted explicitly
+(alongside the original `scalar`/`native` aliases); synthetic and unknown modes
+remain rejected.
 
 Five arms use frozen splits: training prevalence prior, stored direct spam
 probability, text+SDCA logistic regression, semantic+the same learner, and

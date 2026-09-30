@@ -88,7 +88,7 @@ public static class ArrowFeatureReader
         using var reader = await DecisionArrowDatasetReader.OpenAsync(manifestPath, contract, states.Keys, token);
         if (reader.Manifest.Provenance.InputSha256 != preparation.StatesSha256 ||
             reader.Manifest.Provenance.QuestionsSha256 != preparation.QuestionsSha256 ||
-            reader.Manifest.Provenance.ExecutionMode is not ("scalar" or "native"))
+            reader.Manifest.Provenance.ExecutionMode is not ("scalar" or "native" or "scalar-cpu" or "native-cpu"))
             throw new InvalidDataException("Expected matching completed real scalar/native export, not synthetic or changed input.");
         var measures = reader.Manifest.Provenance.Measurements ??
             throw new InvalidDataException("Real semantic extraction measurements are missing.");

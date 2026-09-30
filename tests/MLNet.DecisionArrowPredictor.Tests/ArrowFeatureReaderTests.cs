@@ -368,6 +368,65 @@ public sealed class ArrowFeatureReaderTests
     }
 
     [TestMethod]
+    [DataRow("scalar")]
+    [DataRow("native")]
+    [DataRow("scalar-cpu")]
+    [DataRow("native-cpu")]
+    public async Task ImportAsync_ExactCpuQualifiedModesAndAliasesPreserveAllLocalUnitRows(string mode)
+    {
+        using var temp = new TempDirectory();
+        var input = ImportInputs(temp, "HighPrecision");
+        var manifest = ReadManifest(input.Manifest);
+        // Local synthetic UNIT metadata only: this is not an authoritative
+        // export or a substitute for UCI. No model or inference is involved.
+        WriteManifest(input.Manifest, manifest with
+        {
+            Provenance = manifest.Provenance with
+            {
+                ExecutionMode = mode,
+                Measurements = new Dictionary<string, double>
+                {
+                    ["loadMilliseconds"] = 7,
+                    ["exportBeforeManifestPublicationMilliseconds"] = 19
+                }
+            }
+        });
+        var snapshot = new[] { input.Manifest, input.PreparationPath, input.Split, input.States,
+            temp.FilePath("decisions.arrow"), temp.FilePath("contract.json") }
+            .ToDictionary(path => path, File.ReadAllBytes);
+
+        var actual = await Import(input, "HighPrecision");
+
+        Assert.AreEqual(257, actual.Rows.Length);
+        CollectionAssert.AreEqual(Enumerable.Range(1, 257).Select(id => (long)id).ToArray(),
+            actual.Rows.Select(row => row.RowId).ToArray());
+        float[] semantic = [.42f, .42f, 0, 0, 1, 0, 0, 0, 0, 1];
+        foreach (var row in actual.Rows)
+        {
+            Assert.AreEqual(row.RowId, row.GroupId);
+            Assert.AreEqual(row.RowId % 2 == 0, row.Label);
+            Assert.AreEqual($"unit-{row.RowId}", row.Text);
+            CollectionAssert.AreEqual(semantic, row.Semantic);
+            Assert.AreEqual(.42, row.SpamBaseline);
+        }
+        Assert.AreEqual(129, actual.Rows.Count(row => !row.Label));
+        Assert.AreEqual(128, actual.Rows.Count(row => row.Label));
+        Assert.AreEqual(Fingerprint("HighPrecision"), actual.FeatureFingerprint);
+        Assert.AreEqual(ArtifactExpectations.HashFile(input.Manifest), actual.DatasetManifestSha256);
+        Assert.AreEqual(input.Preparation.SplitSha256, actual.SplitSha256);
+        Assert.AreEqual(FeatureContract.QuestionsV1Sha256, actual.QuestionsSha256);
+        CollectionAssert.AreEqual(ArtifactFiles.Read<SplitManifest>(input.Split).Rows, actual.Split.Rows);
+        Assert.IsNotNull(actual.Extraction);
+        Assert.AreEqual(mode, actual.Extraction.ExecutionMode, "Preserve the exact producer spelling; no alias rewriting.");
+        Assert.AreEqual(257, actual.Extraction.Rows);
+        CollectionAssert.AreEquivalent(new[] { "loadMilliseconds", "exportBeforeManifestPublicationMilliseconds" },
+            actual.Extraction.Measurements.Keys.ToArray());
+        Assert.AreEqual(7d, actual.Extraction.Measurements["loadMilliseconds"]);
+        Assert.AreEqual(19d, actual.Extraction.Measurements["exportBeforeManifestPublicationMilliseconds"]);
+        foreach (var (path, bytes) in snapshot) ArtifactExpectations.Bytes(bytes, path);
+    }
+
+    [TestMethod]
     [DataRow("HighPrecision")]
     [DataRow("FourDecimalPlaces")]
     [DataRow("TwoDecimalPlaces")]
@@ -459,8 +518,8 @@ public sealed class ArrowFeatureReaderTests
     private static ImportInput ImportInputs(TempDirectory temp, string precision)
     {
         string manifestPath = CopyFixture(temp, precision);
-        // Authored, label-free preparation only for rejection tests. This is
-        // NOT UCI evidence. Keep IDs/class support valid so provenance rejection
+        // Authored, label-free preparation for lightweight local unit tests.
+        // NOT UCI evidence. Valid IDs/class support also ensure rejection tests
         // cannot pass vacuously because of an earlier preparation failure.
         var source = Enumerable.Range(1, 257).Select(id => new CorpusRow(id, id % 2 == 0, $"unit-{id}")).ToArray();
         string states = temp.PutText("states.jsonl", string.Join("\n",
@@ -484,7 +543,7 @@ public sealed class ArrowFeatureReaderTests
         string preparationPath = temp.FilePath("preparation.json");
         ArtifactFiles.Write(preparationPath, preparation);
         var manifest = ReadManifest(manifestPath);
-        // Metadata-only negative fixture patch; IPC and immutable source stay untouched.
+        // Test-only metadata patch; IPC and immutable source stay untouched.
         WriteManifest(manifestPath, manifest with
         {
             Provenance = manifest.Provenance with { InputSha256 = preparation.StatesSha256 }
