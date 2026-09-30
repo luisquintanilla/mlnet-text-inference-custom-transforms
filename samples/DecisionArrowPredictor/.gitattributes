@@ -1,3 +1,4 @@
 questions.v1.json -text whitespace=cr-at-eol
 fixtures/** -text whitespace=cr-at-eol
 study.scalar.v1.json -text whitespace=cr-at-eol
+consumer.julia-study.v1.json -text
