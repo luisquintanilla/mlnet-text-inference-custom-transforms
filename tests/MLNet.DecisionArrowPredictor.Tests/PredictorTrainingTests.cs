@@ -211,6 +211,9 @@ public sealed class PredictorTrainingTests
         var expected = PredictorTraining.Predict(fitted.Model, input);
         var replayed = PredictorTraining.Predict(loaded, input);
 
+        Assert.AreEqual(4, input.Length);
+        Assert.AreEqual(input.Length, expected.Length);
+        Assert.AreEqual(expected.Length, replayed.Length, "Saved replay must contain exactly every validation row.");
         ModelExpectations.Predictions(input, expected);
         ModelExpectations.Predictions(input, replayed);
         ModelExpectations.Replay(expected, replayed);
@@ -232,8 +235,69 @@ public sealed class PredictorTrainingTests
         Assert.AreEqual(ModelExpectations.Threshold(validation, false), receipt.Threshold);
         Assert.AreEqual(ModelExpectations.Threshold(validation, true), receipt.BudgetThreshold);
         ModelExpectations.ValidationMetrics(validation, receipt.Threshold, receipt.Validation);
+        string receiptPath = Path.Combine(models.Output(arm), arm + "-12.receipt.json");
+        var finalized = System.Text.Json.JsonSerializer.Deserialize<ModelReceipt>(
+            File.ReadAllBytes(receiptPath),
+            new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web))!;
+        Assert.AreEqual(1, finalized.Version);
+        Assert.AreEqual(receipt.ModelSha256, finalized.ModelSha256);
+        Assert.AreEqual(ArtifactExpectations.Hash(originalModel), finalized.ModelSha256);
+        Assert.AreEqual((long)originalModel.Length, finalized.ModelBytes);
+        Assert.AreEqual(replayed.Length, finalized.Validation.Rows);
+        Assert.AreEqual(receipt.Threshold, finalized.Threshold);
+        Assert.AreEqual(receipt.BudgetThreshold, finalized.BudgetThreshold);
+        Assert.IsFalse(File.Exists(receiptPath + ".partial"), "Successful verification must leave a finalized receipt.");
         ArtifactExpectations.Bytes(originalModel, models.ModelPath(arm));
         CollectionAssert.AreEqual(QuestionFixtures.Projection, fitted.Receipt.Projection);
+    }
+
+    [TestMethod]
+    [DataRow("text")]
+    [DataRow("semantic")]
+    [DataRow("combined")]
+    public void Fit_FailedSavedModelVerificationDoesNotFinalizeReceipt(string arm)
+    {
+        using var temp = new TempDirectory();
+        var training = LearningRowFixtures.Training();
+        var validation = LearningRowFixtures.Validation();
+        var beforeTraining = training.Select(r => LearningRowFixtures.Copy(r)).ToArray();
+        var beforeValidation = validation.Select(r => LearningRowFixtures.Copy(r)).ToArray();
+        string output = temp.FilePath("failed-verification");
+
+        // In the current API, blank identity deterministically fails the saved
+        // model's Load verification after Save. No race, watcher or source seam.
+        var error = Assert.ThrowsExactly<InvalidDataException>(() =>
+            PredictorTraining.Fit(arm, 12, training, validation, "",
+                LearningRowFixtures.DatasetHash, LearningRowFixtures.SplitHash,
+                LearningRowFixtures.QuestionsHash, output));
+
+        Assert.AreEqual("External producer feature-contract identity mismatch.", error.Message);
+        string modelPath = Path.Combine(output, arm + "-12.mlnet");
+        string receiptPath = Path.Combine(output, arm + "-12.receipt.json");
+        Assert.IsFalse(File.Exists(receiptPath), "A failed verification must never publish a completion receipt.");
+        Assert.IsFalse(File.Exists(receiptPath + ".partial"));
+        CollectionAssert.AreEqual(new[] { arm + "-12.mlnet" },
+            Directory.GetFiles(output).Select(Path.GetFileName).ToArray());
+        byte[] savedModel = File.ReadAllBytes(modelPath);
+        Assert.IsTrue(savedModel.Length > 0);
+        Assert.IsFalse(File.Exists(modelPath + ".partial"));
+
+        // Independently prove Save completed a valid ordinary ML.NET model:
+        // the failed stage was contract verification, not Fit or serialization.
+        var context = new MLContext(1);
+        var physicalModel = context.Model.Load(modelPath, out var schema);
+        Assert.AreEqual(10, ((VectorDataViewType)schema[nameof(LearningRow.Semantic)].Type).Size);
+        var scored = context.Data.CreateEnumerable<ScoredRow>(
+            physicalModel.Transform(context.Data.LoadFromEnumerable(validation)), reuseRowObject: false).ToArray();
+        Assert.AreEqual(4, scored.Length);
+        CollectionAssert.AreEqual(validation.Select(r => r.RowId).ToArray(), scored.Select(r => r.RowId).ToArray());
+        CollectionAssert.AreEqual(validation.Select(r => r.GroupId).ToArray(), scored.Select(r => r.GroupId).ToArray());
+        CollectionAssert.AreEqual(validation.Select(r => r.Label).ToArray(), scored.Select(r => r.Label).ToArray());
+        Assert.IsTrue(scored.All(r => float.IsFinite(r.Probability) && r.Probability >= 0 && r.Probability <= 1));
+        Assert.IsTrue(scored.Select(r => r.Probability).Distinct().Count() > 1);
+        ArtifactExpectations.Bytes(savedModel, modelPath);
+        LearningRowFixtures.Unchanged(beforeTraining, training);
+        LearningRowFixtures.Unchanged(beforeValidation, validation);
     }
 
     [TestMethod]

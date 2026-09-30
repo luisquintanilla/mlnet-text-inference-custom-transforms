@@ -232,7 +232,8 @@ does not publish a completed training/evaluation receipt.
 
 ## Offline validation evidence
 
-The initial core suite has **236 passing cases, no skips**. Targeted commands:
+The current offline suite has **369 passing cases, no skips** (236 initial
+core cases plus 133 focused study/import/persistence cases). Targeted commands:
 
 ```powershell
 dotnet test tests\MLNet.DecisionArrowPredictor.Tests\MLNet.DecisionArrowPredictor.Tests.csproj --no-restore -p:ImportDirectoryBuildTargets=false
@@ -255,6 +256,10 @@ dotnet test tests\MLNet.DecisionArrowPredictor.Tests\MLNet.DecisionArrowPredicto
 | "1000 seeded group-bootstrap resamples" | `Bootstrap_GroupedDrawsMatchIndependentSeededCountsAndWeightedBounds` |
 | "report undefined class cases" | `Bootstrap_SingleClassUndefinedMetricsHaveNullBounds` |
 | "Save/load ordinary ML.NET trained model with external feature-contract validation" | `Predict_AndRealLoadPreserveIdentitiesAndReplayProbabilities`, `Load_ContractAndReceiptMutationsAreRejected` |
+| "reject missing/extra/duplicate IDs or partial artifacts" | `PublicReader_ExactExternalSourceIdsRejectExtraAndMissingRows`, `PublicReader_HashConsistentIpcStillRejectsDuplicateSourceIds`, `SmokeAsync_PublicReaderRejectsIncompleteOrChangedFixture` |
+| "No synthetic results labelled real" | `ImportAsync_RealImportRejectsOfficialSyntheticFixtureEvenWhenSourceHashesAndIdsMatch` |
+| Five arms and three declared curves; no empty completed reports | `Train_FiveArmsUseMatchedIntactTrainingOnlySubsetsAndPublishFreeze`, `Evaluate_ExactFiveArmsAndDeclaredTargetsAreRequired` |
+| Completion receipt only after saved-model verification | `Fit_FailedSavedModelVerificationDoesNotFinalizeReceipt` |
 
 The complete bounded research/requirement mapping and assertion/gap review are
 local ignored `.testagent` artifacts, not corpus reports. Real five-arm results
