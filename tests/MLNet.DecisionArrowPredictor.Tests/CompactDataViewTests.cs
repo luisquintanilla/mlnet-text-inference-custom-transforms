@@ -9,6 +9,105 @@ namespace DecisionArrowPredictor.Tests;
 public sealed class CompactDataViewTests
 {
     [TestMethod]
+    [DataRow(1)]
+    [DataRow(2)]
+    [DataRow(16)]
+    [DataRow(1024)]
+    public void PartitionedPredictionControl_ProvidesContiguousDisjointGlobalRanksWithoutAdvancingRandom(int requested)
+    {
+        var legacy = StudyFixture.Authored();
+        using var data = StudyData.FromLegacy(legacy with { Rows = legacy.Rows.Reverse().ToArray() });
+        var selected = data.All();
+        var view = selected.PartitionedPredictionControlView();
+        var random = new Random(1729);
+        var untouched = new Random(1729);
+        Assert.IsFalse(view.CanShuffle);
+        Assert.AreEqual((long)selected.Count, view.GetRowCount());
+        using (var normal = selected.View().GetRowCursorSet([], requested).Single())
+            Assert.AreEqual(-1L, normal.Position);
+        for (int pass = 0; pass < 2; pass++)
+        {
+            var cursors = view.GetRowCursorSet(view.Schema, requested, random);
+            int count = Math.Min(Math.Min(requested, PredictionBuffer.MaximumControlCursors), selected.Count);
+            Assert.AreEqual(count, cursors.Length);
+            Assert.AreEqual(count, data.ActiveCursors);
+            var seen = new bool[selected.Count];
+            try
+            {
+                for (int index = 0; index < count; index++)
+                {
+                    var cursor = cursors[index];
+                    int start = selected.Count * index / count, end = selected.Count * (index + 1) / count;
+                    Assert.AreEqual(-1L, cursor.Position);
+                    Assert.AreEqual((long)start, cursor.Batch);
+                    var getId = cursor.GetIdGetter();
+                    var getSource = cursor.GetGetter<long>(view.Schema["RowId"]);
+                    var getFeatures = cursor.GetGetter<VBuffer<float>>(view.Schema["Semantic"]);
+                    DataViewRowId identity = default; long source = 0; VBuffer<float> vector = default;
+                    Assert.ThrowsExactly<InvalidOperationException>(() => getId(ref identity));
+                    int rank = start;
+                    while (cursor.MoveNext())
+                    {
+                        Assert.AreEqual((long)rank, cursor.Position);
+                        getId(ref identity); getSource(ref source); getFeatures(ref vector);
+                        Assert.AreEqual(new DataViewRowId((ulong)rank, 0), identity);
+                        Assert.AreEqual(data.Metadata[selected[rank]].RowId, source);
+                        CollectionAssert.AreEqual(legacy.Rows.Single(row => row.RowId == source).Semantic,
+                            vector.GetValues().ToArray());
+                        Assert.IsFalse(seen[rank]);
+                        seen[rank++] = true;
+                    }
+                    Assert.AreEqual(end, rank);
+                    Assert.AreEqual(-1L, cursor.Position);
+                    Assert.ThrowsExactly<InvalidOperationException>(() => getSource(ref source));
+                }
+                Assert.IsTrue(seen.All(value => value));
+            }
+            finally { foreach (var cursor in cursors) cursor.Dispose(); }
+            Assert.AreEqual(0, data.ActiveCursors);
+        }
+        Assert.AreEqual(untouched.Next(), random.Next());
+    }
+
+    [TestMethod]
+    public void PartitionedPredictionControl_ActiveMasksLeaseDisposalAndCallerBuffersRemainIndependent()
+    {
+        using var data = StudyData.FromLegacy(StudyFixture.Authored());
+        var selected = data.All();
+        var view = selected.PartitionedPredictionControlView();
+        var column = view.Schema["Semantic"];
+        var cursors = view.GetRowCursorSet([column], 2);
+        VBuffer<float> first = default, second = default;
+        float[] retainedFirst = [], retainedSecond = [];
+        try
+        {
+            Assert.IsFalse(cursors[0].IsColumnActive(view.Schema["Text"]));
+            Assert.ThrowsExactly<InvalidOperationException>(() => cursors[0].GetGetter<long>(view.Schema["RowId"]));
+            Assert.IsTrue(cursors[0].MoveNext()); Assert.IsTrue(cursors[1].MoveNext());
+            var getFirst = cursors[0].GetGetter<VBuffer<float>>(column);
+            var getSecond = cursors[1].GetGetter<VBuffer<float>>(column);
+            getFirst(ref first); getSecond(ref second);
+            var owned = first.GetValues().ToArray();
+            Assert.IsTrue(cursors[1].MoveNext()); getSecond(ref second);
+            CollectionAssert.AreEqual(owned, first.GetValues().ToArray());
+            data.Dispose();
+            Assert.ThrowsExactly<ObjectDisposedException>(() => view.GetRowCursorSet([], 2));
+            Assert.IsTrue(cursors[0].MoveNext()); getFirst(ref first);
+            cursors[0].Dispose();
+            Assert.AreEqual(1, data.ActiveCursors);
+            Assert.IsTrue(cursors[1].MoveNext()); getSecond(ref second);
+            retainedFirst = first.GetValues().ToArray();
+            retainedSecond = second.GetValues().ToArray();
+        }
+        finally { foreach (var cursor in cursors) cursor.Dispose(); }
+        Assert.AreEqual(0, data.ActiveCursors);
+        Assert.AreEqual(FeatureContract.Width, retainedFirst.Length);
+        Assert.AreEqual(FeatureContract.Width, retainedSecond.Length);
+        CollectionAssert.AreEqual(retainedFirst, first.GetValues().ToArray());
+        CollectionAssert.AreEqual(retainedSecond, second.GetValues().ToArray());
+    }
+
+    [TestMethod]
     public void ContextHostedView_MatchesLegacySourceRegistrationAndCursorsDoNotAdvanceContextRandom()
     {
         var legacy = StudyFixture.Authored();
@@ -329,6 +428,26 @@ public sealed class CompactDataViewTests
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
             buffer.Fill(model, view, selected, requestedCursors: 17));
         Assert.AreEqual(0, buffer.Count);
+    }
+
+    [TestMethod]
+    public void PredictionBuffer_PartitionedSourceControlRestoresNonmonotonicIdsAndRepeatsCompleteReplay()
+    {
+        var legacy = StudyFixture.Authored();
+        using var data = StudyData.FromLegacy(legacy with { Rows = legacy.Rows.Reverse().ToArray() });
+        var selected = data.All();
+        var view = selected.PartitionedPredictionControlView();
+        var model = new MLContext(1).Transforms.Conversion.ConvertType("Probability", "SpamBaseline", DataKind.Single).Fit(view);
+        var buffer = new PredictionBuffer(selected.Count);
+        var expected = selected.SourceIds().Select(id => legacy.Rows.Single(row => row.RowId == id))
+            .Select(row => new Prediction(row.RowId, row.GroupId, row.Label, (float)row.SpamBaseline)).ToArray();
+        for (int pass = 0; pass < 3; pass++)
+        {
+            buffer.Fill(model, view, selected, requestedCursors: 16);
+            buffer.RequireReplay(expected);
+            Assert.AreEqual(selected.Count, buffer.Count);
+            Assert.AreEqual(0, data.ActiveCursors);
+        }
     }
 
     [TestMethod]

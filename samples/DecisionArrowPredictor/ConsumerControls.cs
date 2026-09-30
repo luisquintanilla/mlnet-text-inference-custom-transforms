@@ -192,7 +192,8 @@ public static class ConsumerControls
     }
 
     public static async Task SameModelAsync(string referenceDirectory, string[] importPaths,
-        string modelPath, string modelReceiptPath, string output, int predictionCursors = 1)
+        string modelPath, string modelReceiptPath, string output, int predictionCursors = 1,
+        bool partitionedSourceControl = false)
     {
         if (File.Exists(output)) throw new IOException("Control receipts are immutable.");
         using var oracle = new OriginalConsumerOracle(referenceDirectory);
@@ -204,7 +205,7 @@ public static class ConsumerControls
         var model = PredictorTraining.Load(modelPath, receipt, compact.FeatureFingerprint);
         var expected = OriginalConsumerOracle.Predictions(oracle.Predict(model, oracle.Rows(original)));
         var selection = compact.All();
-        var predictionView = selection.View();
+        var predictionView = partitionedSourceControl ? selection.PartitionedPredictionControlView() : selection.View();
         var buffer = new PredictionBuffer(selection.Count);
         buffer.Fill(model, predictionView, selection, requestedCursors: predictionCursors);
         buffer.RequireReplay(expected);
@@ -249,6 +250,7 @@ public static class ConsumerControls
             exactAssociation = true, predictionTolerance = 1e-6, inference = "Existing ML.NET saved head only; no new model extraction or fitting.",
             exactFeatureBitsAndOriginalText = true,
             predictionExecutionProfile = new { requestedCursors = predictionCursors,
+                partitionedSourceControl,
                 publicOutputCursorSet = true, disjointSourceIdsRequired = true, selectionRankOrderRestored = true,
                 customScorer = false, predictionCache = false, trainingPolicyChanged = false },
             measurements

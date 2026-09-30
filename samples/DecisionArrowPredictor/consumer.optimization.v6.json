@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "status": "CORE_GATE_BLOCKED",
+  "baselineConsumerCommit": "ca1381be58f1d935c31b545aa2e99e4d0a5bddad",
+  "sourceAssemblySha256": "9675f242b78a569a2d24bb65d69d40af7dc9f0bb53ecbc5d3c13cfd106ff560c",
+  "adapterSourceCommit": "65880cdfd33580d23d0e833ac977f79acb18b1b0",
+  "adapterVersion": "0.1.0-exp.decisions.1.g65880cdfd335",
+  "referenceReceiptSha256": "dab8a851b981a8c772a7dac3012d99a8bdb91b6406b4ebc02009168f5ee424dc",
+  "rawSha256": "507f6c265d3d47acdddccd92d8db7c0bd3229089606daa3ad1ef3189c1101661",
+  "quietSlotCoordinated": true,
+  "pairs": 5,
+  "order": "AB/BA/AB/BA/AB; independent warmups; process-wide GC managed allocation; no cache flush.",
+  "scope": "Same existing Laya text target3344 head on all5574 rows; complete original-versus-compact prediction materialization including all text transforms, ordinary public getters, parallel processing and association checks. Not extraction, new fitting, native allocation or whole-process memory.",
+  "thresholds": {
+    "managedReductionPercentMinimum": 70,
+    "medianTimeRegressionPercentMaximum": 10,
+    "warmRequestedSemanticGetterBytesPerRowMaximum": 1,
+    "predictionReplayAbsoluteTolerance": 0.000001
+  },
+  "profile": {
+    "defaultOffPredictionControlOnly": true,
+    "requestedOutputCursors": 16,
+    "partitionedSourceControl": true,
+    "boundedContiguousDisjointSourcePartitions": true,
+    "selectionLocalGlobalRankDataViewRowIds": true,
+    "independentCursorMasksGettersAndCallerBuffers": true,
+    "disjointOutputUnionAndSelectionRankScatter": true,
+    "defaultTrainingSourceCursorPolicyChanged": false,
+    "canShuffleRandomSeedOrLearnerPolicyChanged": false,
+    "customScorerOrPredictionCache": false
+  },
+  "parity": {
+    "rows": 5574,
+    "modelSha256": "c54ef0b126c54afd40f2db80629857489f12b15e28d0ee1150adeb00a676685c",
+    "exactOriginalTextSourceGroupsLabelsAndFeatureBits": true,
+    "completeFinitePredictionAndStandardSavedLoadReplayPass": true
+  },
+  "measurements": {
+    "originalMedianManagedBytes": 4852096,
+    "compactMedianManagedBytes": 3254320,
+    "managedReductionPercent": 32.92960403091777,
+    "allocationGatePass": false,
+    "originalMedianMilliseconds": 96.7651,
+    "compactMedianMilliseconds": 89.1169,
+    "ratioOfMedianTimeChangePercent": -7.903882701511189,
+    "medianPairedTimeChangePercent": -3.523067796023005,
+    "timeGatePass": true,
+    "requestedSemanticGetterManagedBytesPerRow": 0.07893792608539649,
+    "numericCacheCapacityBytes": 267552,
+    "maximumObservedWorkingSetBytes": 108359680,
+    "maximumObservedPeakWorkingSetBytes": 108359680
+  },
+  "focusedOfflineTestsPassed": 170,
+  "retainedEvidence": "All v1-v5 failures and bounded learner v1/v2 evidence remain unchanged. This one approved text-only measurement is not a combined-head or full-matrix rerun.",
+  "interpretation": "Direct source partitioning reduces some parallel splitter overhead and preserves replay, but the unchanged70% allocation target still fails. Stop after this failure; no hidden scope/counter/tolerance change and no aggregate GO.",
+  "juliaStudyComplete": false,
+  "remaining": [
+    "Text/combined repeated materialization allocation gate.",
+    "Bounded same-Julia artifact controls; existing Laya fit parity is not Julia qualification.",
+    "Completed selected-profile Julia5574 export and explicit full-study/quiet GO.",
+    "New Julia15-entry/nine-model training, pre-holdout freeze, standard replay and unchanged whole-group bootstrap."
+  ]
+}

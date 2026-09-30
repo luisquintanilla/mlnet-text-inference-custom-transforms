@@ -19,7 +19,8 @@ Runtime, GPU package, or cloud inference belongs in this process.
 The historical Laya results below remain unchanged. The dependent Julia-first
 follow-up is **not complete** and does not reuse Laya-trained heads under a
 Julia identity. Its latest public-safe checkpoint is
-[`consumer.optimization.v5.json`](consumer.optimization.v5.json); the earlier
+[`consumer.optimization.v6.json`](consumer.optimization.v6.json); the earlier
+[`v5`](consumer.optimization.v5.json),
 [`v4`](consumer.optimization.v4.json) and
 [`v3 failure checkpoints`](consumer.optimization.v3.json) remain unchanged.
 
@@ -93,6 +94,8 @@ dotnet $Cli control-same-model <same named import options> `
   --out "<new raw receipt.json>"
 # Explicit bounded control variant only; not the normal training/evaluation default:
 # add --prediction-cursors 16 after a coordinated quiet-slot approval.
+# A separately approved prediction-only source partition control also needs:
+# --source-cursors partitioned (default single; never a training option).
 
 dotnet $Cli control-allocation <same named import options> `
   --model "<existing matching .mlnet>" --model-receipt "<matching receipt>" `
@@ -176,6 +179,29 @@ scope or thread-local counter. Focused controls pass **162/162**, including
 invalid duplicate/missing/extra/group/label/nonfinite unions with no partial
 result publication. These timing improvements are not an allocation acceptance
 pass or authorization to run the full Julia study.
+
+**The single approved v6 text-only partition control also fails allocation.**
+Bounded contiguous source cursors avoid part of the splitter overhead while
+keeping selection-local global-rank DataViewRowIds, independent masks/getters,
+caller-owned buffers and a disjoint full union. The source control is named
+`PartitionedPredictionControlView`; ordinary and context-hosted training views
+still return one cursor. CanShuffle, Random, learner policy and normal
+training/evaluation defaults are unchanged. Focused offline tests pass
+**170/170**, including nonmonotonic IDs, contiguous partition bounds, repeat
+passes, active masks, dispose leases and complete scattered output replay.
+
+One coordinated five-pair run used only the existing Laya text target3344 head
+on all 5,574 rows. Content, feature bits, full associations and saved-load
+replay pass. Median allocation is 4,852,096 original versus 3,254,320 compact
+bytes: **32.93% reduction, FAIL 70%**. Time passes: 96.7651 versus 89.1169 ms
+(7.90% lower ratio of medians; 3.52% lower median paired change). Process-wide
+allocation includes all text transforms, parallel work and materialization;
+no score cache, custom scorer or narrower scope is substituted. The maximum
+observed working set is 108,359,680 bytes, separate from the 267,552-byte
+numeric cache. The quiet lease was released and measurement work stopped on
+the allocation failure. No combined-head rerun, new fitting, Julia extraction,
+Julia training or holdout evaluation followed. The safe aggregate/raw hash is
+in [`consumer.optimization.v6.json`](consumer.optimization.v6.json).
 
 Both initial hash-failing test runs and failed harness attempts are preserved.
 The frozen questions were originally CRLF bytes, SHA-256 `9e6e6c5c...0068ea`;

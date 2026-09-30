@@ -47,4 +47,5 @@ public sealed class RowSelection
         (double)ordinals.Count(o => Owner.Metadata[o].Label) / Count;
     public StudyDataView View() => new(this);
     public StudyDataView View(Microsoft.ML.MLContext context) => new(this, context);
+    public StudyDataView PartitionedPredictionControlView() => new(this, partitionedPredictionControl: true);
 }

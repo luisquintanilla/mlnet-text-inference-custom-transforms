@@ -44,6 +44,7 @@ try
               control-same-model <same import options> --reference <frozen consumer directory>
                                  --model <existing .mlnet> --model-receipt <receipt> --out <new receipt.json>
                                  [--prediction-cursors <positive bounded count; default 1>]
+                                 [--source-cursors single|partitioned; default single, prediction control only]
               control-allocation <same import options> --model <existing .mlnet>
                                  --model-receipt <receipt> --out <new diagnostic.json>
               control-interop --fixture-root <pinned fictional Julia fixture root>
@@ -81,7 +82,7 @@ try
         "smoke" => ["--precision"],
         "control-projection" => ["--reference", "--out", "--rows", "--batch-size"],
         "control-same-model" => ["--reference", "--out", "--model", "--model-receipt", "--manifest", "--contract",
-            "--feature-fingerprint", "--preparation", "--split", "--states", "--questions", "--prediction-cursors"],
+            "--feature-fingerprint", "--preparation", "--split", "--states", "--questions", "--prediction-cursors", "--source-cursors"],
         "control-allocation" => ["--out", "--model", "--model-receipt", "--manifest", "--contract",
             "--feature-fingerprint", "--preparation", "--split", "--states", "--questions"],
         "control-interop" => ["--fixture-root", "--producer-receipt", "--questions", "--out"],
@@ -123,12 +124,18 @@ try
     }
     if (args[0] == "control-same-model")
     {
+        bool partitionedSource = options.GetValueOrDefault("--source-cursors", "single") switch
+        {
+            "single" => false,
+            "partitioned" => true,
+            _ => throw new ArgumentException("Prediction source cursor control must be single or partitioned.")
+        };
         await ConsumerControls.SameModelAsync(Required("--reference"),
             [Required("--manifest"), Required("--contract"), Required("--feature-fingerprint"), Required("--preparation"),
                 Required("--split"), Required("--states"), Required("--questions")],
             Required("--model"), Required("--model-receipt"), Required("--out"),
             options.TryGetValue("--prediction-cursors", out var predictionCursors) ?
-                int.Parse(predictionCursors, System.Globalization.CultureInfo.InvariantCulture) : 1);
+                int.Parse(predictionCursors, System.Globalization.CultureInfo.InvariantCulture) : 1, partitionedSource);
         Console.WriteLine("Same saved-model full-row association and replay PASS; inspect raw paired allocation/time receipt.");
         return 0;
     }

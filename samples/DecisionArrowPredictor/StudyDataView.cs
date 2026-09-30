@@ -8,6 +8,7 @@ public sealed class StudyDataView : IDataView
 {
     private readonly RowSelection selection;
     private readonly IHost? host;
+    private readonly bool partitionedPredictionControl;
     public static DataViewSchema SharedSchema { get; } = CreateSchema();
     public DataViewSchema Schema => SharedSchema;
     // ML.NET 5 LoadFromEnumerable uses StreamingDataView, not the shuffling ListDataView.
@@ -27,6 +28,9 @@ public sealed class StudyDataView : IDataView
         host = ((IHostEnvironment)context).Register(nameof(StudyDataView));
     }
 
+    internal StudyDataView(RowSelection selection, bool partitionedPredictionControl) : this(selection) =>
+        this.partitionedPredictionControl = partitionedPredictionControl;
+
     private static DataViewSchema CreateSchema()
     {
         var builder = new DataViewSchema.Builder();
@@ -40,30 +44,54 @@ public sealed class StudyDataView : IDataView
     }
 
     public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random? rand = null) =>
-        new Cursor(selection, columnsNeeded, host);
+        new Cursor(selection, columnsNeeded, host, 0, selection.Count);
 
     public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random? rand = null)
     {
         if (n <= 0) throw new ArgumentOutOfRangeException(nameof(n));
-        return [GetRowCursor(columnsNeeded, rand)];
+        if (!partitionedPredictionControl || n == 1 || selection.Count == 0)
+            return [GetRowCursor(columnsNeeded, rand)];
+        int count = Math.Min(Math.Min(n, PredictionBuffer.MaximumControlCursors), selection.Count);
+        var columns = columnsNeeded.ToArray();
+        var cursors = new DataViewRowCursor[count];
+        int acquired = 0;
+        try
+        {
+            for (; acquired < count; acquired++)
+            {
+                int start = checked((int)((long)selection.Count * acquired / count));
+                int end = checked((int)((long)selection.Count * (acquired + 1) / count));
+                cursors[acquired] = new Cursor(selection, columns, host, start, end);
+            }
+            return cursors;
+        }
+        catch
+        {
+            for (int i = 0; i < acquired; i++) cursors[i].Dispose();
+            throw;
+        }
     }
 
     private sealed class Cursor : DataViewRowCursor
     {
         private readonly RowSelection selection;
         private readonly IHost? host;
+        private readonly int start, end;
         private readonly bool[] active = new bool[SharedSchema.Count];
         private readonly Delegate?[] getters = new Delegate?[SharedSchema.Count];
         private bool disposed;
-        private long position = -1;
-        public override long Position => position;
-        public override long Batch => 0;
+        private long position;
+        public override long Position => disposed || position < start ? -1 : position;
+        public override long Batch => start;
         public override DataViewSchema Schema => SharedSchema;
 
-        public Cursor(RowSelection selection, IEnumerable<DataViewSchema.Column> columns, IHost? host)
+        public Cursor(RowSelection selection, IEnumerable<DataViewSchema.Column> columns, IHost? host, int start, int end)
         {
             this.selection = selection;
             this.host = host;
+            this.start = start;
+            this.end = end;
+            position = start - 1L;
             foreach (var column in columns)
             {
                 CheckColumn(column);
@@ -82,7 +110,7 @@ public sealed class StudyDataView : IDataView
         {
             get
             {
-                if (disposed || position < 0 || position >= selection.Count)
+                if (disposed || position < start || position >= end)
                 {
                     var error = new InvalidOperationException("Cursor is not positioned on a live row.");
                     throw host?.Process(error) ?? error;
@@ -134,7 +162,7 @@ public sealed class StudyDataView : IDataView
         public override bool MoveNext()
         {
             if (disposed) return false;
-            if (position + 1 < selection.Count) { position++; return true; }
+            if (position + 1 < end) { position++; return true; }
             position = -1;
             Dispose();
             return false;
