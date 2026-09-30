@@ -1,2 +1,3 @@
 questions.v1.json text eol=lf
 fixtures/** -text whitespace=cr-at-eol
+study.scalar.v1.json -text whitespace=cr-at-eol

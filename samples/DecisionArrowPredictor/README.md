@@ -147,9 +147,9 @@ semantic extraction. The text-only arm does not require those probabilities.
 ## Run the real experiment later
 
 The frozen real study compares a training-prevalence prior, direct spam
-probability, text, semantic and combined classifiers. **Real predictive results
-are pending the completed full export and an isolated training/timing window.**
-The offline route above is not a substitute for that study.
+probability, text, semantic and combined classifiers. **The real scalar study is
+complete**; see [its results and limitations](EXPERIMENT.md#real-scalar-study-results).
+The offline route above is not that training run or predictive evidence.
 
 Continue with [the experiment reference](EXPERIMENT.md#completed-real-data-commands)
 for real-data prerequisites and commands. Acquisition/license evidence, grouped

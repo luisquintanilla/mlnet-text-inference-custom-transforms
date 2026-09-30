@@ -4,6 +4,10 @@ Start with the [beginner walkthrough](README.md). This reference preserves the
 full acquisition, reproducibility, split, training, evaluation and acceptance
 details; its commands run from the repository root.
 
+**Study status:** the completed real 5,574-row scalar export has been imported,
+trained and evaluated. [Results and limitations](#real-scalar-study-results)
+include all five arms/three curves; synthetic smoke remains a separate exercise.
+
 An experimental, CPU-only **consumer**, not a decision provider. It trains
 ordinary ML.NET 5.0.0 pipelines from persisted decision probabilities. No
 reference to `MLNet.TextInference.Onnx`, local Laya session, tokenizer, ONNX
@@ -282,10 +286,224 @@ saved-model replay with matching row count/IDs/groups/labels and finite
 probabilities. Models, thresholds and all sidecars are immutable; a failed run
 does not publish a completed training/evaluation receipt.
 
+## Real scalar study results
+
+This is the **completed real frozen UCI SMS study**, not the synthetic smoke.
+The producer's immutable receipt passed byte/hash/source/identity checks and
+its pinned-package public reader checked IDs 1..5,574 exactly once. The
+consumer used clean Release source `a3f1b7e6bb12c4163d82f125e1a470ed72edc67f`.
+It imported all rows, saved/reloaded nine learned models, froze all 15
+arm/curve entries and their validation-selected thresholds **before** holdout
+evaluation, then bootstrapped the saved holdout predictions. No holdout tuning,
+question revision, row filtering or additional extraction was performed.
+
+Exact aggregate metrics, all intervals, nine model byte/hash/validation/cost
+receipts and source/import/pre-holdout/completion receipts are published in
+[`study.scalar.v1.json`](study.scalar.v1.json). It contains **no messages,
+per-row labels/predictions, training-ID lists, model weights or raw diagnostics**.
+The hashes refer to immutable local artifacts, not publicly redistributed data.
+
+### Rows and learning curves
+
+Validation is 1,116 rows (150 spam / 966 ham; 1,021 groups). Holdout is
+1,114 rows (149 spam / 965 ham; 1,020 groups). Every arm uses the same holdout;
+every arm within a curve uses the same intact-group training subset.
+
+| Target / actual training rows | Spam | Ham | Groups |
+|---|---:|---:|---:|
+| 100 / 100 | 19 | 81 | 96 |
+| 500 / 500 | 67 | 433 | 471 |
+| 3,344 / 3,344 | 448 | 2,896 | 3,061 |
+
+### Ranking and probability losses
+
+AUPRC below is tie-aware step average precision; loss uses natural logarithms.
+Values are rounded for display; the JSON retains the original precision.
+Higher AP/ROC and lower log loss/Brier are better.
+
+| Training rows | Arm | AUPRC | ROC AUC | Log loss | Brier |
+|---:|---|---:|---:|---:|---:|
+| 100 | Prior | 0.13375 | 0.50000 | 0.40466 | 0.11903 |
+| 100 | Direct stored spam score | 0.86585 | 0.96237 | 0.96879 | 0.32926 |
+| 100 | Text | 0.88383 | 0.96304 | 0.16371 | 0.04730 |
+| 100 | Semantic | 0.93499 | 0.98494 | 0.08481 | 0.02027 |
+| 100 | Combined | 0.93882 | 0.98501 | 0.08657 | 0.02041 |
+| 500 | Prior | 0.13375 | 0.50000 | 0.39346 | 0.11586 |
+| 500 | Direct stored spam score | 0.86585 | 0.96237 | 0.96879 | 0.32926 |
+| 500 | Text | 0.88500 | 0.96205 | 0.14355 | 0.03921 |
+| 500 | Semantic | 0.95506 | 0.98734 | 0.07551 | 0.01836 |
+| 500 | Combined | 0.96470 | 0.98994 | 0.06630 | 0.01674 |
+| 3,344 | Prior | 0.13375 | 0.50000 | 0.39346 | 0.11586 |
+| 3,344 | Direct stored spam score | 0.86585 | 0.96237 | 0.96879 | 0.32926 |
+| 3,344 | Text | 0.94135 | 0.97756 | 0.11372 | 0.02896 |
+| 3,344 | Semantic | 0.95476 | 0.98715 | 0.07791 | 0.01966 |
+| 3,344 | Combined | 0.96503 | 0.99008 | 0.06415 | 0.01566 |
+
+The direct score ranks messages usefully, but its raw probability losses are
+**worse than the prevalence prior**. It is not a reliable calibrated spam
+probability. Semantic/combined heads have promising within-corpus point
+estimates, especially with 100/500 training rows; these are not deployment or
+foundation-model-independent results.
+
+### Confusion at frozen validation-F1 thresholds
+
+`TP / FP / TN / FN` is the holdout confusion matrix. These thresholds were
+chosen on validation, never on holdout. Exact threshold values are in the JSON.
+
+| Training rows | Arm | TP / FP / TN / FN | Precision | Recall |
+|---:|---|---|---:|---:|
+| 100 | Prior | 149 / 965 / 0 / 0 | 0.13375 | 1.00000 |
+| 100 | Direct | 119 / 26 / 939 / 30 | 0.82069 | 0.79866 |
+| 100 | Text | 118 / 31 / 934 / 31 | 0.79195 | 0.79195 |
+| 100 | Semantic | 130 / 8 / 957 / 19 | 0.94203 | 0.87248 |
+| 100 | Combined | 132 / 10 / 955 / 17 | 0.92958 | 0.88591 |
+| 500 | Prior | 149 / 965 / 0 / 0 | 0.13375 | 1.00000 |
+| 500 | Direct | 119 / 26 / 939 / 30 | 0.82069 | 0.79866 |
+| 500 | Text | 108 / 13 / 952 / 41 | 0.89256 | 0.72483 |
+| 500 | Semantic | 137 / 13 / 952 / 12 | 0.91333 | 0.91946 |
+| 500 | Combined | 134 / 10 / 955 / 15 | 0.93056 | 0.89933 |
+| 3,344 | Prior | 149 / 965 / 0 / 0 | 0.13375 | 1.00000 |
+| 3,344 | Direct | 119 / 26 / 939 / 30 | 0.82069 | 0.79866 |
+| 3,344 | Text | 124 / 10 / 955 / 25 | 0.92537 | 0.83221 |
+| 3,344 | Semantic | 130 / 9 / 956 / 19 | 0.93525 | 0.87248 |
+| 3,344 | Combined | 133 / 8 / 957 / 16 | 0.94326 | 0.89262 |
+
+### Validation-budget thresholds: actual holdout behavior
+
+The selection rule maximizes validation recall subject to **<=1% validation
+FPR**. The following numbers are **holdout** recall and actual holdout FPR at
+that frozen threshold. A validation constraint is **not** a holdout guarantee;
+bold values exceeded 1%. The prior predicts no positives at its budget
+threshold, so its precision there is undefined (reported as `null`, not zero).
+
+| Training rows | Arm | Holdout recall | Actual holdout FPR |
+|---:|---|---:|---:|
+| 100 | Prior | 0.00000 | 0.0000% |
+| 100 | Direct | 0.48993 | 0.7254% |
+| 100 | Text | 0.61074 | 0.3109% |
+| 100 | Semantic | 0.88591 | **1.0363%** |
+| 100 | Combined | 0.88591 | **1.0363%** |
+| 500 | Prior | 0.00000 | 0.0000% |
+| 500 | Direct | 0.48993 | 0.7254% |
+| 500 | Text | 0.69799 | **1.2435%** |
+| 500 | Semantic | 0.88591 | 0.7254% |
+| 500 | Combined | 0.91946 | **1.2435%** |
+| 3,344 | Prior | 0.00000 | 0.0000% |
+| 3,344 | Direct | 0.48993 | 0.7254% |
+| 3,344 | Text | 0.80537 | 0.4145% |
+| 3,344 | Semantic | 0.89262 | 0.9326% |
+| 3,344 | Combined | 0.89262 | 0.8290% |
+
+### Uncertainty and comparison limits
+
+These are 95% percentile intervals from **1,000 seed-1729 non-stratified
+whole-group resamples of saved holdout predictions**. Paired comparisons use
+the same resampled rows and each arm's own frozen threshold. All reported
+metric/paired intervals had 1,000 defined and **zero undefined-class** cases.
+This conditions on the fitted models and one grouped split: it does not
+resample training, model selection or question design, and comparisons are
+not adjusted for multiple arms/curves.
+
+| Training rows | Arm | AP interval | Paired AP delta vs text interval |
+|---:|---|---|---|
+| 100 | Semantic | [0.86909, 0.97945] | [-0.02238, 0.11015] |
+| 100 | Combined | [0.87556, 0.97998] | [-0.01427, 0.11121] |
+| 500 | Semantic | [0.91209, 0.98262] | [0.02590, 0.12101] |
+| 500 | Combined | [0.93063, 0.98713] | [0.04038, 0.12584] |
+| 3,344 | Semantic | [0.90939, 0.98530] | [-0.03080, 0.05103] |
+| 3,344 | Combined | [0.92980, 0.98910] | [-0.01019, 0.05565] |
+
+**Full-training AP superiority over text is not established:** both paired
+AP intervals include zero. Full-training probability-loss deltas favor the
+learned semantic/combined heads within this fixed-prediction analysis:
+
+| Full-training arm | Paired log-loss delta vs text | Paired Brier delta vs text |
+|---|---|---|
+| Semantic | [-0.05967, -0.00946] | [-0.01654, -0.00228] |
+| Combined | [-0.07205, -0.02572] | [-0.01990, -0.00707] |
+
+The public corpus may be in model pretraining. Together with the single
+grouped non-chronological split and conditional bootstrap, that limits
+generalization claims. Better in-corpus losses do not establish calibration
+on unseen deployment data. The ten coordinates include redundant exclusive
+distributions, not ten independent signals.
+
+### Model and extraction costs
+
+All nine learned models use the same learner/grid; below are the selected
+L2, model bytes, selected fit time, grid-fit/validation time, and warm batch
+head time per row. Head timing averages five passes over 1,116 validation
+rows after a warmup and includes ML.NET transforms/enumeration, not Arrow I/O,
+model load or Laya extraction. These are one quiet-lease operational
+observations, not a sustained online/single-message benchmark.
+
+| Rows | Arm | L2 | Model bytes | Selected fit ms | Grid/validation ms | Warm head ms/row |
+|---:|---|---:|---:|---:|---:|---:|
+| 100 | Text | 0.0001 | 71,379 | 754.181 | 1,121.007 | 0.035857 |
+| 100 | Semantic | 0.001 | 3,212 | 10.930 | 108.948 | 0.002498 |
+| 100 | Combined | 0.001 | 96,486 | 81.122 | 598.234 | 0.003897 |
+| 500 | Text | 0.0001 | 196,373 | 180.071 | 267.101 | 0.004003 |
+| 500 | Semantic | 0.0001 | 3,211 | 35.962 | 46.878 | 0.001234 |
+| 500 | Combined | 0.0001 | 287,125 | 263.095 | 369.869 | 0.004534 |
+| 3,344 | Text | 0.0001 | 725,337 | 188.054 | 355.680 | 0.004737 |
+| 3,344 | Semantic | 0.0001 | 3,211 | 42.163 | 74.800 | 0.001001 |
+| 3,344 | Combined | 0.0001 | 1,083,570 | 331.007 | 563.833 | 0.004312 |
+
+Prior/direct arms do not fit ML.NET models; separate head timing was not
+measured for them. The full `train` command took 9.716 s and `evaluate` plus
+bootstrap took 9.186 s, including their import/orchestration work; do not
+confuse those with selected fit time.
+
+**Small head != cheap complete inference.** The producer's full five-question
+scalar export took **147.47 minutes**, approximately **1.58743 s/message**
+(0.62995 rows/s), with **2.01488 GiB** peak process working set. Model load
+was a separate 2.508 s; cold first result was 1.907 s, first export result
+after warmup 1.780 s. There were 5,574 export ONNX calls plus one warmup call.
+The export scope includes preparation/scoring/decoding/Arrow append/flush/hash,
+but excludes preflight/model load/final manifest serialization. Overlapping
+first-result and inference-and-append measurements are **not summed**.
+
+Features were extracted once and reused by these learning curves. For a new
+message, semantic/combined heads still require extraction; text does not.
+The stored direct baseline also came from this full five-question export;
+no direct-only extraction benchmark was measured. No full-corpus native
+speedup/parity claim follows from this scalar study.
+
+### Immutable receipt chain
+
+All paths below are relative to the local shared experiment artifact root.
+The source/data receipt was independently pinned before import; training
+freeze hash was persisted before invoking holdout evaluation. The complete
+consumer receipt pins all 38 local artifacts, including nine model byte
+hashes and saved prediction hashes. CPU was returned explicitly before the
+producer's next native16 stage. Only aggregate inspection/docs followed.
+The public aggregate envelope is byte-preserved by the sample attributes;
+its SHA-256 is
+`ca3997631bc25b46d788725b9b1f885784d46f1a1c7573f8f6aefd21790bfc53`.
+
+| Artifact | SHA-256 |
+|---|---|
+| `datasets\laya\scalar-corpus-915b85b.receipt.json` | `829dea0cccfeef32015798896fa51037d7586e3f2585559315653be98f8c2e58` |
+| Producer `manifest.json` | `76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c` |
+| Producer `contract.json` / feature identity | `72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514` |
+| Producer `decisions.arrow` | `fae87f65effbb7cac23f6e9de8af382dd6dc1b145bf843c40001947f159dff46` |
+| `predictors\real-scalar-v1\models\training.freeze.json` | `6ebea3a135c808b31a996f5e31835f7608c78f2c22eaa03d6a3a760a1c5bcd1c` |
+| `predictors\real-scalar-v1\evaluation\evaluation.json` | `780e07e259ee7158390e78af82ea2c7599f1ded45fa3bf764dd4118591b9b753` |
+| `predictors\real-scalar-v1\study.complete.receipt.json` | `3a253ccac138e6db362b2ae1172626d4bfeff9d4c89bf515b0131782bc936b21` |
+
+Portable adapter source remains `ab4eebf29b9fdca49ce13e3b4afac0ec16b22983`;
+actual extraction runtime source is
+`915b85b8dbe123e465523120b0cc2c4c7d57f7b6`. Dataset provenance records its
+actual runtime package closure and CPU4/inter-op1 configuration; it is not
+the consumer's portable no-ONNX closure.
+
 ## Offline validation evidence
 
-The current offline suite has **369 passing cases, no skips** (236 initial
-core cases plus 133 focused study/import/persistence cases). Targeted commands:
+The integrated offline gate before the CPU-mode addition had **369 passing
+cases, no skips** (236 initial core cases plus 133 focused cases). The real
+handoff added four exact-mode cases; its focused importer gate passed **13/13,
+zero skips**, after rebuilding the changed sample. The full suite was not
+rerun during the producer's subsequent native timing window. Targeted commands:
 
 ```powershell
 dotnet test tests\MLNet.DecisionArrowPredictor.Tests\MLNet.DecisionArrowPredictor.Tests.csproj --no-restore -p:ImportDirectoryBuildTargets=false

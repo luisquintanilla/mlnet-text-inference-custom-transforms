@@ -1,0 +1,2885 @@
+{
+  "schemaVersion": 1,
+  "status": "complete",
+  "publicationScope": "Consumer-generated aggregate metrics and immutable byte/source/model receipts only. No corpus/messages/states, training row-ID lists, saved per-row predictions, model weights, or raw diagnostics are redistributed.",
+  "studyReceipt": {
+    "schemaVersion": 1,
+    "status": "complete",
+    "scope": "real-frozen-UCI-SMS-five-arm-three-curve-MLNET-consumer-study",
+    "producerReceiptSha256": "829dea0cccfeef32015798896fa51037d7586e3f2585559315653be98f8c2e58",
+    "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+    "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+    "consumerCommit": "a3f1b7e6bb12c4163d82f125e1a470ed72edc67f",
+    "sourceCleanAtExecution": true,
+    "executionMode": "scalar-cpu",
+    "rows": 5574,
+    "trainingRows": 3344,
+    "validationRows": 1116,
+    "holdoutRows": 1114,
+    "targetRows": [
+      100,
+      500,
+      3344
+    ],
+    "armCount": 15,
+    "bootstrapSeed": 1729,
+    "bootstrapResamples": 1000,
+    "trainingFreezeSha256": "6ebea3a135c808b31a996f5e31835f7608c78f2c22eaa03d6a3a760a1c5bcd1c",
+    "evaluationSha256": "780e07e259ee7158390e78af82ea2c7599f1ded45fa3bf764dd4118591b9b753",
+    "preHoldoutPinSha256": "901394341d03d7cf36c09a3a4478a873952eab74f6d141b3d53f00e97ced5f4d",
+    "files": [
+      {
+        "file": "consumer.source.receipt.json",
+        "sizeBytes": 1286,
+        "sha256": "b0b376481fa97330edff04577c155cc0bc9897b2bad6273d75e21fcbb3eccffe"
+      },
+      {
+        "file": "evaluation\\combined-100.holdout.json",
+        "sizeBytes": 126865,
+        "sha256": "a3d198f899654baacf7fdc90f96d0ed38e80fc412fe3bfd3e72ef20ddfd655e7"
+      },
+      {
+        "file": "evaluation\\combined-3344.holdout.json",
+        "sizeBytes": 127423,
+        "sha256": "78524d0fc7c16f1d074c92db5cbf459b68a70d6842010e6651aed6e7dab935cb"
+      },
+      {
+        "file": "evaluation\\combined-500.holdout.json",
+        "sizeBytes": 127438,
+        "sha256": "3e30ccac60a3ba4dff2be9245dd88a71fdf62c2ef1306359166c3d31653e50a2"
+      },
+      {
+        "file": "evaluation\\direct-100.holdout.json",
+        "sizeBytes": 125366,
+        "sha256": "6d19b3270f82306998ab2b8457cbb053fd86d83477f92a8d360280be52e58116"
+      },
+      {
+        "file": "evaluation\\direct-3344.holdout.json",
+        "sizeBytes": 125366,
+        "sha256": "6d19b3270f82306998ab2b8457cbb053fd86d83477f92a8d360280be52e58116"
+      },
+      {
+        "file": "evaluation\\direct-500.holdout.json",
+        "sizeBytes": 125366,
+        "sha256": "6d19b3270f82306998ab2b8457cbb053fd86d83477f92a8d360280be52e58116"
+      },
+      {
+        "file": "evaluation\\evaluation.json",
+        "sizeBytes": 66108,
+        "sha256": "780e07e259ee7158390e78af82ea2c7599f1ded45fa3bf764dd4118591b9b753"
+      },
+      {
+        "file": "evaluation\\prior-100.holdout.json",
+        "sizeBytes": 109647,
+        "sha256": "9b9e666d939524f3e014a566913485a9cafcd62264d92de976901de585694005"
+      },
+      {
+        "file": "evaluation\\prior-3344.holdout.json",
+        "sizeBytes": 125243,
+        "sha256": "4aba68fe667474900129dc09737bd333b8078d52aac8b5c9b01bbd7b89e3aaa8"
+      },
+      {
+        "file": "evaluation\\prior-500.holdout.json",
+        "sizeBytes": 110761,
+        "sha256": "ac893fd00ba24ef0181f8b1f080dd9e85e892fd8c3ffdad67f41094f8b2f5f6a"
+      },
+      {
+        "file": "evaluation\\semantic-100.holdout.json",
+        "sizeBytes": 126999,
+        "sha256": "dc73e1b823faba9cabbcdf941664fdfeaa08adf8cef29904188f8be8585fe7f4"
+      },
+      {
+        "file": "evaluation\\semantic-3344.holdout.json",
+        "sizeBytes": 127432,
+        "sha256": "4d57a6de0ecdb1b0dc8fd1685e9016f22a70b0aeb05835926001253840753b05"
+      },
+      {
+        "file": "evaluation\\semantic-500.holdout.json",
+        "sizeBytes": 127393,
+        "sha256": "bd63239643f6d658a28786a57306b0ca300f016a7b698ab46a71576fc0c22f79"
+      },
+      {
+        "file": "evaluation\\text-100.holdout.json",
+        "sizeBytes": 126846,
+        "sha256": "98570b49a4059ab4672e79bf13a9e5093c19b7004f7446f5ac6231369d321c9c"
+      },
+      {
+        "file": "evaluation\\text-3344.holdout.json",
+        "sizeBytes": 126767,
+        "sha256": "a0266656a5c803dec0192d61ea6284251f6c904586fb087be842c98ebb9dfad2"
+      },
+      {
+        "file": "evaluation\\text-500.holdout.json",
+        "sizeBytes": 126816,
+        "sha256": "6ec87fdbb7669d6053210625a3e13ee85ede5ef5d49386f2612837918888e003"
+      },
+      {
+        "file": "import.receipt.json",
+        "sizeBytes": 2155,
+        "sha256": "9a88c8933f19208e91109714ec07235846f27c7b17c927f2d888fa358b4135d8"
+      },
+      {
+        "file": "models\\combined-100.mlnet",
+        "sizeBytes": 96486,
+        "sha256": "37f4e48ffc447c5fd50997a00eda646147a0e3b904d1dd1d87b3b0a996d20355"
+      },
+      {
+        "file": "models\\combined-100.receipt.json",
+        "sizeBytes": 1745,
+        "sha256": "5652b8fda265fe2b6feda6a17331b39a5e46e62bcc71bda74dc7a64ee6ee0852"
+      },
+      {
+        "file": "models\\combined-3344.mlnet",
+        "sizeBytes": 1083570,
+        "sha256": "0eea552711109eb56d2c3e6bb9f1680bcf0c04454f5d32f2f760a03b27e5c12f"
+      },
+      {
+        "file": "models\\combined-3344.receipt.json",
+        "sizeBytes": 1775,
+        "sha256": "ab420e1056ed75665815701e01ed94da403185b3954b30f4b63aadbaa7e12a2d"
+      },
+      {
+        "file": "models\\combined-500.mlnet",
+        "sizeBytes": 287125,
+        "sha256": "c63a3e9ef30cf59d52bb78fc5b290e44b71f7371a941b2d0ff2b4d648010631f"
+      },
+      {
+        "file": "models\\combined-500.receipt.json",
+        "sizeBytes": 1772,
+        "sha256": "38a3611dca270c41bd1785941f950d3baebdfd3b7b5b45a13fe2c7632c24e803"
+      },
+      {
+        "file": "models\\semantic-100.mlnet",
+        "sizeBytes": 3212,
+        "sha256": "f348718e107a7116756df63e9802bea5fb54f5d034aa8006edd7a036f59e049e"
+      },
+      {
+        "file": "models\\semantic-100.receipt.json",
+        "sizeBytes": 1771,
+        "sha256": "4464b2dde659d57777fd783a0135ec9987e211e8519d52b8a9affd3d201ef59c"
+      },
+      {
+        "file": "models\\semantic-3344.mlnet",
+        "sizeBytes": 3211,
+        "sha256": "b51975c33ba2b774cfa9f3429f412bc821071ff3639472697135b1e8a1af2853"
+      },
+      {
+        "file": "models\\semantic-3344.receipt.json",
+        "sizeBytes": 1775,
+        "sha256": "ff5a3bbdea373c9400783ef2adfda321573fa323f245267e26f0baeb3dbf0b1f"
+      },
+      {
+        "file": "models\\semantic-500.mlnet",
+        "sizeBytes": 3211,
+        "sha256": "12b52a7f789d82031cc072f439bee8db7db005ebc451f656e1ad6cc66b23798a"
+      },
+      {
+        "file": "models\\semantic-500.receipt.json",
+        "sizeBytes": 1757,
+        "sha256": "01af8d125780d980a84f4bfd45ea259a68e3e67dc1085b4e003b5e042c183251"
+      },
+      {
+        "file": "models\\text-100.mlnet",
+        "sizeBytes": 71379,
+        "sha256": "8bfcddca101b6799558217bf7c61a0c8e8e59164ecb7519304acbb4cf5e4bf2a"
+      },
+      {
+        "file": "models\\text-100.receipt.json",
+        "sizeBytes": 1763,
+        "sha256": "d1a2ba56645e732b3e4acdd14bb6af91425798d893b115deac5a8dadc124a5e5"
+      },
+      {
+        "file": "models\\text-3344.mlnet",
+        "sizeBytes": 725337,
+        "sha256": "c54ef0b126c54afd40f2db80629857489f12b15e28d0ee1150adeb00a676685c"
+      },
+      {
+        "file": "models\\text-3344.receipt.json",
+        "sizeBytes": 1768,
+        "sha256": "14d9c98f44278fcb6bf3c84d6d34a435e94c2f75ef5aa60a43a6a40b231100f4"
+      },
+      {
+        "file": "models\\text-500.mlnet",
+        "sizeBytes": 196373,
+        "sha256": "4bc34fcdb0612a20c92dc4c302ecb957407043c4b2e7d12a53b7531740cc0a5d"
+      },
+      {
+        "file": "models\\text-500.receipt.json",
+        "sizeBytes": 1765,
+        "sha256": "c4b074bc7a7e7c9accc5ce82fc9013b80ce3487affc5d208dee8821440fc9e01"
+      },
+      {
+        "file": "models\\training.freeze.json",
+        "sizeBytes": 298301,
+        "sha256": "6ebea3a135c808b31a996f5e31835f7608c78f2c22eaa03d6a3a760a1c5bcd1c"
+      },
+      {
+        "file": "pre-holdout.freeze.receipt.json",
+        "sizeBytes": 608,
+        "sha256": "901394341d03d7cf36c09a3a4478a873952eab74f6d141b3d53f00e97ced5f4d"
+      }
+    ],
+    "limitations": "Public corpus may occur in model pretraining; within-corpus behavior is not deployment generalization or calibration. Ten semantic coordinates include redundant exclusive distributions, not ten independent signals. Semantic/combined and direct arms require semantic extraction for new text; head timing is not full inference cost. No chronological split, cloud inference, raw-message publication, whole-pipeline ONNX export, or extractor distillation.",
+    "completedUtc": "2026-09-29T22:07:08.389237-04:00"
+  },
+  "consumerSource": {
+    "schemaVersion": 1,
+    "status": "source-verified",
+    "consumerRepository": "luisquintanilla/mlnet-text-inference-custom-transforms",
+    "consumerCommit": "a3f1b7e6bb12c4163d82f125e1a470ed72edc67f",
+    "sourceClean": true,
+    "configuration": "Release",
+    "sdkVersion": "10.0.112",
+    "consumerAssemblySha256": "40412ae8bf1bc398487e03bee74df64b6e4f4ebdac08ca18577f582475268fa6",
+    "consumerAssemblySizeBytes": 158208,
+    "producerReceipt": "datasets\\laya\\scalar-corpus-915b85b.receipt.json",
+    "producerReceiptSha256": "829dea0cccfeef32015798896fa51037d7586e3f2585559315653be98f8c2e58",
+    "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+    "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+    "executionMode": "scalar-cpu",
+    "dependencyPinsSha256": "4070302cc6a71137a731879797a445ed8ce4db551f234853c2dbb70953805373",
+    "packageLockSha256": "d2c8f32e8923e92a3e811a14caea088a404a1ee9a01fc86e68e0fac94a7dfc30",
+    "runtimeDepsSha256": "7efcd2f133888636fd61834e1f83525c8f2aaa62f1b5e52694b7052a1d8238e8",
+    "quietCpuLease": "Explicit producer/coordinator release before native16; initial30min, return explicitly after consumer work.",
+    "startedUtc": "2026-09-29T22:05:41.0497555-04:00"
+  },
+  "importReceipt": {
+    "version": 1,
+    "status": "complete",
+    "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+    "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+    "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+    "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+    "rows": 5574,
+    "conversion": "Arrow float64 probabilities -> ML.NET float32, checked finite [0,1], original Arrow unchanged",
+    "projection": [
+      "commercial_solicitation",
+      "requested_contact_action",
+      "time_pressure[0]",
+      "time_pressure[1]",
+      "time_pressure[2]",
+      "message_purpose[0]",
+      "message_purpose[1]",
+      "message_purpose[2]",
+      "message_purpose[3]",
+      "message_purpose[4]"
+    ],
+    "extraction": {
+      "executionMode": "scalar-cpu",
+      "rows": 5574,
+      "measurements": {
+        "loadMilliseconds": 2508.2789,
+        "firstResultMilliseconds": 1907.4477,
+        "warmupOnnxCalls": 1,
+        "warmupStateCount": 1,
+        "firstExportResultMilliseconds": 1780.185,
+        "inferenceAndAppendMilliseconds": 8848191.4706,
+        "onnxCalls": 5574,
+        "preparationMilliseconds": 1025.3440999999987,
+        "scoringMilliseconds": 8845290.227300018,
+        "decodingMilliseconds": 388.7792000000019,
+        "maximumManagedTensorBytes": 26825,
+        "inferenceGen0Collections": 48,
+        "inferenceGen1Collections": 10,
+        "inferenceGen2Collections": 2,
+        "processPeakWorkingSetBytes": 2163466240,
+        "exportBeforeManifestPublicationMilliseconds": 8848356.0239,
+        "exportProcessAllocatedBytes": 576380472
+      },
+      "scope": "exportBeforeManifestPublicationMilliseconds: writer setup through generation/preparation/scoring/append/IPC flush/hash/finalize; excludes preflight/model load/final manifest serialization. loadMilliseconds is separate. firstResultMilliseconds and inferenceAndAppendMilliseconds overlap this scope; do not sum. Head batch time per row is recorded separately; extraction remains necessary for new semantic/combined/direct predictions."
+    }
+  },
+  "preHoldoutPin": {
+    "schemaVersion": 1,
+    "status": "frozen-before-holdout",
+    "trainingFreezeSha256": "6ebea3a135c808b31a996f5e31835f7608c78f2c22eaa03d6a3a760a1c5bcd1c",
+    "producerReceiptSha256": "829dea0cccfeef32015798896fa51037d7586e3f2585559315653be98f8c2e58",
+    "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+    "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+    "consumerCommit": "a3f1b7e6bb12c4163d82f125e1a470ed72edc67f",
+    "trainCommandWallMilliseconds": 9716.1472,
+    "pinnedUtc": "2026-09-29T22:05:51.4067959-04:00"
+  },
+  "modelReceipts": [
+    {
+      "version": 1,
+      "arm": "combined",
+      "targetRows": 100,
+      "actualRows": 100,
+      "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+      "conversion": "Arrow float64 probabilities -> ML.NET float32, checked finite [0,1], original Arrow unchanged",
+      "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+      "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+      "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+      "modelFile": "combined-100.mlnet",
+      "modelSha256": "37f4e48ffc447c5fd50997a00eda646147a0e3b904d1dd1d87b3b0a996d20355",
+      "modelBytes": 96486,
+      "l2": 0.001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.40774044394493103,
+      "budgetThreshold": 0.40774044394493103,
+      "trainingMilliseconds": 81.1217,
+      "tuningAndValidationMilliseconds": 598.2343,
+      "warmHeadMillisecondsPerRow": 0.003897293906810036,
+      "validation": {
+        "rows": 1116,
+        "spam": 150,
+        "ham": 966,
+        "auprc": 0.9631323759889413,
+        "rocAuc": 0.9803243616287095,
+        "logLoss": 0.07357721133872329,
+        "brier": 0.015352046541854973,
+        "threshold": 0.40774044394493103,
+        "truePositive": 141,
+        "falsePositive": 9,
+        "trueNegative": 957,
+        "falseNegative": 9,
+        "precision": 0.94,
+        "recall": 0.94,
+        "falsePositiveRate": 0.009316770186335404
+      },
+      "projection": [
+        "commercial_solicitation",
+        "requested_contact_action",
+        "time_pressure[0]",
+        "time_pressure[1]",
+        "time_pressure[2]",
+        "message_purpose[0]",
+        "message_purpose[1]",
+        "message_purpose[2]",
+        "message_purpose[3]",
+        "message_purpose[4]"
+      ]
+    },
+    {
+      "version": 1,
+      "arm": "combined",
+      "targetRows": 3344,
+      "actualRows": 3344,
+      "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+      "conversion": "Arrow float64 probabilities -> ML.NET float32, checked finite [0,1], original Arrow unchanged",
+      "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+      "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+      "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+      "modelFile": "combined-3344.mlnet",
+      "modelSha256": "0eea552711109eb56d2c3e6bb9f1680bcf0c04454f5d32f2f760a03b27e5c12f",
+      "modelBytes": 1083570,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.3942912518978119,
+      "budgetThreshold": 0.3942912518978119,
+      "trainingMilliseconds": 331.007,
+      "tuningAndValidationMilliseconds": 563.8334,
+      "warmHeadMillisecondsPerRow": 0.00431241935483871,
+      "validation": {
+        "rows": 1116,
+        "spam": 150,
+        "ham": 966,
+        "auprc": 0.9728213139770306,
+        "rocAuc": 0.988440303657695,
+        "logLoss": 0.054107858486065794,
+        "brier": 0.011516337995837695,
+        "threshold": 0.3942912518978119,
+        "truePositive": 142,
+        "falsePositive": 3,
+        "trueNegative": 963,
+        "falseNegative": 8,
+        "precision": 0.9793103448275862,
+        "recall": 0.9466666666666667,
+        "falsePositiveRate": 0.003105590062111801
+      },
+      "projection": [
+        "commercial_solicitation",
+        "requested_contact_action",
+        "time_pressure[0]",
+        "time_pressure[1]",
+        "time_pressure[2]",
+        "message_purpose[0]",
+        "message_purpose[1]",
+        "message_purpose[2]",
+        "message_purpose[3]",
+        "message_purpose[4]"
+      ]
+    },
+    {
+      "version": 1,
+      "arm": "combined",
+      "targetRows": 500,
+      "actualRows": 500,
+      "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+      "conversion": "Arrow float64 probabilities -> ML.NET float32, checked finite [0,1], original Arrow unchanged",
+      "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+      "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+      "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+      "modelFile": "combined-500.mlnet",
+      "modelSha256": "c63a3e9ef30cf59d52bb78fc5b290e44b71f7371a941b2d0ff2b4d648010631f",
+      "modelBytes": 287125,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.5977086424827576,
+      "budgetThreshold": 0.4436585605144501,
+      "trainingMilliseconds": 263.0951,
+      "tuningAndValidationMilliseconds": 369.8688,
+      "warmHeadMillisecondsPerRow": 0.004533602150537635,
+      "validation": {
+        "rows": 1116,
+        "spam": 150,
+        "ham": 966,
+        "auprc": 0.9668262479901538,
+        "rocAuc": 0.985272601794341,
+        "logLoss": 0.06403445466047517,
+        "brier": 0.01443623373775129,
+        "threshold": 0.5977086424827576,
+        "truePositive": 139,
+        "falsePositive": 5,
+        "trueNegative": 961,
+        "falseNegative": 11,
+        "precision": 0.9652777777777778,
+        "recall": 0.9266666666666666,
+        "falsePositiveRate": 0.005175983436853002
+      },
+      "projection": [
+        "commercial_solicitation",
+        "requested_contact_action",
+        "time_pressure[0]",
+        "time_pressure[1]",
+        "time_pressure[2]",
+        "message_purpose[0]",
+        "message_purpose[1]",
+        "message_purpose[2]",
+        "message_purpose[3]",
+        "message_purpose[4]"
+      ]
+    },
+    {
+      "version": 1,
+      "arm": "semantic",
+      "targetRows": 100,
+      "actualRows": 100,
+      "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+      "conversion": "Arrow float64 probabilities -> ML.NET float32, checked finite [0,1], original Arrow unchanged",
+      "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+      "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+      "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+      "modelFile": "semantic-100.mlnet",
+      "modelSha256": "f348718e107a7116756df63e9802bea5fb54f5d034aa8006edd7a036f59e049e",
+      "modelBytes": 3212,
+      "l2": 0.001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.48214539885520935,
+      "budgetThreshold": 0.410893052816391,
+      "trainingMilliseconds": 10.9304,
+      "tuningAndValidationMilliseconds": 108.9484,
+      "warmHeadMillisecondsPerRow": 0.0024976881720430106,
+      "validation": {
+        "rows": 1116,
+        "spam": 150,
+        "ham": 966,
+        "auprc": 0.9629916273426495,
+        "rocAuc": 0.9801794340924775,
+        "logLoss": 0.07101526300906455,
+        "brier": 0.014988489255114796,
+        "threshold": 0.48214539885520935,
+        "truePositive": 140,
+        "falsePositive": 6,
+        "trueNegative": 960,
+        "falseNegative": 10,
+        "precision": 0.958904109589041,
+        "recall": 0.9333333333333333,
+        "falsePositiveRate": 0.006211180124223602
+      },
+      "projection": [
+        "commercial_solicitation",
+        "requested_contact_action",
+        "time_pressure[0]",
+        "time_pressure[1]",
+        "time_pressure[2]",
+        "message_purpose[0]",
+        "message_purpose[1]",
+        "message_purpose[2]",
+        "message_purpose[3]",
+        "message_purpose[4]"
+      ]
+    },
+    {
+      "version": 1,
+      "arm": "semantic",
+      "targetRows": 3344,
+      "actualRows": 3344,
+      "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+      "conversion": "Arrow float64 probabilities -> ML.NET float32, checked finite [0,1], original Arrow unchanged",
+      "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+      "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+      "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+      "modelFile": "semantic-3344.mlnet",
+      "modelSha256": "b51975c33ba2b774cfa9f3429f412bc821071ff3639472697135b1e8a1af2853",
+      "modelBytes": 3211,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.39493149518966675,
+      "budgetThreshold": 0.3210592269897461,
+      "trainingMilliseconds": 42.1631,
+      "tuningAndValidationMilliseconds": 74.7997,
+      "warmHeadMillisecondsPerRow": 0.0010008064516129032,
+      "validation": {
+        "rows": 1116,
+        "spam": 150,
+        "ham": 966,
+        "auprc": 0.9649259661813653,
+        "rocAuc": 0.983367839889579,
+        "logLoss": 0.06427588366671846,
+        "brier": 0.013623995606735275,
+        "threshold": 0.39493149518966675,
+        "truePositive": 140,
+        "falsePositive": 4,
+        "trueNegative": 962,
+        "falseNegative": 10,
+        "precision": 0.9722222222222222,
+        "recall": 0.9333333333333333,
+        "falsePositiveRate": 0.004140786749482402
+      },
+      "projection": [
+        "commercial_solicitation",
+        "requested_contact_action",
+        "time_pressure[0]",
+        "time_pressure[1]",
+        "time_pressure[2]",
+        "message_purpose[0]",
+        "message_purpose[1]",
+        "message_purpose[2]",
+        "message_purpose[3]",
+        "message_purpose[4]"
+      ]
+    },
+    {
+      "version": 1,
+      "arm": "semantic",
+      "targetRows": 500,
+      "actualRows": 500,
+      "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+      "conversion": "Arrow float64 probabilities -> ML.NET float32, checked finite [0,1], original Arrow unchanged",
+      "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+      "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+      "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+      "modelFile": "semantic-500.mlnet",
+      "modelSha256": "12b52a7f789d82031cc072f439bee8db7db005ebc451f656e1ad6cc66b23798a",
+      "modelBytes": 3211,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.3401879072189331,
+      "budgetThreshold": 0.5545594692230225,
+      "trainingMilliseconds": 35.9617,
+      "tuningAndValidationMilliseconds": 46.8777,
+      "warmHeadMillisecondsPerRow": 0.0012344982078853046,
+      "validation": {
+        "rows": 1116,
+        "spam": 150,
+        "ham": 966,
+        "auprc": 0.9649496133420431,
+        "rocAuc": 0.9846997929606626,
+        "logLoss": 0.06912092356819735,
+        "brier": 0.016012161832048476,
+        "threshold": 0.3401879072189331,
+        "truePositive": 141,
+        "falsePositive": 12,
+        "trueNegative": 954,
+        "falseNegative": 9,
+        "precision": 0.9215686274509803,
+        "recall": 0.94,
+        "falsePositiveRate": 0.012422360248447204
+      },
+      "projection": [
+        "commercial_solicitation",
+        "requested_contact_action",
+        "time_pressure[0]",
+        "time_pressure[1]",
+        "time_pressure[2]",
+        "message_purpose[0]",
+        "message_purpose[1]",
+        "message_purpose[2]",
+        "message_purpose[3]",
+        "message_purpose[4]"
+      ]
+    },
+    {
+      "version": 1,
+      "arm": "text",
+      "targetRows": 100,
+      "actualRows": 100,
+      "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+      "conversion": "Arrow float64 probabilities -> ML.NET float32, checked finite [0,1], original Arrow unchanged",
+      "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+      "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+      "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+      "modelFile": "text-100.mlnet",
+      "modelSha256": "8bfcddca101b6799558217bf7c61a0c8e8e59164ecb7519304acbb4cf5e4bf2a",
+      "modelBytes": 71379,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.217556431889534,
+      "budgetThreshold": 0.3935244083404541,
+      "trainingMilliseconds": 754.1808,
+      "tuningAndValidationMilliseconds": 1121.0069,
+      "warmHeadMillisecondsPerRow": 0.03585661290322581,
+      "validation": {
+        "rows": 1116,
+        "spam": 150,
+        "ham": 966,
+        "auprc": 0.913300576753987,
+        "rocAuc": 0.9755969634230504,
+        "logLoss": 0.13863776547847456,
+        "brier": 0.038690116564022096,
+        "threshold": 0.217556431889534,
+        "truePositive": 134,
+        "falsePositive": 25,
+        "trueNegative": 941,
+        "falseNegative": 16,
+        "precision": 0.8427672955974843,
+        "recall": 0.8933333333333333,
+        "falsePositiveRate": 0.025879917184265012
+      },
+      "projection": [
+        "commercial_solicitation",
+        "requested_contact_action",
+        "time_pressure[0]",
+        "time_pressure[1]",
+        "time_pressure[2]",
+        "message_purpose[0]",
+        "message_purpose[1]",
+        "message_purpose[2]",
+        "message_purpose[3]",
+        "message_purpose[4]"
+      ]
+    },
+    {
+      "version": 1,
+      "arm": "text",
+      "targetRows": 3344,
+      "actualRows": 3344,
+      "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+      "conversion": "Arrow float64 probabilities -> ML.NET float32, checked finite [0,1], original Arrow unchanged",
+      "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+      "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+      "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+      "modelFile": "text-3344.mlnet",
+      "modelSha256": "c54ef0b126c54afd40f2db80629857489f12b15e28d0ee1150adeb00a676685c",
+      "modelBytes": 725337,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.3177258372306824,
+      "budgetThreshold": 0.3655540943145752,
+      "trainingMilliseconds": 188.0536,
+      "tuningAndValidationMilliseconds": 355.6797,
+      "warmHeadMillisecondsPerRow": 0.004736845878136201,
+      "validation": {
+        "rows": 1116,
+        "spam": 150,
+        "ham": 966,
+        "auprc": 0.9743540604273477,
+        "rocAuc": 0.9900207039337474,
+        "logLoss": 0.08825534605002179,
+        "brier": 0.02003042122799263,
+        "threshold": 0.3177258372306824,
+        "truePositive": 142,
+        "falsePositive": 10,
+        "trueNegative": 956,
+        "falseNegative": 8,
+        "precision": 0.9342105263157895,
+        "recall": 0.9466666666666667,
+        "falsePositiveRate": 0.010351966873706004
+      },
+      "projection": [
+        "commercial_solicitation",
+        "requested_contact_action",
+        "time_pressure[0]",
+        "time_pressure[1]",
+        "time_pressure[2]",
+        "message_purpose[0]",
+        "message_purpose[1]",
+        "message_purpose[2]",
+        "message_purpose[3]",
+        "message_purpose[4]"
+      ]
+    },
+    {
+      "version": 1,
+      "arm": "text",
+      "targetRows": 500,
+      "actualRows": 500,
+      "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+      "conversion": "Arrow float64 probabilities -> ML.NET float32, checked finite [0,1], original Arrow unchanged",
+      "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+      "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+      "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+      "modelFile": "text-500.mlnet",
+      "modelSha256": "4bc34fcdb0612a20c92dc4c302ecb957407043c4b2e7d12a53b7531740cc0a5d",
+      "modelBytes": 196373,
+      "l2": 0.0001,
+      "seed": 1,
+      "maxIterations": 100,
+      "threshold": 0.5196351408958435,
+      "budgetThreshold": 0.5688080191612244,
+      "trainingMilliseconds": 180.0708,
+      "tuningAndValidationMilliseconds": 267.1009,
+      "warmHeadMillisecondsPerRow": 0.004003118279569892,
+      "validation": {
+        "rows": 1116,
+        "spam": 150,
+        "ham": 966,
+        "auprc": 0.9303966916439932,
+        "rocAuc": 0.9827191166321602,
+        "logLoss": 0.1150138340035942,
+        "brier": 0.02900000844126567,
+        "threshold": 0.5196351408958435,
+        "truePositive": 125,
+        "falsePositive": 11,
+        "trueNegative": 955,
+        "falseNegative": 25,
+        "precision": 0.9191176470588235,
+        "recall": 0.8333333333333334,
+        "falsePositiveRate": 0.011387163561076604
+      },
+      "projection": [
+        "commercial_solicitation",
+        "requested_contact_action",
+        "time_pressure[0]",
+        "time_pressure[1]",
+        "time_pressure[2]",
+        "message_purpose[0]",
+        "message_purpose[1]",
+        "message_purpose[2]",
+        "message_purpose[3]",
+        "message_purpose[4]"
+      ]
+    }
+  ],
+  "evaluation": {
+    "version": 1,
+    "status": "complete",
+    "trainingFreezeSha256": "6ebea3a135c808b31a996f5e31835f7608c78f2c22eaa03d6a3a760a1c5bcd1c",
+    "featureFingerprint": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+    "datasetManifestSha256": "76748fdf24a0a33efb1a6509e00d25fbc8caddd3b002005cb1bf77e2911c8c2c",
+    "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+    "arms": [
+      {
+        "arm": "prior",
+        "targetRows": 100,
+        "actualTrainingRows": 100,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.13375224416517056,
+          "rocAuc": 0.5,
+          "logLoss": 0.4046631463519069,
+          "brier": 0.119026391382407,
+          "threshold": 0.19,
+          "truePositive": 149,
+          "falsePositive": 965,
+          "trueNegative": 0,
+          "falseNegative": 0,
+          "precision": 0.13375224416517056,
+          "recall": 1,
+          "falsePositiveRate": 1
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.13375224416517056,
+          "rocAuc": 0.5,
+          "logLoss": 0.4046631463519069,
+          "brier": 0.119026391382407,
+          "threshold": 1.0000000000000002,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "trueNegative": 965,
+          "falseNegative": 149,
+          "precision": null,
+          "recall": 0,
+          "falsePositiveRate": 0
+        },
+        "savedPredictionsFile": "prior-100.holdout.json",
+        "savedPredictionsSha256": "9b9e666d939524f3e014a566913485a9cafcd62264d92de976901de585694005",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.11120996441281139,
+              "upper": 0.15826702033598586
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.5,
+              "upper": 0.5
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.3719766113318837,
+              "upper": 0.4402098212498408
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.10505017793594448,
+              "upper": 0.1342255526083132
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 1,
+              "upper": 1
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 1,
+              "upper": 1
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.7888103649905295,
+              "upper": -0.7041617085712899
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.4806107274285426,
+              "upper": -0.441612885043542
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.21150999165673665,
+              "upper": 0.2701151465446018
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.060484773859970344,
+              "upper": 0.0834080234546036
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.13605442176870752,
+              "upper": 0.28358208955223885
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.95625,
+              "upper": 0.9790628115653041
+            }
+          ]
+        }
+      },
+      {
+        "arm": "direct",
+        "targetRows": 100,
+        "actualTrainingRows": 100,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.8658462701139138,
+          "rocAuc": 0.9623743784122126,
+          "logLoss": 0.9687892679004756,
+          "brier": 0.3292596383552804,
+          "threshold": 0.9530805690292937,
+          "truePositive": 119,
+          "falsePositive": 26,
+          "trueNegative": 939,
+          "falseNegative": 30,
+          "precision": 0.8206896551724138,
+          "recall": 0.7986577181208053,
+          "falsePositiveRate": 0.02694300518134715
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.8658462701139138,
+          "rocAuc": 0.9623743784122126,
+          "logLoss": 0.9687892679004756,
+          "brier": 0.3292596383552804,
+          "threshold": 0.9983010566013867,
+          "truePositive": 73,
+          "falsePositive": 7,
+          "trueNegative": 958,
+          "falseNegative": 76,
+          "precision": 0.9125,
+          "recall": 0.4899328859060403,
+          "falsePositiveRate": 0.007253886010362694
+        },
+        "savedPredictionsFile": "direct-100.holdout.json",
+        "savedPredictionsSha256": "6d19b3270f82306998ab2b8457cbb053fd86d83477f92a8d360280be52e58116",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7920389463218491,
+              "upper": 0.9219684355258161
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9406019257542294,
+              "upper": 0.9807219832663584
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8792881136440904,
+              "upper": 1.0650961180403398
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.30749417283076613,
+              "upper": 0.34949827130760625
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7105263157894737,
+              "upper": 0.8661417322834646
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.015353121801432957,
+              "upper": 0.040923399790136414
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.09426374593008335,
+              "upper": 0.044261541145794836
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.023817484651665777,
+              "upper": 0.020924764890282166
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7078239976348821,
+              "upper": 0.9075495048280224
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.2557626624649309,
+              "upper": 0.30614475171404004
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.11038961038961037,
+              "upper": 0.09999999999999998
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.022357723577235773,
+              "upper": 0.013306038894575233
+            }
+          ]
+        }
+      },
+      {
+        "arm": "text",
+        "targetRows": 100,
+        "actualTrainingRows": 100,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.883834899539444,
+          "rocAuc": 0.9630420419376152,
+          "logLoss": 0.163705035238496,
+          "brier": 0.047303413718819506,
+          "threshold": 0.217556431889534,
+          "truePositive": 118,
+          "falsePositive": 31,
+          "trueNegative": 934,
+          "falseNegative": 31,
+          "precision": 0.7919463087248322,
+          "recall": 0.7919463087248322,
+          "falsePositiveRate": 0.03212435233160622
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.883834899539444,
+          "rocAuc": 0.9630420419376152,
+          "logLoss": 0.163705035238496,
+          "brier": 0.047303413718819506,
+          "threshold": 0.3935244083404541,
+          "truePositive": 91,
+          "falsePositive": 3,
+          "trueNegative": 962,
+          "falseNegative": 58,
+          "precision": 0.9680851063829787,
+          "recall": 0.610738255033557,
+          "falsePositiveRate": 0.0031088082901554403
+        },
+        "savedPredictionsFile": "text-100.holdout.json",
+        "savedPredictionsSha256": "98570b49a4059ab4672e79bf13a9e5093c19b7004f7446f5ac6231369d321c9c",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8285564155442521,
+              "upper": 0.9234454505385157
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9415880139924757,
+              "upper": 0.9805932364425428
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.13349814010047797,
+              "upper": 0.19190586491396205
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.03743320453741935,
+              "upper": 0.056747607985298
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7155172413793104,
+              "upper": 0.8631578947368421
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.02081165452653486,
+              "upper": 0.043704474505723206
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            }
+          ]
+        }
+      },
+      {
+        "arm": "semantic",
+        "targetRows": 100,
+        "actualTrainingRows": 100,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.934987728434174,
+          "rocAuc": 0.9849427965364954,
+          "logLoss": 0.08481488407461066,
+          "brier": 0.020270838406263633,
+          "threshold": 0.48214539885520935,
+          "truePositive": 130,
+          "falsePositive": 8,
+          "trueNegative": 957,
+          "falseNegative": 19,
+          "precision": 0.9420289855072463,
+          "recall": 0.87248322147651,
+          "falsePositiveRate": 0.008290155440414507
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.934987728434174,
+          "rocAuc": 0.9849427965364954,
+          "logLoss": 0.08481488407461066,
+          "brier": 0.020270838406263633,
+          "threshold": 0.410893052816391,
+          "truePositive": 132,
+          "falsePositive": 10,
+          "trueNegative": 955,
+          "falseNegative": 17,
+          "precision": 0.9295774647887324,
+          "recall": 0.8859060402684564,
+          "falsePositiveRate": 0.010362694300518135
+        },
+        "savedPredictionsFile": "semantic-100.holdout.json",
+        "savedPredictionsSha256": "dc73e1b823faba9cabbcdf941664fdfeaa08adf8cef29904188f8be8585fe7f4",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8690853070089841,
+              "upper": 0.9794499005159869
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9712259504891982,
+              "upper": 0.99558655825595
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.0602815833134218,
+              "upper": 0.1159881532039857
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.014077753077812095,
+              "upper": 0.027375166746016043
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.808,
+              "upper": 0.9271523178807947
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.0030737704918032786,
+              "upper": 0.014783526927138331
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.02237620342465474,
+              "upper": 0.11015224094597742
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.008213913584757537,
+              "upper": 0.039543524416135845
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.10977629321325179,
+              "upper": -0.04246114823900789
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.03657073108982968,
+              "upper": -0.017030105572804242
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.006802721088435382,
+              "upper": 0.16296296296296298
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.0375,
+              "upper": -0.01044932079414838
+            }
+          ]
+        }
+      },
+      {
+        "arm": "combined",
+        "targetRows": 100,
+        "actualTrainingRows": 100,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.9388210917263702,
+          "rocAuc": 0.9850123448203916,
+          "logLoss": 0.08656737868562704,
+          "brier": 0.020414557883709824,
+          "threshold": 0.40774044394493103,
+          "truePositive": 132,
+          "falsePositive": 10,
+          "trueNegative": 955,
+          "falseNegative": 17,
+          "precision": 0.9295774647887324,
+          "recall": 0.8859060402684564,
+          "falsePositiveRate": 0.010362694300518135
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.9388210917263702,
+          "rocAuc": 0.9850123448203916,
+          "logLoss": 0.08656737868562704,
+          "brier": 0.020414557883709824,
+          "threshold": 0.40774044394493103,
+          "truePositive": 132,
+          "falsePositive": 10,
+          "trueNegative": 955,
+          "falseNegative": 17,
+          "precision": 0.9295774647887324,
+          "recall": 0.8859060402684564,
+          "falsePositiveRate": 0.010362694300518135
+        },
+        "savedPredictionsFile": "combined-100.holdout.json",
+        "savedPredictionsSha256": "a3d198f899654baacf7fdc90f96d0ed38e80fc412fe3bfd3e72ef20ddfd655e7",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8755578037974989,
+              "upper": 0.9799795282560446
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9707227104353622,
+              "upper": 0.9956928989947857
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.063522846122192,
+              "upper": 0.1164030939588016
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.014318092502267387,
+              "upper": 0.02741732361807111
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8253012048192772,
+              "upper": 0.9385474860335196
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.004136504653567736,
+              "upper": 0.01814300960512273
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.014269117721338098,
+              "upper": 0.11121188955312944
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.00857588357588357,
+              "upper": 0.03935922387355506
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.10682081481290265,
+              "upper": -0.042633298463403246
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.03640472114920591,
+              "upper": -0.017057080368087448
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.0134228187919464,
+              "upper": 0.17266187050359705
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.035902851108764525,
+              "upper": -0.00837696335078534
+            }
+          ]
+        }
+      },
+      {
+        "arm": "prior",
+        "targetRows": 500,
+        "actualTrainingRows": 500,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.13375224416517056,
+          "rocAuc": 0.5,
+          "logLoss": 0.3934580914099264,
+          "brier": 0.11586264272890345,
+          "threshold": 0.134,
+          "truePositive": 149,
+          "falsePositive": 965,
+          "trueNegative": 0,
+          "falseNegative": 0,
+          "precision": 0.13375224416517056,
+          "recall": 1,
+          "falsePositiveRate": 1
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.13375224416517056,
+          "rocAuc": 0.5,
+          "logLoss": 0.3934580914099264,
+          "brier": 0.11586264272890345,
+          "threshold": 1.0000000000000002,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "trueNegative": 965,
+          "falseNegative": 149,
+          "precision": null,
+          "recall": 0,
+          "falsePositiveRate": 0
+        },
+        "savedPredictionsFile": "prior-500.holdout.json",
+        "savedPredictionsSha256": "ac893fd00ba24ef0181f8b1f080dd9e85e892fd8c3ffdad67f41094f8b2f5f6a",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.11120996441281139,
+              "upper": 0.15826702033598586
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.5,
+              "upper": 0.5
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.3513931805410862,
+              "upper": 0.4392037695721799
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.09936169395017677,
+              "upper": 0.1338074588859401
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 1,
+              "upper": 1
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 1,
+              "upper": 1
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.7899510941538689,
+              "upper": -0.7076053726829699
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.4792748399455563,
+              "upper": -0.44202710935120315
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.2076541517179143,
+              "upper": 0.2929886529141142
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.06084319897905773,
+              "upper": 0.0933352812177847
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.19767441860465118,
+              "upper": 0.35915492957746475
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9790575916230366,
+              "upper": 0.992849846782431
+            }
+          ]
+        }
+      },
+      {
+        "arm": "direct",
+        "targetRows": 500,
+        "actualTrainingRows": 500,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.8658462701139138,
+          "rocAuc": 0.9623743784122126,
+          "logLoss": 0.9687892679004756,
+          "brier": 0.3292596383552804,
+          "threshold": 0.9530805690292937,
+          "truePositive": 119,
+          "falsePositive": 26,
+          "trueNegative": 939,
+          "falseNegative": 30,
+          "precision": 0.8206896551724138,
+          "recall": 0.7986577181208053,
+          "falsePositiveRate": 0.02694300518134715
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.8658462701139138,
+          "rocAuc": 0.9623743784122126,
+          "logLoss": 0.9687892679004756,
+          "brier": 0.3292596383552804,
+          "threshold": 0.9983010566013867,
+          "truePositive": 73,
+          "falsePositive": 7,
+          "trueNegative": 958,
+          "falseNegative": 76,
+          "precision": 0.9125,
+          "recall": 0.4899328859060403,
+          "falsePositiveRate": 0.007253886010362694
+        },
+        "savedPredictionsFile": "direct-500.holdout.json",
+        "savedPredictionsSha256": "6d19b3270f82306998ab2b8457cbb053fd86d83477f92a8d360280be52e58116",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7920389463218491,
+              "upper": 0.9219684355258161
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9406019257542294,
+              "upper": 0.9807219832663584
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8792881136440904,
+              "upper": 1.0650961180403398
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.30749417283076613,
+              "upper": 0.34949827130760625
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7105263157894737,
+              "upper": 0.8661417322834646
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.015353121801432957,
+              "upper": 0.040923399790136414
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.09506808323320493,
+              "upper": 0.0425136814434629
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.02281505588147137,
+              "upper": 0.02006932682081386
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7308227350591069,
+              "upper": 0.9206631579157409
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.26624031100487655,
+              "upper": 0.31227921691598964
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.0357142857142857,
+              "upper": 0.16546762589928055
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0.029015544041450778
+            }
+          ]
+        }
+      },
+      {
+        "arm": "text",
+        "targetRows": 500,
+        "actualTrainingRows": 500,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.884999578871338,
+          "rocAuc": 0.9620544563062906,
+          "logLoss": 0.14355141553748005,
+          "brier": 0.03921491820941801,
+          "threshold": 0.5196351408958435,
+          "truePositive": 108,
+          "falsePositive": 13,
+          "trueNegative": 952,
+          "falseNegative": 41,
+          "precision": 0.8925619834710744,
+          "recall": 0.7248322147651006,
+          "falsePositiveRate": 0.013471502590673576
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.884999578871338,
+          "rocAuc": 0.9620544563062906,
+          "logLoss": 0.14355141553748005,
+          "brier": 0.03921491820941801,
+          "threshold": 0.5688080191612244,
+          "truePositive": 104,
+          "falsePositive": 12,
+          "trueNegative": 953,
+          "falseNegative": 45,
+          "precision": 0.896551724137931,
+          "recall": 0.697986577181208,
+          "falsePositiveRate": 0.012435233160621761
+        },
+        "savedPredictionsFile": "text-500.holdout.json",
+        "savedPredictionsSha256": "6ec87fdbb7669d6053210625a3e13ee85ede5ef5d49386f2612837918888e003",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8337427195660038,
+              "upper": 0.9256005764860984
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9418462104263079,
+              "upper": 0.9792716355567158
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.1190023983619501,
+              "upper": 0.17094119114630768
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.031543846914938535,
+              "upper": 0.047987483482731644
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.640625,
+              "upper": 0.8013245033112583
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.007121057985757884,
+              "upper": 0.02092050209205021
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            }
+          ]
+        }
+      },
+      {
+        "arm": "semantic",
+        "targetRows": 500,
+        "actualTrainingRows": 500,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.9550555165442435,
+          "rocAuc": 0.9873422123309107,
+          "logLoss": 0.07550870703582878,
+          "brier": 0.018361924477206356,
+          "threshold": 0.3401879072189331,
+          "truePositive": 137,
+          "falsePositive": 13,
+          "trueNegative": 952,
+          "falseNegative": 12,
+          "precision": 0.9133333333333333,
+          "recall": 0.9194630872483222,
+          "falsePositiveRate": 0.013471502590673576
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.9550555165442435,
+          "rocAuc": 0.9873422123309107,
+          "logLoss": 0.07550870703582878,
+          "brier": 0.018361924477206356,
+          "threshold": 0.5545594692230225,
+          "truePositive": 132,
+          "falsePositive": 7,
+          "trueNegative": 958,
+          "falseNegative": 17,
+          "precision": 0.9496402877697842,
+          "recall": 0.8859060402684564,
+          "falsePositiveRate": 0.007253886010362694
+        },
+        "savedPredictionsFile": "semantic-500.holdout.json",
+        "savedPredictionsSha256": "bd63239643f6d658a28786a57306b0ca300f016a7b698ab46a71576fc0c22f79",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.912085828082607,
+              "upper": 0.9826164873452226
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9753068336005921,
+              "upper": 0.9959890843116969
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.0510268603912956,
+              "upper": 0.10562111500943602
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.012693519475737547,
+              "upper": 0.02536425565923205
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8698630136986302,
+              "upper": 0.9606299212598425
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.006349206349206349,
+              "upper": 0.021761658031088083
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.025902952434766036,
+              "upper": 0.12100822359281349
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.011553103984882962,
+              "upper": 0.041370289629398926
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.09891235103818082,
+              "upper": -0.035511316899106346
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.03055966676735825,
+              "upper": -0.01183440328719267
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.11805555555555558,
+              "upper": 0.2763157894736842
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.0099601593625498,
+              "upper": 0.010341261633919338
+            }
+          ]
+        }
+      },
+      {
+        "arm": "combined",
+        "targetRows": 500,
+        "actualTrainingRows": 500,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.9647005981285495,
+          "rocAuc": 0.989936363320235,
+          "logLoss": 0.06630053950388519,
+          "brier": 0.016737828363684377,
+          "threshold": 0.5977086424827576,
+          "truePositive": 134,
+          "falsePositive": 10,
+          "trueNegative": 955,
+          "falseNegative": 15,
+          "precision": 0.9305555555555556,
+          "recall": 0.8993288590604027,
+          "falsePositiveRate": 0.010362694300518135
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.9647005981285495,
+          "rocAuc": 0.989936363320235,
+          "logLoss": 0.06630053950388519,
+          "brier": 0.016737828363684377,
+          "threshold": 0.4436585605144501,
+          "truePositive": 137,
+          "falsePositive": 12,
+          "trueNegative": 953,
+          "falseNegative": 12,
+          "precision": 0.9194630872483222,
+          "recall": 0.9194630872483222,
+          "falsePositiveRate": 0.012435233160621761
+        },
+        "savedPredictionsFile": "combined-500.holdout.json",
+        "savedPredictionsSha256": "3e30ccac60a3ba4dff2be9245dd88a71fdf62c2ef1306359166c3d31653e50a2",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9306251527110118,
+              "upper": 0.987134601387874
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.978833096781618,
+              "upper": 0.9975848003434951
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.04499512156306807,
+              "upper": 0.09287957953100681
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.01123272136793615,
+              "upper": 0.02301214892094669
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.84375,
+              "upper": 0.9496402877697842
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.004132231404958678,
+              "upper": 0.017726798748696558
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.04038277512249,
+              "upper": 0.1258413528312715
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.01501501501501501,
+              "upper": 0.043257361158034247
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.10357685769683175,
+              "upper": -0.05018328665732193
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.031091120772062993,
+              "upper": -0.014304921586682055
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.09523809523809523,
+              "upper": 0.26027397260273977
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.012084592145015106,
+              "upper": 0.0062176165803108805
+            }
+          ]
+        }
+      },
+      {
+        "arm": "prior",
+        "targetRows": 3344,
+        "actualTrainingRows": 3344,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.13375224416517056,
+          "rocAuc": 0.5,
+          "logLoss": 0.39345803366352866,
+          "brier": 0.11586262932784513,
+          "threshold": 0.1339712918660287,
+          "truePositive": 149,
+          "falsePositive": 965,
+          "trueNegative": 0,
+          "falseNegative": 0,
+          "precision": 0.13375224416517056,
+          "recall": 1,
+          "falsePositiveRate": 1
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.13375224416517056,
+          "rocAuc": 0.5,
+          "logLoss": 0.39345803366352866,
+          "brier": 0.11586262932784513,
+          "threshold": 1.0000000000000002,
+          "truePositive": 0,
+          "falsePositive": 0,
+          "trueNegative": 965,
+          "falseNegative": 149,
+          "precision": null,
+          "recall": 0,
+          "falsePositiveRate": 0
+        },
+        "savedPredictionsFile": "prior-3344.holdout.json",
+        "savedPredictionsSha256": "4aba68fe667474900129dc09737bd333b8078d52aac8b5c9b01bbd7b89e3aaa8",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.11120996441281139,
+              "upper": 0.15826702033598586
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.5,
+              "upper": 0.5
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.3513875455533699,
+              "upper": 0.4392097770873299
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.09936038625554382,
+              "upper": 0.13380885303184134
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 1,
+              "upper": 1
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 1,
+              "upper": 1
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.839429470357,
+              "upper": -0.7765104316653912
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.4903785890893062,
+              "upper": -0.460615180287103
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.2398208313392055,
+              "upper": 0.3197217461351537
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.07143907551981338,
+              "upper": 0.1026166290819959
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.1079136690647482,
+              "upper": 0.23448275862068968
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9830328738069989,
+              "upper": 0.9957446808510638
+            }
+          ]
+        }
+      },
+      {
+        "arm": "direct",
+        "targetRows": 3344,
+        "actualTrainingRows": 3344,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.8658462701139138,
+          "rocAuc": 0.9623743784122126,
+          "logLoss": 0.9687892679004756,
+          "brier": 0.3292596383552804,
+          "threshold": 0.9530805690292937,
+          "truePositive": 119,
+          "falsePositive": 26,
+          "trueNegative": 939,
+          "falseNegative": 30,
+          "precision": 0.8206896551724138,
+          "recall": 0.7986577181208053,
+          "falsePositiveRate": 0.02694300518134715
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.8658462701139138,
+          "rocAuc": 0.9623743784122126,
+          "logLoss": 0.9687892679004756,
+          "brier": 0.3292596383552804,
+          "threshold": 0.9983010566013867,
+          "truePositive": 73,
+          "falsePositive": 7,
+          "trueNegative": 958,
+          "falseNegative": 76,
+          "precision": 0.9125,
+          "recall": 0.4899328859060403,
+          "falsePositiveRate": 0.007253886010362694
+        },
+        "savedPredictionsFile": "direct-3344.holdout.json",
+        "savedPredictionsSha256": "6d19b3270f82306998ab2b8457cbb053fd86d83477f92a8d360280be52e58116",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7920389463218491,
+              "upper": 0.9219684355258161
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9406019257542294,
+              "upper": 0.9807219832663584
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8792881136440904,
+              "upper": 1.0650961180403398
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.30749417283076613,
+              "upper": 0.34949827130760625
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7105263157894737,
+              "upper": 0.8661417322834646
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.015353121801432957,
+              "upper": 0.040923399790136414
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.1477029949025741,
+              "upper": -0.020767056946472184
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.03712787674954843,
+              "upper": 0.004267425320056861
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7628776747069888,
+              "upper": 0.951339467160025
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.2770121233337328,
+              "upper": 0.3222117192381402
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.1266666666666666,
+              "upper": 0.050632911392405
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.0030895983522142116,
+              "upper": 0.032124352331606223
+            }
+          ]
+        }
+      },
+      {
+        "arm": "text",
+        "targetRows": 3344,
+        "actualTrainingRows": 3344,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.9413509610237517,
+          "rocAuc": 0.9775637236151198,
+          "logLoss": 0.1137206635361694,
+          "brier": 0.0289562262151361,
+          "threshold": 0.3177258372306824,
+          "truePositive": 124,
+          "falsePositive": 10,
+          "trueNegative": 955,
+          "falseNegative": 25,
+          "precision": 0.9253731343283582,
+          "recall": 0.8322147651006712,
+          "falsePositiveRate": 0.010362694300518135
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.9413509610237517,
+          "rocAuc": 0.9775637236151198,
+          "logLoss": 0.1137206635361694,
+          "brier": 0.0289562262151361,
+          "threshold": 0.3655540943145752,
+          "truePositive": 120,
+          "falsePositive": 4,
+          "trueNegative": 961,
+          "falseNegative": 29,
+          "precision": 0.967741935483871,
+          "recall": 0.8053691275167785,
+          "falsePositiveRate": 0.004145077720207254
+        },
+        "savedPredictionsFile": "text-3344.holdout.json",
+        "savedPredictionsSha256": "a0266656a5c803dec0192d61ea6284251f6c904586fb087be842c98ebb9dfad2",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9063865837597649,
+              "upper": 0.9678534619940578
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.960531502031411,
+              "upper": 0.990360394159578
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.09228390820055042,
+              "upper": 0.136221742465368
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.022122980676532036,
+              "upper": 0.03645554717770316
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.7635135135135135,
+              "upper": 0.8920454545454546
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.00425531914893617,
+              "upper": 0.016931216931216932
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0
+            }
+          ]
+        }
+      },
+      {
+        "arm": "semantic",
+        "targetRows": 3344,
+        "actualTrainingRows": 3344,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.9547571553399705,
+          "rocAuc": 0.9871544319643912,
+          "logLoss": 0.07791153327074707,
+          "brier": 0.019659279121747836,
+          "threshold": 0.39493149518966675,
+          "truePositive": 130,
+          "falsePositive": 9,
+          "trueNegative": 956,
+          "falseNegative": 19,
+          "precision": 0.935251798561151,
+          "recall": 0.87248322147651,
+          "falsePositiveRate": 0.00932642487046632
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.9547571553399705,
+          "rocAuc": 0.9871544319643912,
+          "logLoss": 0.07791153327074707,
+          "brier": 0.019659279121747836,
+          "threshold": 0.3210592269897461,
+          "truePositive": 133,
+          "falsePositive": 9,
+          "trueNegative": 956,
+          "falseNegative": 16,
+          "precision": 0.9366197183098591,
+          "recall": 0.8926174496644296,
+          "falsePositiveRate": 0.00932642487046632
+        },
+        "savedPredictionsFile": "semantic-3344.holdout.json",
+        "savedPredictionsSha256": "4d57a6de0ecdb1b0dc8fd1685e9016f22a70b0aeb05835926001253840753b05",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9093894963104757,
+              "upper": 0.9852996803658666
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9739731744524077,
+              "upper": 0.9965355943138864
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.05341593902037221,
+              "upper": 0.10750364748073461
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.013414599622611548,
+              "upper": 0.026572986253095125
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8045112781954887,
+              "upper": 0.927536231884058
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.0031914893617021275,
+              "upper": 0.01671891327063741
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.030798104425402206,
+              "upper": 0.05102777963412353
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.0016685379241516696,
+              "upper": 0.023468603278328448
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.059672914446161525,
+              "upper": -0.009463608187442032
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.01654207588815374,
+              "upper": -0.0022847855272104083
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.022222222222222254,
+              "upper": 0.10833333333333328
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.010141987829614604,
+              "upper": 0.007438894792773645
+            }
+          ]
+        }
+      },
+      {
+        "arm": "combined",
+        "targetRows": 3344,
+        "actualTrainingRows": 3344,
+        "holdout": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.965031302606159,
+          "rocAuc": 0.9900754598880273,
+          "logLoss": 0.06414732583829659,
+          "brier": 0.015663843174673515,
+          "threshold": 0.3942912518978119,
+          "truePositive": 133,
+          "falsePositive": 8,
+          "trueNegative": 957,
+          "falseNegative": 16,
+          "precision": 0.9432624113475178,
+          "recall": 0.8926174496644296,
+          "falsePositiveRate": 0.008290155440414507
+        },
+        "atValidationFprBudget": {
+          "rows": 1114,
+          "spam": 149,
+          "ham": 965,
+          "auprc": 0.965031302606159,
+          "rocAuc": 0.9900754598880273,
+          "logLoss": 0.06414732583829659,
+          "brier": 0.015663843174673515,
+          "threshold": 0.3942912518978119,
+          "truePositive": 133,
+          "falsePositive": 8,
+          "trueNegative": 957,
+          "falseNegative": 16,
+          "precision": 0.9432624113475178,
+          "recall": 0.8926174496644296,
+          "falsePositiveRate": 0.008290155440414507
+        },
+        "savedPredictionsFile": "combined-3344.holdout.json",
+        "savedPredictionsSha256": "78524d0fc7c16f1d074c92db5cbf459b68a70d6842010e6651aed6e7dab935cb",
+        "uncertainty": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9298030751754416,
+              "upper": 0.9890988275587494
+            },
+            {
+              "metric": "rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.9794885508942003,
+              "upper": 0.9975421566797337
+            },
+            {
+              "metric": "logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.043111298188804964,
+              "upper": 0.09163424747752913
+            },
+            {
+              "metric": "brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.010171170433058473,
+              "upper": 0.022531269279028536
+            },
+            {
+              "metric": "recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.8333333333333334,
+              "upper": 0.9416058394160584
+            },
+            {
+              "metric": "falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.003080082135523614,
+              "upper": 0.015608740894901144
+            }
+          ]
+        },
+        "pairedDeltaFromText": {
+          "seed": 1729,
+          "resamples": 1000,
+          "unit": "non-stratified duplicate-group resampling; whole groups with replacement",
+          "intervals": [
+            {
+              "metric": "pairedDelta:auprc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.010186137712962617,
+              "upper": 0.05565100756072194
+            },
+            {
+              "metric": "pairedDelta:rocAuc",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0.002012842595708997,
+              "upper": 0.025925925925925908
+            },
+            {
+              "metric": "pairedDelta:logLoss",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.07204861706409299,
+              "upper": -0.025723816144190628
+            },
+            {
+              "metric": "pairedDelta:brier",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.019903846455474234,
+              "upper": -0.007065741255205097
+            },
+            {
+              "metric": "pairedDelta:recall",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": 0,
+              "upper": 0.12408759124087587
+            },
+            {
+              "metric": "pairedDelta:falsePositiveRate",
+              "defined": 1000,
+              "undefined": 0,
+              "lower": -0.010460251046025104,
+              "upper": 0.006329113924050633
+            }
+          ]
+        }
+      }
+    ],
+    "extraction": {
+      "executionMode": "scalar-cpu",
+      "rows": 5574,
+      "measurements": {
+        "loadMilliseconds": 2508.2789,
+        "firstResultMilliseconds": 1907.4477,
+        "warmupOnnxCalls": 1,
+        "warmupStateCount": 1,
+        "firstExportResultMilliseconds": 1780.185,
+        "inferenceAndAppendMilliseconds": 8848191.4706,
+        "onnxCalls": 5574,
+        "preparationMilliseconds": 1025.3440999999987,
+        "scoringMilliseconds": 8845290.227300018,
+        "decodingMilliseconds": 388.7792000000019,
+        "maximumManagedTensorBytes": 26825,
+        "inferenceGen0Collections": 48,
+        "inferenceGen1Collections": 10,
+        "inferenceGen2Collections": 2,
+        "processPeakWorkingSetBytes": 2163466240,
+        "exportBeforeManifestPublicationMilliseconds": 8848356.0239,
+        "exportProcessAllocatedBytes": 576380472
+      },
+      "scope": "exportBeforeManifestPublicationMilliseconds: writer setup through generation/preparation/scoring/append/IPC flush/hash/finalize; excludes preflight/model load/final manifest serialization. loadMilliseconds is separate. firstResultMilliseconds and inferenceAndAppendMilliseconds overlap this scope; do not sum. Head batch time per row is recorded separately; extraction remains necessary for new semantic/combined/direct predictions."
+    },
+    "metricsDefinition": "AUPRC = tie-aware step average precision (not trapezoidal interpolation); ROC ties receive half credit. Log loss clips evaluation-local probabilities to [1e-15,1-1e-15]; Brier/predictions use unchanged values. Undefined class cases reported, 1000 seeded whole-group bootstrap percentile intervals and paired deltas to text.",
+    "limitations": "Public corpus may occur in model pretraining; within-corpus behavior is not deployment generalization or calibration. Ten semantic coordinates include redundant exclusive distributions, not ten independent signals. Semantic/combined and direct arms require semantic extraction for new text; head timing is not full inference cost. No chronological split, cloud inference, raw-message publication, whole-pipeline ONNX export, or extractor distillation."
+  }
+}
