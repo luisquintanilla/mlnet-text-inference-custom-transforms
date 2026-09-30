@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string] $ArtifactRoot,
-    [switch] $InitializeLock
+    [switch] $InitializeLock,
+    [switch] $ProjectOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -68,7 +69,8 @@ $escapedCache = [System.Security.SecurityElement]::Escape($cache)
 </configuration>
 "@ | Set-Content -LiteralPath $config -Encoding utf8NoBOM
 
-$restoreArgs = @('restore', "$repo\eng\DecisionArrowPredictor.slnx", '--configfile', $config,
+$target = if ($ProjectOnly) { "$repo\samples\DecisionArrowPredictor\DecisionArrowPredictor.csproj" } else { "$repo\eng\DecisionArrowPredictor.slnx" }
+$restoreArgs = @('restore', $target, '--configfile', $config,
     '--packages', $cache, '-p:ImportDirectoryBuildTargets=false', '--verbosity', 'quiet')
 if (-not $InitializeLock) { $restoreArgs += '--locked-mode' }
 & dotnet @restoreArgs

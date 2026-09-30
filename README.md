@@ -4,6 +4,12 @@
 
 A **multi-task text inference platform** for ML.NET that runs local HuggingFace ONNX encoder models. Provides a shared foundation of tokenization + ONNX scoring, with task-specific post-processing transforms for embeddings, classification, NER, reranking, question answering, and more.
 
+**New learning experiment:** [Learn a small spam classifier from numeric answers
+to fixed questions](samples/DecisionArrowPredictor/README.md). Start with an
+offline Arrow-table walkthrough, then inspect the ML.NET learning step. Unlike
+the [typed-decision inference tutorial](samples/TypedDecisions/MLNetPipeline/README.md),
+this sample **consumes saved probabilities; it does not run Laya or generate them**.
+
 ```
                       TextTokenizerTransformer
                                │

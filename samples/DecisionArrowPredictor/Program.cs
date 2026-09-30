@@ -6,7 +6,25 @@ try
     if (args.Length == 0 || args is ["help"] or ["--help"])
     {
         Console.WriteLine("""
-            DecisionArrowPredictor (explicit local study; no inference or implicit downloads)
+            DecisionArrowPredictor: learn a small spam classifier from numeric answers to fixed questions.
+            Laya in TypeSafe produces the probabilities; ML.NET reads the saved Arrow table here.
+
+            Beginner walkthrough: samples\DecisionArrowPredictor\README.md
+            Recommended first run, from the repository root:
+              .\samples\DecisionArrowPredictor\Start.ps1 -ArtifactRoot <local artifact-kit folder>
+            Already built? Run: smoke
+            Smoke reads a synthetic fixture; it does not run Laya, train a model or measure accuracy.
+
+            Advanced experiment syntax: help commands
+            Real-data workflow and prerequisites: samples\DecisionArrowPredictor\EXPERIMENT.md
+            """);
+        return 0;
+    }
+    if (args is ["help", "commands"])
+    {
+        Console.WriteLine("""
+            DecisionArrowPredictor advanced experiment commands (see EXPERIMENT.md)
+              smoke [--precision HighPrecision|FourDecimalPlaces|TwoDecimalPlaces]
               prepare --download --out <new acquisition directory>
               prepare --input <corpus> --acquisition <receipt> --out <review directory>
               prepare --input <corpus> --acquisition <receipt> --out <freeze directory>
@@ -19,7 +37,6 @@ try
               train  <same import options> --out <new model directory>
               evaluate <same import options> --training-freeze <training.freeze.json>
                        --training-freeze-sha256 <pinned hash> --out <new result directory>
-              smoke [--precision HighPrecision|FourDecimalPlaces|TwoDecimalPlaces]
             The first prepare downloads only the explicitly approved public UCI corpus.
             Review grouping and bundled license/count evidence before the final freeze command.
             """);
