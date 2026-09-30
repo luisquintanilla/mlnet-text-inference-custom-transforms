@@ -1,11 +1,13 @@
 using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 
 namespace DecisionArrowPredictor;
 
 public sealed class StudyDataView : IDataView
 {
     private readonly RowSelection selection;
+    private readonly IHost? host;
     public static DataViewSchema SharedSchema { get; } = CreateSchema();
     public DataViewSchema Schema => SharedSchema;
     // ML.NET 5 LoadFromEnumerable uses StreamingDataView, not the shuffling ListDataView.
@@ -16,6 +18,13 @@ public sealed class StudyDataView : IDataView
     {
         selection.Owner.RequireOpen();
         this.selection = selection;
+    }
+
+    public StudyDataView(RowSelection selection, MLContext context) : this(selection)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        // Match the legacy source's host registration before estimator construction, not a new shuffle seed.
+        host = ((IHostEnvironment)context).Register(nameof(StudyDataView));
     }
 
     private static DataViewSchema CreateSchema()
@@ -31,7 +40,7 @@ public sealed class StudyDataView : IDataView
     }
 
     public DataViewRowCursor GetRowCursor(IEnumerable<DataViewSchema.Column> columnsNeeded, Random? rand = null) =>
-        new Cursor(selection, columnsNeeded);
+        new Cursor(selection, columnsNeeded, host);
 
     public DataViewRowCursor[] GetRowCursorSet(IEnumerable<DataViewSchema.Column> columnsNeeded, int n, Random? rand = null)
     {
@@ -42,6 +51,7 @@ public sealed class StudyDataView : IDataView
     private sealed class Cursor : DataViewRowCursor
     {
         private readonly RowSelection selection;
+        private readonly IHost? host;
         private readonly bool[] active = new bool[SharedSchema.Count];
         private readonly Delegate?[] getters = new Delegate?[SharedSchema.Count];
         private bool disposed;
@@ -50,9 +60,10 @@ public sealed class StudyDataView : IDataView
         public override long Batch => 0;
         public override DataViewSchema Schema => SharedSchema;
 
-        public Cursor(RowSelection selection, IEnumerable<DataViewSchema.Column> columns)
+        public Cursor(RowSelection selection, IEnumerable<DataViewSchema.Column> columns, IHost? host)
         {
             this.selection = selection;
+            this.host = host;
             foreach (var column in columns)
             {
                 CheckColumn(column);
@@ -72,7 +83,10 @@ public sealed class StudyDataView : IDataView
             get
             {
                 if (disposed || position < 0 || position >= selection.Count)
-                    throw new InvalidOperationException("Cursor is not positioned on a live row.");
+                {
+                    var error = new InvalidOperationException("Cursor is not positioned on a live row.");
+                    throw host?.Process(error) ?? error;
+                }
                 return selection[(int)position];
             }
         }

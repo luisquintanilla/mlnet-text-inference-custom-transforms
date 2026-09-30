@@ -49,14 +49,17 @@ try
               control-interop --fixture-root <pinned fictional Julia fixture root>
                               --producer-receipt <independently pinned receipt> --questions <frozen questions>
                               --out <new receipt.json>
-              Control commands require an externally coordinated quiet CPU slot; they never fit/extract a new model.
+              control-fit <same import options> --out <new bounded fit-control directory>
+                          [--arm text|semantic|combined --l2 0.0001|0.001|0.01]
+              Fit control requires a separate quiet fitting lease; uses <=128 whole-group train/validation rows, no holdout.
+              Other control commands require a quiet CPU slot; they never fit/extract a new model.
             The first prepare downloads only the explicitly approved public UCI corpus.
             Review grouping and bundled license/count evidence before the final freeze command.
             """);
         return 0;
     }
     if (args[0] is not ("prepare" or "import" or "train" or "evaluate" or "smoke" or "control-projection"
-        or "control-same-model" or "control-allocation" or "control-interop"))
+        or "control-same-model" or "control-allocation" or "control-interop" or "control-fit"))
         throw new ArgumentException($"Unsupported command: {args[0]}.");
     var options = new Dictionary<string, string>(StringComparer.Ordinal);
     for (int i = 1; i < args.Length; i++)
@@ -82,6 +85,8 @@ try
         "control-allocation" => ["--out", "--model", "--model-receipt", "--manifest", "--contract",
             "--feature-fingerprint", "--preparation", "--split", "--states", "--questions"],
         "control-interop" => ["--fixture-root", "--producer-receipt", "--questions", "--out"],
+        "control-fit" => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states",
+            "--questions", "--out", "--arm", "--l2"],
         "evaluate" => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states", "--questions",
             "--out", "--training-freeze", "--training-freeze-sha256", "--storage", "--numeric-cap-bytes"],
         _ => ["--manifest", "--contract", "--feature-fingerprint", "--preparation", "--split", "--states", "--questions",
@@ -89,6 +94,18 @@ try
     };
     if (options.Keys.Any(k => !allowed.Contains(k, StringComparer.Ordinal)))
         throw new ArgumentException($"Unknown {args[0]} option.");
+    if (args[0] == "control-fit")
+    {
+        await ConsumerFitControls.VerifyAsync(
+            [Required("--manifest"), Required("--contract"), Required("--feature-fingerprint"), Required("--preparation"),
+                Required("--split"), Required("--states"), Required("--questions")], Required("--out"),
+            options.GetValueOrDefault("--arm"),
+            options.TryGetValue("--l2", out var l2) ? double.Parse(l2, System.Globalization.CultureInfo.InvariantCulture) : null);
+        Console.WriteLine(options.ContainsKey("--arm") ?
+            "Bounded single-candidate independent fit/source and learner trace parity PASS; no full grid/model freeze/holdout." :
+            "Bounded independent fits/source and learner traces/standard save-load parity PASS; no holdout/full study.");
+        return 0;
+    }
     if (args[0] == "control-interop")
     {
         await JuliaFixtureInterop.VerifyAsync(Required("--fixture-root"), Required("--producer-receipt"),

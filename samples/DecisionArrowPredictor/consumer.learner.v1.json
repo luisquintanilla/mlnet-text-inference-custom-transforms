@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "status": "BOUNDED_SINGLE_CANDIDATE_PARITY_PASS_NOT_CORE_GO",
+  "baselineConsumerCommit": "ca1381be58f1d935c31b545aa2e99e4d0a5bddad",
+  "adapterSourceCommit": "65880cdfd33580d23d0e833ac977f79acb18b1b0",
+  "adapterVersion": "0.1.0-exp.decisions.1.g65880cdfd335",
+  "sourceAssemblySha256": "f5e18bd0fdeb7a0a3d6e4ad9b74011d156658d37ba5a1dd820ba5ea0942b49fa",
+  "featureIdentity": "72acebb6036bfa8fdaa1d47a1490f5ea1bfc6e08fe71e7e84e8c8922ec4de514",
+  "artifactKind": "Historical completed Laya artifact; not Julia.",
+  "quietSlotCoordinated": true,
+  "approvedScope": {
+    "arm": "text",
+    "l2": 0.0001,
+    "trainingRows": 32,
+    "validationRows": 32,
+    "independentFits": 4,
+    "holdoutOpened": false,
+    "completeGridAndWinningSaveReplay": false
+  },
+  "settings": {
+    "mlNetVersion": "5.0.0",
+    "seed": 1,
+    "threads": 1,
+    "maximumIterations": 100,
+    "predictionTolerance": 0.000001,
+    "metricTolerance": 0.000000000001,
+    "shuffleCachePolicyChanged": false
+  },
+  "retainedPreFixFailure": {
+    "maximumIndependentProbabilityDifference": 0.0022873654961586,
+    "sourceAndLearnerTracesAlreadyMatched": true,
+    "observerProbabilityDifference": 0,
+    "failureV1Sha256": "e24a7281e39a786e1f8c16e12e533ef828ae81c51680325bf8c31fc56830741e",
+    "failureV2Sha256": "d45928fbb2f33a70639242c7947031f34526be567213d4691f71be75faa592c6",
+    "rawV2Sha256": "f8da78e7e0fdddd5744bc5ac4521007fcee1520a9dfcefac7f9e67afd0539076",
+    "interpretation": "Selection-local IDs, feature bits and equal MLContext seed alone did not establish fit equivalence."
+  },
+  "transparentCompatibilityChange": {
+    "realCompactSourceRegisteredOncePerCandidate": true,
+    "publicApi": "MLContext implementing Microsoft.ML.Runtime.IHostEnvironment.Register",
+    "componentName": "StudyDataView",
+    "registrationBeforeEstimatorConstruction": true,
+    "hostRetainedBySourceAndCursors": true,
+    "dummyEnumerableOrManualRandomAdvancement": false,
+    "explicitNewSeedOrShufflePolicy": false,
+    "reason": "The legacy StreamingDataView registers its source host. ML.NET derives each default host Random from its parent stream, so omitting that real source component registration shifted the SDCA forced-shuffle seed."
+  },
+  "postFix": {
+    "receiptSha256": "da1a3e1491e79e92ae198dd58971e502fa9d2b4217dabda339c9c9f726342c1d",
+    "rawSha256": "1682ee6972bc0cf9a4fe35afca1302dc1dec2e6e781217cf276a1bad2a4f66f7",
+    "maximumIndependentProbabilityDifference": 0,
+    "maximumTracedIndependentProbabilityDifference": 0,
+    "originalObserverProbabilityDifference": 0,
+    "compactObserverProbabilityDifference": 0,
+    "sourceTraceRecords": 197,
+    "atLearnerInputTraceRecords": 194,
+    "exactRequestsActiveColumnsLocalIdsOrderFeatureLabelBits": true,
+    "exactFeatureSchemaAndVocabularySlots": true,
+    "exactValidationMetricsAndThresholds": true,
+    "threshold": 0.1390605866909027,
+    "budgetThreshold": 0.32167038321495056,
+    "validationLogLoss": 0.3369307513905605
+  },
+  "remaining": [
+    "Bounded three-arm/three-L2 independent fits and six winning standard save/load replays are not qualified by this single-candidate result.",
+    "Text/combined 70% repeated materialization allocation targets remain failed in immutable v5 measurements.",
+    "No Julia independent fit, completed selected-profile full export, full-study GO, new Julia model or holdout result."
+  ]
+}

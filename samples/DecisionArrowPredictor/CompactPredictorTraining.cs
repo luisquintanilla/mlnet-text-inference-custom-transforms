@@ -36,7 +36,6 @@ public static class CompactPredictorTraining
             Enumerable.Range(0, training.Count).Select(i => data.Metadata[training[i]].GroupId)
                 .Intersect(Enumerable.Range(0, validation.Count).Select(i => data.Metadata[validation[i]].GroupId)).Any())
             throw new InvalidDataException("Fit needs disjoint train/validation rows with both classes.");
-        var trainView = training.View();
         var validationView = validation.View();
         var predictions = new PredictionBuffer(validation.Count);
         ITransformer? best = null;
@@ -46,6 +45,7 @@ public static class CompactPredictorTraining
         foreach (double l2 in PredictorTraining.L2Grid)
         {
             var context = new MLContext(PredictorTraining.Seed);
+            var trainView = training.View(context);
             var fitTimer = Stopwatch.StartNew();
             var model = Estimator(context, arm, l2).Fit(trainView);
             fitTimer.Stop();
@@ -67,7 +67,7 @@ public static class CompactPredictorTraining
         string path = Path.Combine(output, filename);
         Directory.CreateDirectory(output);
         using (var file = new FileStream(path + ".partial", FileMode.CreateNew))
-            new MLContext(PredictorTraining.Seed).Model.Save(fitted, trainView.Schema, file);
+            new MLContext(PredictorTraining.Seed).Model.Save(fitted, StudyDataView.SharedSchema, file);
         File.Move(path + ".partial", path, false);
         predictions.Fill(fitted, validationView, validation);
         var warm = Stopwatch.StartNew();

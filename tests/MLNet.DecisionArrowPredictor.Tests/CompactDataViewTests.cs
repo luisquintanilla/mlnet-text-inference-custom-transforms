@@ -1,5 +1,6 @@
 using Microsoft.ML;
 using Microsoft.ML.Data;
+using Microsoft.ML.Runtime;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace DecisionArrowPredictor.Tests;
@@ -7,6 +8,46 @@ namespace DecisionArrowPredictor.Tests;
 [TestClass]
 public sealed class CompactDataViewTests
 {
+    [TestMethod]
+    public void ContextHostedView_MatchesLegacySourceRegistrationAndCursorsDoNotAdvanceContextRandom()
+    {
+        var legacy = StudyFixture.Authored();
+        using var data = StudyData.FromLegacy(legacy);
+        var originalContext = new MLContext(1);
+        _ = originalContext.Data.LoadFromEnumerable(legacy.Rows);
+        var compactContext = new MLContext(1);
+        var view = data.All().View(compactContext);
+        for (int pass = 0; pass < 3; pass++)
+        {
+            using var cursor = view.GetRowCursor([]);
+            int count = 0;
+            while (cursor.MoveNext()) count++;
+            Assert.AreEqual(legacy.Rows.Length, count);
+        }
+        Assert.AreSame(StudyDataView.SharedSchema, view.Schema);
+        var expected = (IHostEnvironment)originalContext;
+        var actual = (IHostEnvironment)compactContext;
+        for (int component = 0; component < 4; component++)
+        {
+            var expectedHost = expected.Register($"SubsequentComponent{component}");
+            var actualHost = actual.Register($"SubsequentComponent{component}");
+            for (int draw = 0; draw < 8; draw++)
+                Assert.AreEqual(expectedHost.Rand.Next(), actualHost.Rand.Next(),
+                    $"Future component {component}, draw {draw}: source registration order changed.");
+        }
+    }
+
+    [TestMethod]
+    public void ContextHostedView_RejectsNullContextWithoutTakingStoreOwnership()
+    {
+        using var data = StudyData.FromLegacy(StudyFixture.Authored());
+        var selection = data.All();
+        var error = Assert.ThrowsExactly<ArgumentNullException>(() => selection.View(null!));
+        Assert.AreEqual("context", error.ParamName);
+        using var cursor = selection.View().GetRowCursor([]);
+        Assert.IsTrue(cursor.MoveNext());
+    }
+
     [TestMethod]
     [DataRow(0, 0L)]
     [DataRow(1, 48L)]

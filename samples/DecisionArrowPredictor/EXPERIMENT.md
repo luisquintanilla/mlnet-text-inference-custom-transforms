@@ -48,7 +48,38 @@ uses a non-shuffling StreamingDataView with selection-local DataViewRowId;
 source RowId is a separate column. The compact view preserves that behavior.
 SDCA retains its default shuffle policy and injected RowShufflingTransformer.
 Runtime learner-input/order and bounded independently fitted equivalence
-controls are still required before a fit-parity claim.
+controls qualify only their measured artifacts and selections.
+
+The approved single-candidate control in
+[`consumer.learner.v1.json`](consumer.learner.v1.json) isolates a real ML.NET
+host-lifecycle difference. Equal seed, local IDs, feature bits and 197 source /
+194 learner-input trace records initially still produced a 0.0022873655
+independent prediction difference. The legacy StreamingDataView registers a
+source host; each default host registration derives its Random from the parent
+stream. Omitting that registration shifted the learner's effective forced
+shuffle seed. The real compact training view now retains its own public
+`IHostEnvironment.Register("StudyDataView")` host, exactly once per candidate
+before estimator construction. There is no dummy enumerable, explicit new
+seed, manual Random advancement, or changed shuffle/cache policy.
+
+On the same historical Laya 32-train/32-validation text candidate at L2 0.0001,
+four independent ordinary/traced fits now give probability differences **0**,
+observer differences **0**, exact source/learner traces, vocabulary slots,
+validation metrics and thresholds. Both failed pre-fix receipts remain
+immutable. This narrowly approved result is **not** three-arm/grid/save-load
+qualification, an allocation PASS, Julia fitting, or full-study GO.
+
+The subsequent explicitly approved **bounded Laya grid**
+[`consumer.learner.v2.json`](consumer.learner.v2.json) passes all three arms
+and three existing L2 candidates: 36 ordinary/traced independent fits have
+maximum prediction and observer differences **0**, exact source/learner
+requests/order/feature and label bits, slots, metrics, thresholds and selected
+L2. Six winning original/compact models pass standard save/load with their
+actual input schemas and complete 32-row validation associations/replay.
+The authored ControlledFit test independently covers 33 training / 4 validation
+rows, nine candidates and six saved-model replays. Ordinary focused regressions
+pass 164 cases. These controls open no holdout and train no Julia head; the
+unchanged allocation failures still prevent aggregate acceptance.
 
 Advanced controls require an externally coordinated quiet CPU slot:
 
@@ -66,6 +97,12 @@ dotnet $Cli control-same-model <same named import options> `
 dotnet $Cli control-allocation <same named import options> `
   --model "<existing matching .mlnet>" --model-receipt "<matching receipt>" `
   --out "<new diagnostic.json>"
+
+# Independent fitting needs its own explicitly approved quiet lease:
+dotnet $Cli control-fit <same named import options> --arm text --l2 0.0001 `
+  --out "<new single-candidate control directory>"
+# Omitting BOTH selectors requests the full bounded three-arm/three-L2 grid;
+# do not run it under a single-candidate approval.
 ```
 
 The full projection matrix is 257/4,097/65,537/1,048,577 rows at batches

@@ -46,4 +46,5 @@ public sealed class RowSelection
     public double Prevalence() => Count == 0 ? throw new InvalidDataException("Empty prevalence selection.") :
         (double)ordinals.Count(o => Owner.Metadata[o].Label) / Count;
     public StudyDataView View() => new(this);
+    public StudyDataView View(Microsoft.ML.MLContext context) => new(this, context);
 }
