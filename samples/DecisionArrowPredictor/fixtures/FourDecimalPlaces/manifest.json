@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "status": "complete",
+  "contractJson": "{\u0022schemaVersion\u0022:1,\u0022numericRepresentation\u0022:\u0022float64\u0022,\u0022precision\u0022:\u0022FourDecimalPlaces\u0022,\u0022questions\u0022:[{\u0022id\u0022:\u0022commercial_solicitation\u0022,\u0022kind\u0022:\u0022binary\u0022,\u0022instructions\u0022:\u0022Is the message soliciting a commercial purchase, subscription, or offer?\u0022,\u0022trueDescription\u0022:\u0022Solicits a commercial purchase, subscription, or offer.\u0022,\u0022falseDescription\u0022:\u0022Does not solicit a commercial purchase, subscription, or offer.\u0022},{\u0022id\u0022:\u0022requested_contact_action\u0022,\u0022kind\u0022:\u0022binary\u0022,\u0022instructions\u0022:\u0022Does the message ask the recipient to follow a link, call a number, or reply to take an action?\u0022,\u0022trueDescription\u0022:\u0022Asks for a link visit, call, or reply to take an action.\u0022,\u0022falseDescription\u0022:\u0022Does not ask for a link visit, call, or reply to take an action.\u0022},{\u0022id\u0022:\u0022time_pressure\u0022,\u0022kind\u0022:\u0022score\u0022,\u0022instructions\u0022:\u0022Assess expressed time pressure.\u0022,\u0022rubric\u0022:[\u0022none\u0022,\u0022mild\u0022,\u0022explicit urgent deadline\u0022]},{\u0022id\u0022:\u0022message_purpose\u0022,\u0022kind\u0022:\u0022choice\u0022,\u0022instructions\u0022:\u0022Select the apparent purpose of the message.\u0022,\u0022candidates\u0022:[{\u0022id\u0022:\u0022personal\u0022,\u0022description\u0022:\u0022Personal conversation.\u0022},{\u0022id\u0022:\u0022service_notice\u0022,\u0022description\u0022:\u0022Expected service information or account notice.\u0022},{\u0022id\u0022:\u0022promotion\u0022,\u0022description\u0022:\u0022Commercial promotion or subscription.\u0022},{\u0022id\u0022:\u0022financial_offer\u0022,\u0022description\u0022:\u0022Prize, credit, loan, or other financial offer.\u0022},{\u0022id\u0022:\u0022other\u0022,\u0022description\u0022:\u0022None of the listed purposes.\u0022}]},{\u0022id\u0022:\u0022spam_baseline\u0022,\u0022kind\u0022:\u0022binary\u0022,\u0022instructions\u0022:\u0022Is this unsolicited bulk/promotional messaging rather than a personal or expected service message?\u0022,\u0022trueDescription\u0022:\u0022Unsolicited bulk or promotional messaging.\u0022,\u0022falseDescription\u0022:\u0022Personal or expected service messaging.\u0022}],\u0022provider\u0022:\u0022synthetic\u0022,\u0022modelId\u0022:\u0022fixture-v1\u0022,\u0022assetHashes\u0022:{\u0022fixture\u0022:\u00220000000000000000000000000000000000000000000000000000000000000000\u0022},\u0022preprocessing\u0022:\u0022synthetic-no-preprocessing-v1\u0022,\u0022decoder\u0022:\u0022portable-fixture-v1\u0022,\u0022featureProjection\u0022:[\u0022commercial_solicitation\u0022,\u0022requested_contact_action\u0022,\u0022time_pressure[0]\u0022,\u0022time_pressure[1]\u0022,\u0022time_pressure[2]\u0022,\u0022message_purpose[0]\u0022,\u0022message_purpose[1]\u0022,\u0022message_purpose[2]\u0022,\u0022message_purpose[3]\u0022,\u0022message_purpose[4]\u0022]}",
+  "featureFingerprint": "66e0d62923ab097c24016eb711bd65d3d07a5f3a77fef8bec3b95e735fc8a2c1",
+  "dataFile": "decisions.arrow",
+  "dataSha256": "22a590adbab26abe6987ec2d393fcd5b74b0cae77139768960441baa393018a7",
+  "dataSize": 41584,
+  "rowCount": 257,
+  "outputBatchSize": 256,
+  "provenance": {
+    "sourceRepository": "luisquintanilla/typesafe-meai",
+    "sourceCommit": "ab4eebf29b9fdca49ce13e3b4afac0ec16b22983",
+    "inputSha256": "050e3ebf9a82b56e9de70d08200a8d0cc366e23a0912d04d9edd0e8b68abe8d6",
+    "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+    "packages": [],
+    "machine": "THINKPADP1",
+    "runtime": ".NET 10.0.12",
+    "executionMode": "synthetic",
+    "nativeStateBatchSize": null,
+    "cpuThreads": null,
+    "modelInputShapes": null,
+    "auxiliaryAssetHashes": null,
+    "measurements": {
+      "exportBeforeManifestPublicationMilliseconds": 186.9243,
+      "exportProcessAllocatedBytes": 16725256
+    }
+  },
+  "error": null
+}

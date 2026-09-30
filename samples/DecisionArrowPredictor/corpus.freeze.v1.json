@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "status": "frozen-before-scoring",
+  "doi": "10.24432/C5CC84",
+  "sourceUrl": "https://archive.ics.uci.edu/dataset/228/sms+spam+collection",
+  "downloadUrl": "https://archive.ics.uci.edu/static/public/228/sms+spam+collection.zip",
+  "attribution": "Almeida, T. & Hidalgo, J. (2011). SMS Spam Collection. UCI Machine Learning Repository. Introductory paper: Almeida, Hidalgo & Yamakami (2011), doi:10.1145/2034691.2034742.",
+  "licenseEvidence": "UCI page links CC BY 4.0; bundled README retains copyright, citation request, no warranty/use at own risk and limitation of liability. Evidence bytes remain local, hashed in the acquisition receipt. No corpus redistribution in this repository.",
+  "archiveSha256": "1587ea43e58e82b14ff1f5425c88e17f8496bfcdb67a583dbff9eefaf9963ce3",
+  "corpusSha256": "7d039a24a6083ed9ef0f806ebad56bbb976e3aeb8de05669173bfdc4996c239d",
+  "questionsSha256": "9e6e6c5c580934309cb1f9b4572c7b87a93ce22b32b50cb8b3af20caa20068ea",
+  "groupDiagnosticsSha256": "31bda7ffc6364b4a29210568a3173c226df8617b9cde7f0615adb6bd89413b6b",
+  "splitSha256": "1f5967c9e6d228fda4322845a77ee1464dff6ec87ea578abafa16f679127cf6f",
+  "statesSha256": "c00636dc21f7a4e3bb099c508fbf24a407af546851e060c5852cb9aca54639fa",
+  "parser": "first-tab-strict-utf8-original-lines-v1",
+  "sourceRowIds": "1-based original physical record line; no row removals or additions",
+  "parsedRows": 5574,
+  "ham": 4827,
+  "spam": 747,
+  "countInvestigation": "Strict parsing of the pinned download gives 5574 records, matching UCI metadata and the bundled README's 4827+747 counts. No discrepancy for these exact bytes; differently processed 5572-row copies are not this study's input.",
+  "groups": 5102,
+  "largestGroup": 30,
+  "mixedLabelGroups": 0,
+  "chainedGroups": 0,
+  "groupReview": "Reviewed largest groups and aggregate chain/mixed-label diagnostics before freezing. Largest group is 30/5574 records. Mixed-label or chained components are retained by the algorithm, even though neither occurs in this acquisition.",
+  "splitSeed": 1729,
+  "partitions": [
+    {"split": "train", "rows": 3344, "ham": 2896, "spam": 448, "groups": 3061},
+    {"split": "validation", "rows": 1116, "ham": 966, "spam": 150, "groups": 1021},
+    {"split": "holdout", "rows": 1114, "ham": 965, "spam": 149, "groups": 1020}
+  ],
+  "localArtifacts": {
+    "acquisition": "corpus\\uci-sms-v1\\acquisition.json",
+    "diagnostics": "corpus\\group-review-v1\\group-diagnostics.json",
+    "questions": "corpus\\frozen-v1\\questions.v1.json",
+    "labelsAndSplits": "corpus\\frozen-v1\\split.v1.json",
+    "labelFreeStates": "corpus\\frozen-v1\\states.v1.jsonl",
+    "completionReceipt": "corpus\\frozen-v1\\preparation.v1.json"
+  },
+  "chronology": "No chronological interpretation; the source explicitly says messages are not chronologically sorted."
+}

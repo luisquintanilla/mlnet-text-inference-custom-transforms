@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "ab4eebf29b9fdca49ce13e3b4afac0ec16b22983",
+  "packageReceiptSha256": "4140c80acc182dd3b21536609bbc6ac06cd18898f0931502b7d3bfb3a2fda219",
+  "fixtures": [
+    {
+      "precision": "HighPrecision",
+      "directory": "fixture-high-ab4eebf",
+      "rows": 257,
+      "fingerprint": "06654530d526e33db86ca9f59e937d79dda9d83f1447d675edb69856a9017513",
+      "manifestSha256": "8da28ef21ed2de696e17c2ef9434dd6e9521cf6807789e66efc6ab3562f1b5eb",
+      "contractSha256": "06654530d526e33db86ca9f59e937d79dda9d83f1447d675edb69856a9017513",
+      "dataSha256": "b887f8fd66694c59a156464f01c092ce10c38f7e80bf7a659330f9d889cb01d4",
+      "dataSize": 41560
+    },
+    {
+      "precision": "FourDecimalPlaces",
+      "directory": "fixture-four-ab4eebf",
+      "rows": 257,
+      "fingerprint": "66e0d62923ab097c24016eb711bd65d3d07a5f3a77fef8bec3b95e735fc8a2c1",
+      "manifestSha256": "94f79a47d02160a566c8552bd09f11bed320f1cc996bcaa7067f9de83597455a",
+      "contractSha256": "66e0d62923ab097c24016eb711bd65d3d07a5f3a77fef8bec3b95e735fc8a2c1",
+      "dataSha256": "22a590adbab26abe6987ec2d393fcd5b74b0cae77139768960441baa393018a7",
+      "dataSize": 41584
+    },
+    {
+      "precision": "TwoDecimalPlaces",
+      "directory": "fixture-two-ab4eebf",
+      "rows": 257,
+      "fingerprint": "b717b6c1c8250773be6d5594395405a81c64bae64d416d1c029a5e8ec3ed41e4",
+      "manifestSha256": "92b512845bbc34bab78276254673ae464e5d581d2e0875d36c4be68897e77b6a",
+      "contractSha256": "b717b6c1c8250773be6d5594395405a81c64bae64d416d1c029a5e8ec3ed41e4",
+      "dataSha256": "7689638dc0f10b77f6f618eaefd453afe39503e01059fc9f1edf795fdd50e6b7",
+      "dataSize": 41584
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "arrowCommit": "6aafc634d65cf46ff7fe1a665c4c66fd6002b989",
+  "adapterCommit": "ab4eebf29b9fdca49ce13e3b4afac0ec16b22983",
+  "packages": [
+    {
+      "id": "DecisionInference.Arrow",
+      "version": "0.1.0-exp.decisions.1.gab4eebf29b9f",
+      "feed": "feeds\\decision-adapter\\0.1.0-exp.decisions.1.gab4eebf29b9f",
+      "file": "DecisionInference.Arrow.0.1.0-exp.decisions.1.gab4eebf29b9f.nupkg",
+      "sha256": "6acc213b85879d1a34c8b4c80ba2450f7aeac4a8259e402bb57beffb201b85e9",
+      "sizeBytes": 30356
+    },
+    {
+      "id": "DecisionInference.Abstractions",
+      "version": "0.1.0-exp.decisions.1.gab4eebf29b9f",
+      "feed": "feeds\\decision-adapter\\0.1.0-exp.decisions.1.gab4eebf29b9f",
+      "file": "DecisionInference.Abstractions.0.1.0-exp.decisions.1.gab4eebf29b9f.nupkg",
+      "sha256": "fa62a54b4399416df6a7ac5bc5fd0e9fcef8f99964d25a9bbe40c8dc1bbff88e",
+      "sizeBytes": 13869
+    },
+    {
+      "id": "Apache.Arrow",
+      "version": "23.0.0-exp.decisions.1.g6aafc634d65c",
+      "feed": "feeds\\arrow-baseline",
+      "file": "Apache.Arrow.23.0.0-exp.decisions.1.g6aafc634d65c.nupkg",
+      "sha256": "a8674375a36a580b4f5e0146030c0e95c55d60c72e89296bf5b68049216c4fd4",
+      "sizeBytes": 567263
+    },
+    {
+      "id": "Apache.Arrow.Scalars",
+      "version": "23.0.0-exp.decisions.1.g6aafc634d65c",
+      "feed": "feeds\\arrow-baseline",
+      "file": "Apache.Arrow.Scalars.23.0.0-exp.decisions.1.g6aafc634d65c.nupkg",
+      "sha256": "e4e4e76d5f1158363637199000f0fc968d7810140f92dd5083db1eef25a58c82",
+      "sizeBytes": 104688
+    }
+  ],
+  "unsignedException": "Explicit opt-in local experiment config only; hashes identify bytes, not author signatures. No global/root policy changes or public publishing."
+}

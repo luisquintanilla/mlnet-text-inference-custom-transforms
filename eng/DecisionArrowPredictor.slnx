@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="../samples/DecisionArrowPredictor/DecisionArrowPredictor.csproj" />
+  <Project Path="../tests/MLNet.DecisionArrowPredictor.Tests/MLNet.DecisionArrowPredictor.Tests.csproj" />
+</Solution>
